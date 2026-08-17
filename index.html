@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CUISYNC - Discover Asian Cuisines</title>
+  <link rel="stylesheet" href="css/base-style.css">
+  <link rel="stylesheet" href="css/index.css">
+</head>
+<body>
+
+  <!-- ==================================
+       HEADER
+       ================================== -->
+  <app-nav></app-nav>
+
+  <!-- ==================================
+       HERO BANNER (DATA - images from dataset)
+       ================================== -->
+  <section class="hero">
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <div class="subtitle">◆ DISCOVER ASIAN CUISINES</div>
+      <h1 class="hero-title">CUISYNC</h1>
+      <p class="hero-description">
+        AI-Powered Asian Cuisine Similarity based on<br>
+        Ingredients and Cooking Processes
+      </p>
+      <a href="#search-section" class="btn btn-gold">SEARCH NOW</a>
+    </div>
+  </section>
+
+  <!-- ==================================
+       MAIN SEARCH SECTION (DATA - search data)
+       ================================== -->
+  <main class="search-section" id="search-section">
+    <div class="section-divider">
+        <span class="line"></span>
+        <span class="diamond">◆</span>
+        <span class="line"></span>
+    </div>
+    
+    <div class="container">
+      <h2 class="section-title">DISCOVER ASIAN<br>CUISINE SIMILARITIES</h2>
+      <p class="section-subtitle">Search for similarities using text input or image</p>
+
+      <div class="tab-toggle">
+        <button type="button" class="tab-btn active" id="btn-text-tab" onclick="switchTab('text')">SEARCH BY TEXT</button>
+        <button type="button" class="tab-btn" id="btn-image-tab" onclick="switchTab('image')">SEARCH BY IMAGE</button>
+      </div>
+
+      <form class="search-form active" id="text-search-form" action="/search-text" method="POST">
+        <div class="form-group full-width">
+          <label for="dish-name">DISH NAME</label>
+          <input type="text" id="dish-name" name="dish_name" placeholder="Example: Pho, Beef Noodle Soup">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group half-width">
+            <label for="text-origin">COUNTRY OF ORIGIN</label>
+            <input type="text" id="text-origin" name="origin_country" placeholder="Example: Vietnam">
+          </div>
+
+          <div class="form-group half-width">
+            <label for="text-target">TARGET COUNTRY</label>
+            <input type="text" id="text-target" name="target_country" placeholder="Example: Philippines">
+          </div>
+        </div>
+
+        <div class="form-footer">
+          <p class="form-note">
+            We'll find the most similar cuisine to the target country<br>
+            based on its ingredients and cooking processes
+          </p>
+          <button type="submit" class="btn btn-red"><a href="results.html">SEARCH THE DISH</a></button>
+        </div>
+      </form>
+
+      <form class="search-form" id="image-search-form" action="/search-image" method="POST" enctype="multipart/form-data">
+        <div class="upload-dropzone" id="dropzone">
+          <input type="file" id="image-upload-input" name="dish_image" accept="image/*" hidden>
+          
+          <div class="dropzone-default" id="dropzone-default">
+            <div class="dropzone-icon">
+              <svg width="48" height="42" viewBox="0 0 24 21" fill="none" stroke="#9e9488" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+            </div>
+            <p class="dropzone-title">Take a photo or upload a photo of a menu or recipe page</p>
+            <p class="dropzone-subtitle">Accepting text in Chinese, Japanese, Korean, etc</p>
+          </div>
+
+          <div class="dropzone-preview" id="dropzone-preview" style="display: none;">
+            <img id="preview-img" src="" alt="Uploaded Photo Preview">
+            <p id="file-name" class="file-name-text"></p>
+            <button type="button" class="btn-remove-image" id="remove-img-btn">Remove Photo</button>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group half-width">
+            <label for="img-origin">COUNTRY OF ORIGIN</label>
+            <input type="text" id="img-origin" name="origin_country" placeholder="Example: Vietnam">
+          </div>
+
+          <div class="form-group half-width">
+            <label for="img-target">TARGET COUNTRY</label>
+            <input type="text" id="img-target" name="target_country" placeholder="Example: Philippines">
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="form-footer">
+          <p class="form-note">
+            We'll find the most similar cuisine to the target country<br>
+            based on its ingredients and cooking processes.
+          </p>
+          <button class="btn btn-red"><a href="results.html">SEARCH THE DISH</a></button>
+        </div>
+      </form>
+    </div>
+
+    <div class="section-divider">
+        <span class="line"></span>
+        <span class="diamond">◆</span>
+        <span class="line"></span>
+    </div>
+  </main>
+
+  <!-- ==================================
+       FOOTER
+       ================================== -->
+  <app-footer></app-footer>
+
+  <!-- ==================================
+       SCRIPTS
+       ================================== -->
+  <script src="scripts/components.js"></script>
+  <script>
+    function switchTab(tabType) {
+      const textForm = document.getElementById('text-search-form');
+      const imageForm = document.getElementById('image-search-form');
+      const textBtn = document.getElementById('btn-text-tab');
+      const imageBtn = document.getElementById('btn-image-tab');
+
+      if (textForm && imageForm && textBtn && imageBtn) {
+        if (tabType === 'image') {
+          imageForm.classList.add('active');
+          textForm.classList.remove('active');
+          imageBtn.classList.add('active');
+          textBtn.classList.remove('active');
+        } else {
+          textForm.classList.add('active');
+          imageForm.classList.remove('active');
+          textBtn.classList.add('active');
+          imageBtn.classList.remove('active');
+        }
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const dropzone = document.getElementById('dropzone');
+      const fileInput = document.getElementById('image-upload-input');
+      const defaultState = document.getElementById('dropzone-default');
+      const previewState = document.getElementById('dropzone-preview');
+      const previewImg = document.getElementById('preview-img');
+      const fileName = document.getElementById('file-name');
+      const removeBtn = document.getElementById('remove-img-btn');
+
+      if (dropzone && fileInput) {
+        dropzone.addEventListener('click', (e) => {
+          if (e.target.closest('#remove-img-btn')) return;
+          fileInput.click();
+        });
+
+        fileInput.addEventListener('change', () => {
+          if (fileInput.files && fileInput.files[0]) {
+            displayPreview(fileInput.files[0]);
+          }
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+          dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.add('dragover');
+          }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+          dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('dragover');
+          }, false);
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+          const dt = e.dataTransfer;
+          const files = dt.files;
+          if (files && files[0]) {
+            fileInput.files = files;
+            displayPreview(files[0]);
+          }
+        });
+
+        function displayPreview(file) {
+          if (!file.type.startsWith('image/')) {
+            alert('Please upload an image file.');
+            return;
+          }
+
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            previewImg.src = e.target.result;
+            fileName.textContent = file.name;
+            defaultState.style.display = 'none';
+            previewState.style.display = 'flex';
+          };
+          reader.readAsDataURL(file);
+        }
+
+        if (removeBtn) {
+          removeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.value = '';
+            previewImg.src = '';
+            fileName.textContent = '';
+            previewState.style.display = 'none';
+            defaultState.style.display = 'block';
+          });
+        }
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,531 @@
+/* ==========================================================================
+   HERO BANNER
+   ========================================================================== */
+.analysis-hero {
+  background: linear-gradient(180deg, var(--maroon-dark) 0%, var(--maroon-main) 100%);
+  padding: 100px 20px 10px 20px;
+  text-align: left;
+  color: #ffffff;
+}
+
+.analysis-hero-content {
+  max-width: 900px;
+  margin: 70px;
+}
+
+.subtitle {
+  color: var(--gold-accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+
+.hero-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-bottom: 16px;
+}
+
+.hero-description {
+  font-size: 0.9rem;
+  color: #f1e0d6;
+  font-weight: 300;
+  line-height: 1.7;
+}
+
+/* ==========================================================================
+   SUB-NAV TABS BAR
+   ========================================================================== */
+.subnav-bar {
+  position: sticky;
+  top: 55px;
+  z-index: 999;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  background-color: var(--maroon-dark);
+  border-top: 1px solid rgba(220, 179, 73, 0.3);
+  border-bottom: 1px solid rgba(220, 179, 73, 0.3);
+}
+
+.subnav-container {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-around;
+}
+
+.subnav-item {
+  color: #ffffff;
+  padding: 16px 24px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  transition: all 0.3s ease;
+  border-bottom: 3px solid transparent;
+}
+
+.subnav-item:hover,
+.subnav-item.active {
+  color: var(--gold-accent);
+  background-color: rgba(220, 179, 73, 0.1);
+  border-bottom-color: var(--gold-accent);
+}
+
+/* ==========================================================================
+   GENERAL SECTIONS & UTILITIES
+   ========================================================================== */
+.content-section {
+  padding: 70px 20px;
+  color: var(--cream-bg);
+}
+
+.cream-bg {
+  background-color: var(--cream-bg);
+}
+
+.maroon-bg {
+  background-color: var(--maroon-main);
+}
+
+.border-top-dark {
+  border-top: 1px solid var(--maroon-dark);
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.decorative-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 35px;
+}
+
+.maroon-line {
+  height: 2px;
+  flex: 1;
+  max-width: 180px;
+  background-color: var(--maroon-dark);
+}
+
+.gold-line {
+  height: 2px;
+  flex: 1;
+  max-width: 180px;
+  background-color: var(--gold-accent);
+}
+
+.section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  margin: 0 20px;
+}
+
+.text-maroon { color: var(--maroon-dark); }
+.text-cream { color: var(--text-cream); }
+.text-gold { color: var(--gold-accent); }
+
+.sub-heading {
+  text-align: center;
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem;
+  margin-bottom: 15px;
+}
+
+/* ==========================================================================
+   CUISINES SECTION (MAP & REGION BARS)
+   ========================================================================== */
+.chart-block {
+  margin-bottom: 60px;
+  text-align: center;
+  width: 100%;
+}
+
+.chart-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.chart-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 25px;
+}
+
+.map-pan-wrapper {
+  width: 100%;
+  max-width: 100%;
+  height: 500px;
+  position: relative;
+  overflow: auto;
+  cursor: grab;
+  border-radius: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.map-pan-wrapper:active {
+  cursor: grabbing;
+}
+
+.map-container {
+  background-color: var(--cream-card);
+  height: 500px;
+  border-radius: 12px;
+  padding: 0;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.map-placeholder {
+  position: relative;
+  width: 100%;
+  min-width: 750px;
+  height: 100%;
+  aspect-ratio: 2 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-x: hidden;
+}
+
+.map-placeholder img,
+.map-placeholder .world-map-svg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.map-img {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  display: block;
+}
+
+.map-container p {
+  margin: 0;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--text-muted);
+}
+
+.world-map-svg {
+  width: 100%;
+  max-height: 380px;
+}
+
+.map-legend {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--gold-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  z-index: 10;
+}
+
+.legend-bar {
+  width: 180px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, #ecd3bf, #a32e32, #800d12);
+}
+
+.bar-chart-container {
+  background-color: var(--cream-card);
+  border-radius: 12px;
+  padding: 35px 30px;
+}
+
+.bar-chart {
+  display: flex;
+  height: 250px;
+  align-items: flex-end;
+  gap: 20px;
+}
+
+.chart-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  padding-right: 10px;
+}
+
+.chart-bars {
+  flex: 1;
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  height: 100%;
+  border-bottom: 1px solid #c8bea9;
+  border-left: 1px solid #c8bea9;
+  padding-left: 10px;
+}
+
+.bar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+  width: 18%;
+}
+
+.bar {
+  width: 100%;
+  max-width: 100px;
+  background-color: var(--maroon-main);
+  border-radius: 4px 4px 0 0;
+  transition: height 0.5s ease;
+  position: relative;
+}
+
+.bar-tooltip {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--maroon-dark);
+}
+
+.bar-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-dark);
+  margin-top: 12px;
+}
+
+.chart-legend-center {
+  margin-top: 20px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.legend-box {
+  width: 12px;
+  height: 12px;
+  background-color: var(--maroon-main);
+  border-radius: 2px;
+}
+
+.country-hover-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  z-index: 5;
+}
+
+.country-hover-pin::before {
+  content: '';
+  display: block;
+  width: 8px;
+  height: 8px;
+  background-color: var(--maroon-main, #800d12);
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.country-hover-pin:hover::before {
+  transform: translate(-50%, -50%) scale(1.4);
+  background-color: #a32e32;
+}
+
+.hover-badge {
+  position: absolute;
+  bottom: 120%;
+  left: 50%;
+  transform: translateX(-50%) translateY(5px);
+  background-color: rgba(20, 20, 20, 0.9);
+  color: #ffffff;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.hover-badge strong {
+  color: #ecd3bf;
+  margin-left: 4px;
+}
+
+.country-hover-pin:hover .hover-badge {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ==========================================================================
+   INGREDIENTS & INSTRUCTIONS (PROGRESS BARS & PILLS)
+   ========================================================================== */
+.pill-group {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 30px;
+  padding: 0 150px;
+}
+
+.pill {
+  border: 1px solid rgba(220, 179, 73, 0.4);
+  background: transparent;
+  color: var(--text-cream);
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.pill:has(input:checked),
+.pill:hover,
+.pill.active {
+  background-color: var(--gold-accent);
+  color: var(--maroon-dark);
+  border-color: var(--gold-accent);
+  font-weight: 600;
+}
+
+.tab-toggle-small {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+
+.tab-btn-sm {
+  background-color: var(--maroon-dark);
+  border: 1px solid var(--gold-accent);
+  color: var(--gold-light);
+  padding: 8px 22px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.tab-btn-sm.active {
+  background-color: var(--gold-accent);
+  color: var(--maroon-dark);
+  font-weight: 600;
+}
+
+.horizontal-chart-card {
+  background-color: transparent;
+  padding: 35px;
+  color: #ffffff;
+}
+
+.card-header {
+  margin-bottom: 25px;
+}
+
+.card-header h3 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.2rem;
+  letter-spacing: 1px;
+  color: var(--gold-light);
+}
+
+.card-header p {
+  font-size: 0.75rem;
+  color: #d1b8b2;
+}
+
+.horizontal-bars-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  padding: 0 30px;
+}
+
+.hbar-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.hbar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.hbar-label {
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 200;
+}
+
+.hbar-val {
+  color: var(--gold-light);
+  font-size: 0.72rem;
+  font-weight: 500;
+  width: 90px;
+  opacity: 0.9;
+}
+
+.hbar-track {
+  width: 97%;
+  height: 10px;
+  background-color: #e2d7c5;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.hbar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #d32f2f 0%, #d4af37 100%);
+  border-radius: 5px;
+  transition: width 0.4s ease;
+}
+
+.hbar-fill.gold {
+  background: linear-gradient(to right, #f5e3ad, #dcb349);
+}
