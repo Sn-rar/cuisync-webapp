@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CUISYNC - Discover Asian Cuisines</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/base-style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+</head>
+<body>
+
+  <app-nav></app-nav>
+
+  <!-- ==================================
+       HERO BANNER
+       ================================== -->
+  <section class="hero">
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <div class="subtitle">◆ DISCOVER ASIAN CUISINES</div>
+      <h1 class="hero-title">CUISYNC</h1>
+      <p class="hero-description">
+        AI-Powered Asian Cuisine Similarity based on<br>
+        Ingredients and Cooking Processes
+      </p>
+      <a href="#search-section" class="btn btn-gold">SEARCH NOW</a>
+    </div>
+  </section>
+
+  <!-- ==================================
+       MAIN SEARCH SECTION
+       ================================== -->
+  <main class="search-section" id="search-section">
+    <div class="container">
+      
+      <!-- Top Decorative Divider -->
+      <div class="section-divider">
+        <span class="line"></span>
+        <span class="diamond">◆</span>
+        <span class="line"></span>
+      </div>
+
+      <h2 class="section-title">DISCOVER ASIAN<br>CUISINE SIMILARITIES</h2>
+      <p class="section-subtitle">Search for similarities using text input or image</p>
+
+      <!-- Search Tabs -->
+      <div class="tab-toggle">
+        <button type="button" class="tab-btn active" id="btn-text-tab" onclick="switchTab('text')">SEARCH BY TEXT</button>
+        <button type="button" class="tab-btn" id="btn-image-tab" onclick="switchTab('image')">SEARCH BY IMAGE</button>
+      </div>
+
+      <!-- TEXT SEARCH FORM -->
+      <form class="search-form active" id="text-search-form" action="/search-text" method="POST">
+        
+        <!-- DISH NAME AUTOCOMPLETE DROPDOWN -->
+        <div class="form-group full-width">
+          <label for="dish-name-input">DISH NAME</label>
+          <div class="search-dropdown-wrapper">
+            <input 
+              type="text" 
+              id="dish-name-input" 
+              name="dish_name" 
+              placeholder="Example: Pho, Adobo, Ramen" 
+              autocomplete="off" 
+              required
+            />
+            <ul id="dish-dropdown-list" class="dropdown-list hidden"></ul>
+          </div>
+        </div>
+
+        <!-- COUNTRY SELECT DROPDOWNS -->
+        <div class="form-row">
+          <div class="form-group half-width">
+            <label for="text-origin">COUNTRY OF ORIGIN</label>
+            <select id="text-origin" name="origin_country" required>
+              <option value="" disabled selected>Select country of origin...</option>
+              <option value="cambodia">Cambodia</option>
+              <option value="china">China</option>
+              <option value="india">India</option>
+              <option value="indonesia">Indonesia</option>
+              <option value="japan">Japan</option>
+              <option value="malaysia">Malaysia</option>
+              <option value="myanmar">Myanmar</option>
+              <option value="philippines">Philippines</option>
+              <option value="saudi arabia">Saudi Arabia</option>
+              <option value="south korea">South Korea</option>
+              <option value="thailand">Thailand</option>
+              <option value="turkiye">Turkey</option>
+              <option value="vietnam">Vietnam</option>
+            </select>
+          </div>
+
+          <div class="form-group half-width">
+            <label for="text-target">TARGET COUNTRY</label>
+            <select id="text-target" name="target_country" required>
+              <option value="" disabled selected>Select target country...</option>
+              <option value="cambodia">Cambodia</option>
+              <option value="china">China</option>
+              <option value="india">India</option>
+              <option value="indonesia">Indonesia</option>
+              <option value="japan">Japan</option>
+              <option value="malaysia">Malaysia</option>
+              <option value="myanmar">Myanmar</option>
+              <option value="philippines">Philippines</option>
+              <option value="saudi arabia">Saudi Arabia</option>
+              <option value="south korea">South Korea</option>
+              <option value="thailand">Thailand</option>
+              <option value="turkiye">Turkey</option>
+              <option value="vietnam">Vietnam</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-footer">
+          <p class="form-note">
+            We'll find the most similar cuisine to the target country<br>
+            based on its ingredients and cooking processes
+          </p>
+          <button type="submit" class="btn btn-red">SEARCH THE DISH</button>     
+        </div>
+      </form>
+
+      <!-- IMAGE SEARCH FORM -->
+      <form class="search-form" id="image-search-form" action="/search-image" method="POST" enctype="multipart/form-data">
+        <div class="upload-dropzone" id="dropzone">
+          <input type="file" id="image-upload-input" name="dish_image" accept="image/*" hidden>
+          
+          <div class="dropzone-default" id="dropzone-default">
+            <div class="dropzone-icon">
+              <svg width="48" height="42" viewBox="0 0 24 21" fill="none" stroke="#9e9488" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+            </div>
+            <p class="dropzone-title">Take a photo or upload a photo of a menu or recipe page</p>
+            <p class="dropzone-subtitle">Accepting text in Chinese, Japanese, Korean, etc</p>
+          </div>
+
+          <div class="dropzone-preview" id="dropzone-preview" style="display: none;">
+            <img id="preview-img" src="" alt="Uploaded Photo Preview">
+            <p id="file-name" class="file-name-text"></p>
+            <button type="button" class="btn-remove-image" id="remove-img-btn">Remove Photo</button>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group half-width">
+            <label for="img-origin">COUNTRY OF ORIGIN</label>
+            <select id="img-origin" name="origin_country" required>
+              <option value="" disabled selected>Select country of origin...</option>
+              <option value="cambodia">Cambodia</option>
+              <option value="china">China</option>
+              <option value="india">India</option>
+              <option value="indonesia">Indonesia</option>
+              <option value="japan">Japan</option>
+              <option value="malaysia">Malaysia</option>
+              <option value="myanmar">Myanmar</option>
+              <option value="philippines">Philippines</option>
+              <option value="saudi arabia">Saudi Arabia</option>
+              <option value="south korea">South Korea</option>
+              <option value="thailand">Thailand</option>
+              <option value="turkiye">Turkey</option>
+              <option value="vietnam">Vietnam</option>
+            </select>
+          </div>
+
+          <div class="form-group half-width">
+            <label for="img-target">TARGET COUNTRY</label>
+            <select id="img-target" name="target_country" required>
+              <option value="" disabled selected>Select target country...</option>
+              <option value="cambodia">Cambodia</option>
+              <option value="china">China</option>
+              <option value="india">India</option>
+              <option value="indonesia">Indonesia</option>
+              <option value="japan">Japan</option>
+              <option value="malaysia">Malaysia</option>
+              <option value="myanmar">Myanmar</option>
+              <option value="philippines">Philippines</option>
+              <option value="saudi arabia">Saudi Arabia</option>
+              <option value="south korea">South Korea</option>
+              <option value="thailand">Thailand</option>
+              <option value="turkiye">Turkey</option>
+              <option value="vietnam">Vietnam</option>
+            </select>
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="form-footer">
+          <p class="form-note">
+            We'll find the most similar cuisine to the target country<br>
+            based on its ingredients and cooking processes.
+          </p>
+          <button type="submit" class="btn btn-red">SEARCH THE DISH</button>
+        </div>
+      </form>
+
+      <!-- Bottom Decorative Divider -->
+      <div class="section-divider">
+        <span class="line"></span>
+        <span class="diamond">◆</span>
+        <span class="line"></span>
+      </div>
+
+    </div>
+  </main>
+
+  <section class="pre-footer-banner">
+    <div class="banner-image"></div>
+  </section>
+
+  <app-footer></app-footer>
+
+  <!-- ==================================
+       ERROR MODAL
+       ================================== -->
+  <div id="error-modal-overlay" class="modal-overlay hidden">
+    <div class="modal-box">
+      <button type="button" class="modal-close-btn" onclick="closeErrorModal()" aria-label="Close">&times;</button>
+      <div class="modal-icon">!</div>
+      <h3 id="modal-title-text" class="modal-title">We Can't Find Your Dish</h3>
+      <p id="modal-desc-text" class="modal-desc"></p>
+      <button type="button" class="btn btn-red modal-ok-btn" onclick="closeErrorModal()">TRY AGAIN</button>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='scripts/components.js') }}"></script>
+  
+<!-- ==================================
+       SEARCH TAB & IMAGE UPLOAD SCRIPT
+       ================================== -->
+  <script>
+    function switchTab(tabType) {
+      const textForm = document.getElementById('text-search-form');
+      const imageForm = document.getElementById('image-search-form');
+      const textBtn = document.getElementById('btn-text-tab');
+      const imageBtn = document.getElementById('btn-image-tab');
+
+      if (textForm && imageForm && textBtn && imageBtn) {
+        if (tabType === 'image') {
+          imageForm.classList.add('active');
+          textForm.classList.remove('active');
+          imageBtn.classList.add('active');
+          textBtn.classList.remove('active');
+        } else {
+          textForm.classList.add('active');
+          imageForm.classList.remove('active');
+          textBtn.classList.add('active');
+          imageBtn.classList.remove('active');
+        }
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const dropzone = document.getElementById('dropzone');
+      const fileInput = document.getElementById('image-upload-input');
+      const defaultState = document.getElementById('dropzone-default');
+      const previewState = document.getElementById('dropzone-preview');
+      const previewImg = document.getElementById('preview-img');
+      const fileName = document.getElementById('file-name');
+      const removeBtn = document.getElementById('remove-img-btn');
+
+      if (dropzone && fileInput) {
+        dropzone.addEventListener('click', (e) => {
+          if (e.target.closest('#remove-img-btn')) return;
+          fileInput.click();
+        });
+
+        fileInput.addEventListener('change', () => {
+          if (fileInput.files && fileInput.files[0]) {
+            displayPreview(fileInput.files[0]);
+          }
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+          dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.add('dragover');
+          }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+          dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('dragover');
+          }, false);
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+          const dt = e.dataTransfer;
+          const files = dt.files;
+          if (files && files[0]) {
+            fileInput.files = files;
+            displayPreview(files[0]);
+          }
+        });
+
+        function displayPreview(file) {
+          if (!file.type.startsWith('image/')) {
+            alert('Please upload an image file.');
+            return;
+          }
+
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            previewImg.src = e.target.result;
+            fileName.textContent = file.name;
+            defaultState.style.display = 'none';
+            previewState.style.display = 'flex';
+          };
+          reader.readAsDataURL(file);
+        }
+
+        if (removeBtn) {
+          removeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.value = '';
+            previewImg.src = '';
+            fileName.textContent = '';
+            previewState.style.display = 'none';
+            defaultState.style.display = 'block';
+          });
+        }
+      }
+    });
+  </script>
+
+  <!-- ==================================
+       RECIPE DATABASE LOADER SCRIPT
+       ================================== -->
+  <script>
+    let DISH_DATABASE = [];
+    let DISH_RECORDS = [];
+
+    async function loadRecipeDatabase() {
+      try {
+        const response = await fetch('/recipes.json'); 
+        if (response.ok) {
+          const data = await response.json();
+          const recipesArray = Array.isArray(data) ? data : data.recipes || [];
+
+          DISH_RECORDS = recipesArray
+            .map((recipe) => ({
+              title: recipe.title || recipe.Title || recipe.name,
+              country: recipe.country || recipe.Country || ""
+            }))
+            .filter((r) => r.title && typeof r.title === "string");
+
+          DISH_DATABASE = DISH_RECORDS.map((r) => r.title);
+          console.log(`Successfully loaded ${DISH_DATABASE.length} recipes for autocomplete.`);
+        } else {
+          console.error("Failed to load /recipes.json - HTTP Status:", response.status);
+        }
+      } catch (err) {
+        console.error("Error fetching /recipes.json:", err);
+      }
+    }
+
+    loadRecipeDatabase();
+  </script>
+
+  <!-- ==================================
+       DISH AUTOCOMPLETE & AUTOFILL SCRIPT
+       ================================== -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const dishInput = document.getElementById("dish-name-input");
+      const dropdownList = document.getElementById("dish-dropdown-list");
+      const originSelect = document.getElementById("text-origin");
+      if (!dishInput || !dropdownList) return;
+
+      let activeIndex = -1;
+
+      function autoFillOriginCountry(dishTitle) {
+        if (!originSelect || typeof DISH_RECORDS === "undefined" || !dishTitle) return;
+
+        const titleLower = dishTitle.trim().toLowerCase();
+        const matches = DISH_RECORDS.filter((r) => r.title.toLowerCase() === titleLower);
+        const uniqueCountries = [...new Set(matches.map((r) => r.country.toLowerCase()))];
+
+        if (uniqueCountries.length === 1) {
+          const option = [...originSelect.options].find(
+            (opt) => opt.value.toLowerCase() === uniqueCountries[0]
+          );
+          if (option) {
+            originSelect.value = option.value;
+          }
+        }
+      }
+
+      function getTopMatches(query, limit = 5) {
+        const q = query.trim().toLowerCase();
+        if (!q) return [];
+
+        const unique = [...new Set(DISH_DATABASE)];
+        const startsWith = [];
+        const contains = [];
+
+        for (const title of unique) {
+          const lower = title.toLowerCase();
+          if (lower.startsWith(q)) {
+            startsWith.push(title);
+          } else if (lower.includes(q)) {
+            contains.push(title);
+          }
+        }
+
+        return [...startsWith, ...contains].slice(0, limit);
+      }
+
+      function renderDropdown(matches) {
+        dropdownList.innerHTML = "";
+        activeIndex = -1;
+
+        if (matches.length === 0) {
+          dropdownList.classList.add("hidden");
+          return;
+        }
+
+        matches.forEach((title) => {
+          const li = document.createElement("li");
+          li.className = "dropdown-item";
+          li.textContent = title;
+          li.addEventListener("mousedown", (e) => {
+            e.preventDefault();
+            dishInput.value = title;
+            autoFillOriginCountry(title);
+            hideDropdown();
+            dishInput.focus();
+          });
+          dropdownList.appendChild(li);
+        });
+
+        dropdownList.classList.remove("hidden");
+      }
+
+      function hideDropdown() {
+        dropdownList.classList.add("hidden");
+        dropdownList.innerHTML = "";
+        activeIndex = -1;
+      }
+
+      function highlightItem(index) {
+        const items = dropdownList.querySelectorAll(".dropdown-item");
+        items.forEach((item, i) => {
+          item.classList.toggle("highlighted", i === index);
+        });
+        if (items[index]) {
+          items[index].scrollIntoView({ block: "nearest" });
+        }
+      }
+
+      dishInput.addEventListener("input", () => {
+        const matches = getTopMatches(dishInput.value);
+        renderDropdown(matches);
+        autoFillOriginCountry(dishInput.value);
+      });
+
+      dishInput.addEventListener("keydown", (e) => {
+        const items = dropdownList.querySelectorAll(".dropdown-item");
+        if (dropdownList.classList.contains("hidden") || items.length === 0) return;
+
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          activeIndex = (activeIndex + 1) % items.length;
+          highlightItem(activeIndex);
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          activeIndex = (activeIndex - 1 + items.length) % items.length;
+          highlightItem(activeIndex);
+        } else if (e.key === "Enter") {
+          if (activeIndex >= 0 && items[activeIndex]) {
+            e.preventDefault();
+            dishInput.value = items[activeIndex].textContent;
+            autoFillOriginCountry(dishInput.value);
+            hideDropdown();
+          }
+        } else if (e.key === "Escape") {
+          hideDropdown();
+        }
+      });
+
+      dishInput.addEventListener("focus", () => {
+        if (dishInput.value.trim()) {
+          renderDropdown(getTopMatches(dishInput.value));
+        }
+      });
+
+      dishInput.addEventListener("blur", () => {
+        autoFillOriginCountry(dishInput.value);
+      });
+
+      document.addEventListener("click", (e) => {
+        if (e.target !== dishInput && !dropdownList.contains(e.target)) {
+          hideDropdown();
+        }
+      });
+    });
+  </script>
+
+  <!-- ==================================
+       FORM VALIDATION & ERROR MODAL SCRIPT
+       ================================== -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const textForm = document.getElementById("text-search-form");
+      const dishInput = document.getElementById("dish-name-input");
+
+      if (textForm) {
+        textForm.addEventListener("submit", (e) => {
+          const typedDish = dishInput ? dishInput.value.trim() : "";
+          const originCountry = document.getElementById("text-origin").value;
+          const targetCountry = document.getElementById("text-target").value;
+
+          if (!typedDish || !originCountry || !targetCountry) {
+            e.preventDefault();
+            showErrorModal(
+              "Incomplete Search Fields",
+              "Please select both the Origin Country and Target Country, and enter a dish name."
+            );
+            return;
+          }
+
+          if (typeof DISH_RECORDS === "undefined" || DISH_RECORDS.length === 0) {
+            return;
+          }
+
+          const dishLower = typedDish.toLowerCase();
+          const originLower = originCountry.toLowerCase();
+          const targetLower = targetCountry.toLowerCase();
+
+          const matchesByTitle = DISH_RECORDS.filter(
+            (r) => r.title.toLowerCase() === dishLower
+          );
+
+          if (matchesByTitle.length === 0) {
+            e.preventDefault();
+            showErrorModal(
+              "We Can't Find Your Dish",
+              `"${typedDish}" isn't in our recipe database yet. Please check the spelling or try a more general dish name.`
+            );
+            return;
+          }
+
+          const exactMatch = matchesByTitle.find(
+            (r) => r.country.toLowerCase() === originLower
+          );
+
+          if (!exactMatch) {
+            const availableCountries = [...new Set(matchesByTitle.map((r) => r.country))].join(", ");
+            e.preventDefault();
+            showErrorModal(
+              "We Can't Find Your Dish",
+              `We have "${typedDish}", but not listed under that country of origin. Try selecting: ${availableCountries}.`
+            );
+            return;
+          }
+
+          const targetHasDishes = DISH_RECORDS.some(
+            (r) => r.country.toLowerCase() === targetLower
+          );
+
+          if (!targetHasDishes) {
+            e.preventDefault();
+            showErrorModal(
+              "We Can't Find Your Dish",
+              "We don't have any recipes yet for the selected target country, so there's nothing to compare it to. Please choose a different target country."
+            );
+          }
+        });
+      }
+    });
+
+    function showErrorModal(title, description) {
+      const modalOverlay = document.getElementById("error-modal-overlay");
+      const modalTitle = document.getElementById("modal-title-text");
+      const modalDesc = document.getElementById("modal-desc-text");
+
+      if (modalTitle) modalTitle.textContent = title;
+      if (modalDesc) modalDesc.textContent = description;
+      if (modalOverlay) modalOverlay.classList.remove("hidden");
+    }
+
+    function closeErrorModal() {
+      const modalOverlay = document.getElementById("error-modal-overlay");
+      if (modalOverlay) {
+        modalOverlay.classList.add("hidden");
+      }
+      
+      const dishInput = document.getElementById("dish-name-input");
+      if (dishInput) dishInput.focus();
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeErrorModal();
+    });
+
+    document.addEventListener("click", (e) => {
+      const modalOverlay = document.getElementById("error-modal-overlay");
+      if (e.target === modalOverlay) {
+        closeErrorModal();
+      }
+    });
+  </script>
+</body>
+</html>

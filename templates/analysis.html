@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CUISYNC - Asian Cuisine Analysis</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base-style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/analysis.css') }}">
+</head>
+<body class="analysis-page">
+
+  <app-nav></app-nav>
+
+  <!-- ==================================
+       HERO BANNER
+       ================================== -->
+  <section class="analysis-hero">
+    <div class="analysis-hero-content">
+      <div class="subtitle">◆ ASIAN CUISINE PROFILE</div>
+      <h1 class="hero-title">Asian Cuisine Analysis</h1>
+      <p class="hero-description">
+        An analysis of top ingredients, cooking processes, metrics and frequencies across 2,878 recipes<br>
+        among East Asian (China, South Korea), Southeast Asian (Cambodia, Indonesia, Malaysia, Myanmar, Philippines, Thailand, Vietnam)
+        and South Asian (India) cuisines.
+      </p>
+    </div>
+  </section>
+
+  <!-- ==================================
+       SUB-NAVIGATION TABS
+       ================================== -->
+  <div class="subnav-bar">
+    <div class="subnav-container">
+      <a href="#cuisines-section" class="subnav-item active">CUISINES</a>
+      <a href="#ingredients-section" class="subnav-item">INGREDIENTS</a>
+      <a href="#instructions-section" class="subnav-item">COOKING INSTRUCTION</a>
+    </div>
+  </div>
+
+  <!-- ==================================
+       SECTION 1: CUISINES
+       ================================== -->
+  <section class="content-section cream-bg" id="cuisines-section">
+    <div class="container">
+      
+      <div class="decorative-header">
+        <span class="maroon-line"></span>
+        <h2 class="section-title text-maroon">◆ CUISINES ◆</h2>
+        <span class="maroon-line"></span>
+      </div>
+
+      <div class="chart-block">
+        <h3 class="chart-title text-maroon">COUNTRY RECIPE COUNT</h3>
+        <p class="chart-subtitle">
+          Explore recipe counts across Asian countries, with color intensity representing the high concentration of recipes.
+        </p>
+        
+        <div class="map-pan-wrapper">
+          <div class="map-placeholder">
+            <img src="{{ url_for('static', filename='assets/WorldMap-temp.png') }}">
+            <div class="map-legend">
+              <span>0</span>
+              <div class="legend-bar"></div>
+              <span>300</span>
+            </div>
+            <div class="country-hover-pin" style="top: 45%; left: 40%;"><div class="hover-badge">India <strong>192</strong></div></div>
+            <div class="country-hover-pin" style="top: 16%; left: 3%;"><div class="hover-badge">Türkiye <strong>82</strong></div></div>
+            <div class="country-hover-pin" style="top: 60%; left: 82%;"><div class="hover-badge">Philippines <strong>65</strong></div></div>
+            <div class="country-hover-pin" style="top: 60%; left: 69%;"><div class="hover-badge">Vietnam <strong>80</strong></div></div>
+            <div class="country-hover-pin" style="top: 20%; left: 96%;"><div class="hover-badge">Japan <strong>74</strong></div></div>
+            <div class="country-hover-pin" style="top: 28%; left: 63%;"><div class="hover-badge">China <strong>71</strong></div></div>
+            <div class="country-hover-pin" style="top: 82%; left: 72%;"><div class="hover-badge">Indonesia <strong>63</strong></div></div>
+            <div class="country-hover-pin" style="top: 55%; left: 62%;"><div class="hover-badge">Thailand <strong>62</strong></div></div>
+            <div class="country-hover-pin" style="top: 21%; left: 86%;"><div class="hover-badge">South Korea <strong>59</strong></div></div>
+            <div class="country-hover-pin" style="top: 45%; left: 10%;"><div class="hover-badge">Saudi Arabia <strong>51</strong></div></div>
+            <div class="country-hover-pin" style="top: 75%; left: 63%;"><div class="hover-badge">Malaysia <strong>45</strong></div></div>
+            <div class="country-hover-pin" style="top: 60%; left: 65%;"><div class="hover-badge">Cambodia <strong>35</strong></div></div>
+            <div class="country-hover-pin" style="top: 50%; left: 57%;"><div class="hover-badge">Myanmar <strong>21</strong></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-block">
+        <h3 class="chart-title text-maroon">REGION RECIPE COUNT</h3>
+        <p class="chart-subtitle">Frequency of recipe counts computed across Asian regions across 2,878 recipes.</p>
+
+        <div class="bar-chart-container">
+          <div class="bar-chart">
+            <div class="chart-y-axis">
+              <span>1500</span>
+              <span>1000</span>
+              <span>500</span>
+              <span>0</span>
+            </div>
+            <div class="chart-bars">
+              <div class="bar-group">
+                <div class="bar" style="height: 75%;">
+                  <span class="bar-tooltip">1,240</span>
+                </div>
+                <span class="bar-label">Southeast Asia</span>
+              </div>
+              <div class="bar-group">
+                <div class="bar" style="height: 48%;">
+                  <span class="bar-tooltip">810</span>
+                </div>
+                <span class="bar-label">East Asia</span>
+              </div>
+              <div class="bar-group">
+                <div class="bar" style="height: 32%;">
+                  <span class="bar-tooltip">520</span>
+                </div>
+                <span class="bar-label">Central Asia</span>
+              </div>
+              <div class="bar-group">
+                <div class="bar" style="height: 18%;">
+                  <span class="bar-tooltip">308</span>
+                </div>
+                <span class="bar-label">South Asia</span>
+              </div>
+            </div>
+          </div>
+          <div class="chart-legend-center">
+            <span class="legend-box"></span> Recipe Count
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================================
+       SECTION 2: INGREDIENTS (DATA - fetch ingredient data)
+       ================================== -->
+  <section class="content-section maroon-bg" id="ingredients-section">
+    <div class="container">
+
+      <div class="decorative-header light">
+        <span class="gold-line"></span>
+        <h2 class="section-title text-gold">◆ INGREDIENT PROFILE ◆</h2>
+        <span class="gold-line"></span>
+      </div>
+
+      <div class="pill-group">
+        <label class="pill">
+          <input type="checkbox" name="ingredient_countries" value="Cambodia" hidden>
+          <span>Cambodia</span>
+        </label>
+        <label class="pill">
+          <input type="checkbox" name="ingredient_countries" value="China" hidden>
+          <span>China</span>
+        </label>
+        <label class="pill">
+          <input type="checkbox" name="ingredient_countries" value="India" hidden>
+          <span>India</span>
+        </label>
+        <label class="pill">
+          <input type="checkbox" name="ingredient_countries" value="Indonesia" hidden>
+          <span>Indonesia</span>
+        </label>
+        <label class="pill">
+          <input type="checkbox" name="ingredient_countries" value="Japan" hidden>
+          <span>Japan</span>
+        </label>
+        <label class="pill">
+          <input type="checkbox" name="ingredient_countries" value="Malaysia" hidden>
+          <span>Malaysia</span>
+        </label>
+        <label class="pill">
+          <input type="checkbox" name="ingredient_countries" value="Philippines" hidden>
+          <span>Philippines</span>
+        </label>
+        <label class="pill">
+          <input type="checkbox" name="ingredient_countries" value="Saudi Arabia" hidden>
+          <span>Saudi Arabia</span>
+        </label>
+        <label class="pill">
+          <input type="checkbox" name="ingredient_countries" value="South Korea" hidden>
+          <span>South Korea</span>
+        </label>
+        <label class="pill">
+          <input type="checkbox" name="ingredient_countries" value="Thailand" hidden>
+          <span>Thailand</span>
+        </label>
+        <label class="pill">
+          <input type="checkbox" name="ingredient_countries" value="Vietnam" hidden>
+          <span>Vietnam</span>
+        </label>
+      </div>
+
+      <div class="horizontal-chart-card">
+        <div class="card-header">
+          <h3>TOP 15 MOST COMMON INGREDIENTS</h3>
+          <p>Highest percentage occurrence of ingredients across selected Asian recipes.</p>
+        </div>
+        <div class="horizontal-bars-list">
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Garlic</span>
+              <span class="hbar-val">82% (2360)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 82%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Water</span>
+              <span class="hbar-val">75% (2158)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 75%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Sugar</span>
+              <span class="hbar-val">68% (1957)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 68%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Fish Sauce</span>
+              <span class="hbar-val">64% (1841)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 64%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Salt</span>
+              <span class="hbar-val">61% (1755)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 61%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Sesame Oil</span>
+              <span class="hbar-val">55% (1582)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 55%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Chili Pepper</span>
+              <span class="hbar-val">51% (1467)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 51%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Soy Sauce</span>
+              <span class="hbar-val">48% (1381)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 48%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Ginger</span>
+              <span class="hbar-val">44% (1266)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 44%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Green Onion</span>
+              <span class="hbar-val">40% (1151)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 40%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Oil</span>
+              <span class="hbar-val">38% (1093)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 38%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Onion</span>
+              <span class="hbar-val">35% (1007)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 35%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Cornstarch</span>
+              <span class="hbar-val">31% (892)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 31%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Lime Juice</span>
+              <span class="hbar-val">28% (805)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 28%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Turmeric</span>
+              <span class="hbar-val">22% (633)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 22%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================================
+       SECTION 3: COOKING INSTRUCTION (DATA - fetch cooking instruction data)
+       ================================== -->
+  <section class="content-section maroon-bg border-top-dark" id="instructions-section">
+    <div class="container">
+
+      <div class="decorative-header light">
+        <span class="gold-line"></span>
+        <h2 class="section-title text-gold">◆ COOKING INSTRUCTION ◆</h2>
+        <span class="gold-line"></span>
+      </div>
+
+      <h3 class="sub-heading text-cream">Cooking Instruction Profile</h3>
+      
+      <div class="pill-group">
+        <label class="pill">
+          <input type="radio" name="cooking_instruction" value="utensils" hidden checked>
+          <span>Utensils</span>
+        </label>
+        <label class="pill">
+          <input type="radio" name="cooking_instruction" value="cookware" hidden>
+          <span>Cookware</span>
+        </label>
+        <label class="pill">
+          <input type="radio" name="cooking_instruction" value="cooking_actions" hidden>
+          <span>Cooking Actions</span>
+        </label>
+      </div>
+
+      <div class="horizontal-chart-card">
+        <div class="card-header">
+          <h3>TOP 10 MOST COMMON COOKING ACTION</h3>
+          <p>Highest occurrence of actions involved in preparing recipes across cuisines.</p>
+        </div>
+
+        <div class="horizontal-bars-list">
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Stir-frying</span>
+              <span class="hbar-val">88% (2534)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 88%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Boiling</span>
+              <span class="hbar-val">81% (2331)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 81%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Steaming</span>
+              <span class="hbar-val">74% (2129)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 74%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Simmering</span>
+              <span class="hbar-val">67% (1928)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 67%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Deep-frying</span>
+              <span class="hbar-val">62% (1784)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 62%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Braising</span>
+              <span class="hbar-val">55% (1583)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 55%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Sautéing</span>
+              <span class="hbar-val">49% (1410)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 49%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Grilling</span>
+              <span class="hbar-val">43% (1237)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 43%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Roasting</span>
+              <span class="hbar-val">36% (1036)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 36%;"></div>
+            </div>
+          </div>
+
+          <div class="hbar-item">
+            <div class="hbar-header">
+              <span class="hbar-label">Blanching</span>
+              <span class="hbar-val">29% (835)</span>
+            </div>
+            <div class="hbar-track">
+              <div class="hbar-fill" style="width: 29%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <app-footer></app-footer>
+
+  <script src="{{ url_for('static', filename='scripts/components.js') }}"></script>
+</body>
+</html>
