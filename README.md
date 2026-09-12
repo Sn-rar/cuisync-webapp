@@ -42,7 +42,8 @@ Download from this Drive folder:
 and place all files in the main project folder alongside app.py.
 
 
-**Run app.py locally and opening it on your browser with this url**
+### 5. Run program locally (for development only)
+Run app.py and open it on your browser with this url:
 ```plaintext
 http://127.0.0.1:8000
 ```
