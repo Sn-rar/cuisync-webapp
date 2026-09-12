@@ -9,7 +9,7 @@ Follow these steps to set up the environment and run the app locally.
 * Extract the `.zip` file to your computer.
 
 ### 2. Set Up a Virtual Environment (`venv`)
-It is recommended to run this project inside a Python virtual environment to keep dependencies isolated.
+It is recommended to run this project inside a Python virtual environment to keep dependencies isolated. Type this into your terminal.
 
 **On Windows:**
 ```bash
