@@ -1,5 +1,8 @@
 # Cuisync Web App
 
+### *Note on updating in Github:*
+*Only update/upload files through your respective branches. Click on the main drop down to select other branches. (you will not be able to update it on the main branch)*
+
 ## Setup & Installation
 
 Follow these steps to set up the environment and run the app locally.
@@ -38,13 +41,11 @@ pip install -r requirements.txt
 ### 4. Download Required Dataset Files
 Download from this Drive folder: 
 [Google Drive](https://drive.google.com/drive/folders/1OePoC482z8081cXCIbWCHIp_b-FbBUsh?usp=sharing)
-
-and place all files in the main project folder alongside app.py.
+and place all files in the main project folder (outside other folders) alongside **app.py.**
 
 
 ### 5. Run program locally (for development only)
-Run app.py and open it on your browser with this url:
+Only run it through **app.py** and open it on your browser with this url:
 ```plaintext
 http://127.0.0.1:8000
 ```
-
