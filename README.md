@@ -1,7 +1,10 @@
 # Cuisync Web App
 
 ### *Note on updating in Github:*
-*Only update/upload files through your respective branches. Click on the main drop down to select other branches. (you will not be able to update it on the main branch)*
+*Only update/upload files through your respective branches. 
+Click on the main drop down to select other branches. (you will not be able to update it on the main branch)*
+*to create pull request (merge your work with main branch), click **contribute** when an update has been made.*
+
 
 ## Setup & Installation
 
