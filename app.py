@@ -42,6 +42,8 @@ def parse_items(text_field):
         return []
     return [item.strip().title() for item in text_field.split(',') if item.strip()]
 
+@app.route("/")
+
 @app.route("/home")
 def home():
     return render_template("index.html")
@@ -166,6 +168,239 @@ def search_text():
 @app.route("/analysis")
 def analysis():
     return render_template("analysis.html")
+
+#---ANALYSIS PAGE API---
+
+COUNTRY_REGIONS = {
+    "CHINA": "East Asia",
+    "JAPAN": "East Asia",
+    "SOUTH KOREA": "East Asia",
+
+    "CAMBODIA": "Southeast Asia",
+    "INDONESIA": "Southeast Asia",
+    "MALAYSIA": "Southeast Asia",
+    "MYANMAR": "Southeast Asia",
+    "PHILIPPINES": "Southeast Asia",
+    "THAILAND": "Southeast Asia",
+    "VIETNAM": "Southeast Asia",
+
+    "INDIA": "South Asia",
+
+    "SAUDI ARABIA": "West Asia",
+    "TURKIYE": "West Asia"
+}
+
+#ANALYSIS PAGE: 1. Normalize the country name and grouped them into regions.
+def normalize_analysis_country(country):
+    if not country:
+        return ""
+
+    return " ".join(
+        str(country).strip().upper().split()
+    )
+
+
+def get_analysis_region(country):
+    return COUNTRY_REGIONS.get(
+        normalize_analysis_country(country),
+        "Other Asia"
+    )
+
+def get_analysis_countries():
+    regions = {}
+
+    for recipe in RECIPES:
+        country = normalize_analysis_country(
+            recipe.get("country")
+        )
+
+        if not country:
+            continue
+
+        region = get_analysis_region(country)
+
+        if region not in regions:
+            regions[region] = set()
+
+        regions[region].add(country)
+
+    return {
+        region: sorted(countries)
+        for region, countries in sorted(regions.items())
+    }
+
+#ANALYSIS PAGE: 2. Function to get the recipe count per country.
+
+def get_analysis_country_counts():
+    counts = {}
+
+    for recipe in RECIPES:
+        country = normalize_analysis_country(
+            recipe.get("country")
+        )
+
+        if not country:
+            continue
+
+        counts[country] = counts.get(country, 0) + 1
+
+    return counts
+
+#ANALYSIS PAGE: 3. Function to get the recipe count per region
+def get_analysis_region_counts():
+    counts = {}
+
+    for recipe in RECIPES:
+        country = normalize_analysis_country (recipe.get("country"))
+
+        if not country:
+            continue
+
+        region = get_analysis_region(country)
+        counts[region] = counts.get(region,0) + 1
+
+    return counts
+
+#ANALYSIS PAGE: 4. Returns the count of the entity, which sorts everything from most common to least common.
+def get_analysis_top_entities(recipes, field, limit=15):
+    total_recipes = len(recipes)
+
+    if total_recipes == 0:
+        return []
+
+    entity_recipe_counts = {}
+
+    for recipe in recipes:
+        value = recipe.get(field, "")
+
+        if not value:
+            continue
+
+        # Count each entity only once per recipe.
+        items = set(parse_items(value))
+
+        for item in items:
+            if item:
+                entity_recipe_counts[item] = (
+                    entity_recipe_counts.get(item, 0) + 1
+                )
+
+    results = []
+
+    for entity, count in entity_recipe_counts.items():
+        percentage = (count / total_recipes) * 100
+
+        results.append({
+            "name": entity,
+            "count": count,
+            "percentage": round(percentage, 2)
+        })
+
+    results.sort(
+        key=lambda x: x["count"],
+        reverse=True
+    )
+
+    return results[:limit]
+
+#ANALYSIS PAGE: 4. Function to get analysis on the country selected by the user.
+def get_analysis_recipes_for_countries(countries):
+    # If there are not selected countries, all are queried.
+    if not countries:
+        return RECIPES
+
+    selected_countries = {
+        normalize_analysis_country(country)
+        for country in countries
+        if normalize_analysis_country(country)
+    }
+
+    if not selected_countries:
+        return RECIPES
+
+    return [
+        recipe
+        for recipe in RECIPES
+        if normalize_analysis_country(
+            recipe.get("country")
+        ) in selected_countries
+    ]
+
+#ANALYSIS PAGE: 4. Function to get the overview analysis of the recipe count per category.
+@app.route("/api/analysis/overview")
+def analysis_overview():
+    return jsonify({
+        "countries_by_region": #Calls the helper function to count the recipe per region.
+            get_analysis_countries(), 
+
+        "country_counts":
+            get_analysis_country_counts(), #Calls the helper function to count the recipe per country.
+
+        "region_counts":
+            get_analysis_region_counts(), #Calls the helper function to count the recipe per region.
+
+        "total_recipes": #Count the number of recipes on the dataset.
+            len(RECIPES)
+    })
+
+#ANALYSIS PAGE: 5. Function that receives the user's selected country and return the top ingredients results back.
+@app.route("/api/analysis/ingredients")
+def analysis_ingredients():
+    countries = request.args.getlist("country")
+
+    selected_recipes = (
+        get_analysis_recipes_for_countries(countries)
+    )
+
+    return jsonify({
+        "countries": countries,
+        "selected_country_count": len(countries),
+        "recipe_count": len(selected_recipes),
+        "results": get_analysis_top_entities(
+            selected_recipes,
+            "ingredient_text",
+            limit=15
+        )
+    })
+
+#ANALYSIS PAGE: 5. Function that receives the user's selected country and return the top directions results back.
+@app.route("/api/analysis/instructions")
+def analysis_instructions():
+    countries = request.args.getlist("country")
+
+    instruction_type = request.args.get(
+        "type",
+        "actions"
+    ).strip().lower()
+
+    field_map = {
+        "actions": "action_text",
+        "cooking_actions": "action_text",
+        "utensils": "utensil_text",
+        "cookware": "cookware_text"
+    }
+
+    field = field_map.get(
+        instruction_type,
+        "action_text"
+    )
+
+    selected_recipes = (
+        get_analysis_recipes_for_countries(countries)
+    )
+
+    return jsonify({
+        "countries": countries,
+        "selected_country_count": len(countries),
+        "type": instruction_type,
+        "recipe_count": len(selected_recipes),
+        "results": get_analysis_top_entities(
+            selected_recipes,
+            field,
+            limit=10
+        )
+    })
+
 
 @app.route("/faqs")
 def faqs():
