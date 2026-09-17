@@ -43,6 +43,8 @@ def parse_items(text_field):
     return [item.strip().title() for item in text_field.split(',') if item.strip()]
 
 @app.route("/home")
+
+@app.route("/home")
 def home():
     return render_template("index.html")
 
