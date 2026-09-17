@@ -42,7 +42,7 @@ def parse_items(text_field):
         return []
     return [item.strip().title() for item in text_field.split(',') if item.strip()]
 
-@app.route("/home")
+@app.route("/")
 
 @app.route("/home")
 def home():
