@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="no-referrer">
+  <title>CUISYNC - Results</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base-style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/results.css') }}">
+</head>
+<body class="results-page">
+
+  <app-nav></app-nav>
+
+  <!-- ==================================
+       RESULTS SUB-NAVIGATION BAR
+       ================================== -->
+  <nav class="results-subnav">
+    <div class="subnav-container">
+      <div class="subnav-links">
+        <a href="#">DISH COMPARISON</a>
+        <a href="#sim-summary">SIMILARITY SUMMARY</a>
+        <a href="#geo-distribution">GEOGRAPHICAL DISTRIBUTION</a>
+      </div>
+      <div class="subnav-actions">
+        <a href="{{ url_for('home') }}" class="btn-search-nav">SEARCH NEW DISH</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ==================================
+       MAIN RESULTS CONTAINER
+       ================================== -->
+  <main class="results-container">
+    
+    <!-- Breadcrumb Header -->
+    <section class="results-header-section">
+      <div class="inner-content">
+        <div class="breadcrumb">
+          <a href="{{ url_for('home') }}">Home</a> / 
+          <a class="active-crumb" href="#">Results</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================
+         SECTION 1: DISH COMPARISON
+         ================================== -->
+    <section class="section-dark dish-comparison-section">
+      <div class="inner-content">
+        <h2 class="section-heading">DISH COMPARISON</h2>
+        <div class="heading-line"></div>
+
+        <div class="comparison-grid">
+          <!-- Left Card: Original/Source Dish -->
+          <div class="dish-card">
+            <div class="dish-img-wrapper">
+              <img src="{{ source_dish.image_link if source_dish.image_link else '' }}" 
+                   alt="{{ source_dish.title }}" 
+                   referrerpolicy="no-referrer">
+              <span class="img-badge">{{ source_dish.country }}</span>
+            </div>
+            <div class="dish-card-body">
+              <h3 class="dish-title">{{ source_dish.title }}</h3>
+              <p class="dish-subtitle">{{ source_dish.region }} Region</p>
+              
+              <div class="ingredient-tags">
+                <!-- Limit ingredient tags to the first 5 items -->
+                {% if source_dish.ingredient_text %}
+                  {% for ingredient in source_dish.ingredient_text.split(', ')[:5] %}
+                    <span class="ing-tag">{{ ingredient.strip() }}</span>
+                  {% endfor %}
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Card: Recommended/Target Country Dish -->
+          <div class="dish-card">
+            <div class="dish-img-wrapper">
+              <img src="{{ recommended_dish.image_link if (recommended_dish and recommended_dish.image_link) else '' }}" 
+                   alt="{% if recommended_dish %}{{ recommended_dish.title }}{% endif %}" 
+                   referrerpolicy="no-referrer">
+              <span class="img-badge">{% if recommended_dish %}{{ recommended_dish.country }}{% endif %}</span>
+            </div>
+            <div class="dish-card-body">
+              <h3 class="dish-title">{% if recommended_dish %}{{ recommended_dish.title }}{% endif %}</h3>
+              <p class="dish-subtitle">{% if recommended_dish %}{{ recommended_dish.region }} Region{% endif %}</p>
+              
+              <div class="ingredient-tags">
+                <!-- Limit ingredient tags to the first 5 items -->
+                {% if recommended_dish and recommended_dish.ingredient_text %}
+                  {% for ingredient in recommended_dish.ingredient_text.split(', ')[:5] %}
+                    <span class="ing-tag">{{ ingredient.strip() }}</span>
+                  {% endfor %}
+                {% endif %}
+              </div>
+
+              {% if recommended_dish and recommended_dish.recipe_link %}
+                <div class="btn-links" id="sim-summary">
+                  <a href="https://{{ recommended_dish.recipe_link }}" target="_blank" class="btn-primary-action">
+                    <b>LINK TO RECIPE &rarr;</b>
+                  </a>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================
+         SECTION 2: SIMILARITY SUMMARY & ENTITIES
+         ================================== -->
+    <section class="section-light">
+      <div class="inner-content">
+        
+        <h2 class="section-heading dark-text">SIMILARITY SUMMARY</h2>
+
+        <!-- Similarity Metrics Breakdown -->
+        <div class="similarity-metrics-grid">
+          <!-- Donut Score Display -->
+          <div class="donut-box">
+            <div class="donut-chart" style="--percent: 60;">
+              <div class="donut-center">
+                <span class="donut-percentage">60%</span>
+              </div>
+            </div>
+            <span class="donut-label">OVERALL SIMILARITY SCORE</span>
+          </div>
+
+          <!-- Progress Bar Indicators -->
+          <div class="progress-bars-box">
+            <div class="progress-item">
+              <div class="progress-info">
+                <span>INGREDIENT SIMILARITY</span>
+                <span>80%</span>
+              </div>
+              <div class="progress-track"><div class="progress-fill" style="width: 80%;"></div></div>
+            </div>
+
+            <div class="progress-item">
+              <div class="progress-info">
+                <span>COOKING ACTION SIMILARITY</span>
+                <span>60%</span>
+              </div>
+              <div class="progress-track"><div class="progress-fill" style="width: 60%;"></div></div>
+            </div>
+
+            <div class="progress-item">
+              <div class="progress-info">
+                <span>UTENSIL SIMILARITY</span>
+                <span>72%</span>
+              </div>
+              <div class="progress-track"><div class="progress-fill" style="width: 72%;"></div></div>
+            </div>
+
+            <div class="progress-item">
+              <div class="progress-info">
+                <span>COOKWARE SIMILARITY</span>
+                <span>50%</span>
+              </div>
+              <div class="progress-track"><div class="progress-fill" style="width: 50%;"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Explanation Card -->
+        <div class="quote-card">
+          <span class="quote-icon">&ldquo;&rdquo;</span>
+          <p class="quote-text">
+            Vietnamese Pho and La Paz Batchoy are similar because both revolve around a rich, meat-based broth seasoned by slow-cooking bones with aromatics like onion and garlic, and both incorporate noodles as a key component of the dish. They share key preparation steps including boiling bone broth for long hours, cooking and assembling noodles and ladle broth throughout the process. While specific herbs, garnishes, and types of protein may differ, the essence of broth preparation, noodle integration, and simmering techniques gives these dishes a comparable culinary structure.
+          </p>
+          <div class="quote-footer">
+            <span class="badge-mini">AI EXPLANATION</span>
+            <span class="footer-note">Generated using GPT-4o. Based on ingredients and cooking processes.</span>
+          </div>
+        </div>
+
+        <!-- Extracted Entities Component -->
+        <div class="extracted-entities-container">
+          <h2 class="section-heading dark-text">EXTRACTED ENTITIES</h2>
+
+          <div class="entities-card">
+            
+            <!-- Category Filter Radio Buttons -->
+            <div class="entity-group">
+              <label class="filter-pill pill-all">
+                <input type="radio" name="entity_filter" value="all" checked hidden>
+                <span>ALL</span>
+              </label>
+
+              <label class="filter-pill pill-shared">
+                <input type="radio" name="entity_filter" value="shared" hidden>
+                <span>SHARED</span>
+              </label>
+
+              <label class="filter-pill pill-pho">
+                <input type="radio" name="entity_filter" value="source" hidden>
+                <span>{{ source_dish.title | upper }}</span>
+              </label>
+
+              <label class="filter-pill pill-batchoy">
+                <input type="radio" name="entity_filter" value="target" hidden>
+                <span>{% if recommended_dish %}{{ recommended_dish.title | upper }}{% else %}{{ target_country | upper }} DISH{% endif %}</span>
+              </label>
+            </div>
+
+            <!-- Ingredients Tags -->
+            <div class="entity-group">
+              <span class="entity-category-label">INGREDIENTS</span>
+              <div class="chips-wrapper">
+                <!-- Shared Ingredients -->
+                {% for item in entities.ingredients.shared %}
+                  <span class="entity-chip chip-gold" data-type="shared">{{ item }}</span>
+                {% endfor %}
+
+                <!-- Unique to Source Dish -->
+                {% for item in entities.ingredients.source_unique %}
+                  <span class="entity-chip chip-maroon" data-type="source">{{ item }}</span>
+                {% endfor %}
+
+                <!-- Unique to Target Dish -->
+                {% for item in entities.ingredients.target_unique %}
+                  <span class="entity-chip chip-green" data-type="target">{{ item }}</span>
+                {% endfor %}
+              </div>
+            </div>
+
+            <!-- Cooking Instructions/Actions Tags -->
+            <div class="entity-group">
+              <span class="entity-category-label">COOKING INSTRUCTIONS</span>
+              <div class="chips-wrapper">
+                <!-- Shared Actions -->
+                {% for item in entities.actions.shared %}
+                  <span class="entity-chip chip-gold" data-type="shared">{{ item }}</span>
+                {% endfor %}
+
+                <!-- Unique to Source Actions -->
+                {% for item in entities.actions.source_unique %}
+                  <span class="entity-chip chip-maroon" data-type="source">{{ item }}</span>
+                {% endfor %}
+
+                <!-- Unique to Target Actions -->
+                {% for item in entities.actions.target_unique %}
+                  <span class="entity-chip chip-green" data-type="target">{{ item }}</span>
+                {% endfor %}
+              </div>
+            </div>
+
+            <!-- Entities Legend -->
+            <div class="entities-legend">
+              <span class="legend-item"><span class="dot dot-gold"></span> Shared Profile</span>
+              <span class="legend-item"><span class="dot dot-maroon"></span> Unique to {{ source_dish.title }}</span>
+              <span class="legend-item">
+                <span class="dot dot-green"></span> Unique to {% if recommended_dish %}{{ recommended_dish.title }}{% else %}{{ target_country }}{% endif %}
+              </span>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==================================
+         SECTION 3: GEOGRAPHICAL DISTRIBUTION
+         ================================== -->
+    <section class="section-dark" id="geo-distribution">
+      <div class="inner-content">
+        <h2 class="section-heading">SIMILARITY ACROSS OTHER REGIONS</h2>
+        <div class="heading-line"></div>
+
+        <div class="geo-split-layout">
+          {% set card_counter = namespace(value=1) %}
+
+          <!-- Left Sidebar: Regional Dish Match List -->
+          <div class="geo-sidebar">
+            <div class="geo-cards-scroll">
+
+              <!-- Main Dish Group -->
+              <div class="card-group" data-category="main-dish">
+                <h4 class="group-label">MAIN DISH</h4>
+                {% if recommended_dish %}
+                  <div class="geo-card active-card">
+                    <div class="card-img-wrapper">
+                      <img src="{{ recommended_dish.image_link if recommended_dish.image_link else '' }}" 
+                           alt="{{ recommended_dish.title }}" 
+                           referrerpolicy="no-referrer">
+                    </div>
+                    <div class="card-info">
+                      <h5>{{ recommended_dish.title }}</h5>
+                      <p class="card-region">{{ recommended_dish.country }}</p>
+                      <p class="card-subregion">{{ recommended_dish.region | upper }} REGION</p>
+                      <div class="card-bar-wrapper">
+                        <span>MATCHING SCORE</span>
+                        <strong class="score-val">{{ similarity_score }}%</strong>
+                      </div>
+                    </div>
+                    <span class="card-number-badge badge-main-dish">{{ card_counter.value }}</span>
+                  </div>
+                  {% set card_counter.value = card_counter.value + 1 %}
+                {% else %}
+                  <p>No main dish found.</p>
+                {% endif %}
+              </div>
+
+              <!-- Regional Variations Group -->
+              <div class="card-group" data-category="regional">
+                <h4 class="group-label">REGIONAL VARIATIONS</h4>
+                {% for dish in regional_variations %}
+                  <div class="geo-card">
+                    <div class="card-img-wrapper">
+                      <img src="{{ dish.image_link if dish.image_link else '' }}" 
+                           alt="{{ dish.title }}" 
+                           referrerpolicy="no-referrer">
+                    </div>
+                    <div class="card-info">
+                      <h5>{{ dish.title }}</h5>
+                      <p class="card-region">{{ dish.country }}</p>
+                      <p class="card-subregion">{{ dish.region | upper }} REGION</p>
+                      <div class="card-bar-wrapper">
+                        <span>MATCHING SCORE</span>
+                        <strong class="score-val">{{ dish.score }}%</strong>
+                      </div>
+                    </div>
+                    <span class="card-number-badge badge-regional">{{ card_counter.value }}</span>
+                  </div>
+                  {% set card_counter.value = card_counter.value + 1 %}
+                {% else %}
+                  <p>No regional variations found.</p>
+                {% endfor %}
+              </div>
+
+              <!-- International Similarities Group -->
+              <div class="card-group" data-category="international">
+                <h4 class="group-label">INTERNATIONAL SIMILARITIES</h4>
+                {% for dish in international_similarities %}
+                  <div class="geo-card">
+                    <div class="card-img-wrapper">
+                      <img src="{{ dish.image_link if dish.image_link else '' }}" 
+                           alt="{{ dish.title }}" 
+                           referrerpolicy="no-referrer">
+                    </div>
+                    <div class="card-info">
+                      <h5>{{ dish.title }}</h5>
+                      <p class="card-region">{{ dish.country }}</p>
+                      <p class="card-subregion">{{ dish.region | upper }} REGION</p>
+                      <div class="card-bar-wrapper">
+                        <span>MATCHING SCORE</span>
+                        <strong class="score-val">{{ dish.score }}%</strong>
+                      </div>
+                    </div>
+                    <span class="card-number-badge badge-international">{{ card_counter.value }}</span>
+                  </div>
+                  {% set card_counter.value = card_counter.value + 1 %}
+                {% else %}
+                  <p>No international matches found.</p>
+                {% endfor %}
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Right Container: Interactive World Map -->
+          <div class="geo-map-container">
+            <div class="geo-map-header">
+              <h3>GEOGRAPHICAL DISTRIBUTION</h3>
+            </div>
+
+            <div class="map-pan-wrapper">
+              <div class="map-placeholder" id="map-placeholder">
+                <img src="{{ url_for('static', filename='assets/WorldMap-temp.png') }}" 
+                     class="map-graphic" 
+                     id="world-map-img"
+                     alt="World Map" 
+                     usemap="#image-map">
+
+                <!-- Dynamic Numbered Map Pins -->
+                <div id="map-pins-layer">
+                  {% set map_counter = namespace(value=1) %}
+
+                  <!-- Main Dish Pin -->
+                  {% if recommended_dish %}
+                    <div class="map-pin-number pin-main-dish" data-country="{{ recommended_dish.country | lower }}">
+                      <span class="pin-num">{{ map_counter.value }}</span>
+                      <span class="pin-tooltip">{{ recommended_dish.title }}</span>
+                    </div>
+                    {% set map_counter.value = map_counter.value + 1 %}
+                  {% endif %}
+
+                  <!-- Regional Variations Pins -->
+                  {% for dish in regional_variations %}
+                    <div class="map-pin-number pin-regional" data-country="{{ dish.country | lower }}">
+                      <span class="pin-num">{{ map_counter.value }}</span>
+                      <span class="pin-tooltip">{{ dish.title }}</span>
+                    </div>
+                    {% set map_counter.value = map_counter.value + 1 %}
+                  {% endfor %}
+
+                  <!-- International Similarities Pins -->
+                  {% for dish in international_similarities %}
+                    <div class="map-pin-number pin-international" data-country="{{ dish.country | lower }}">
+                      <span class="pin-num">{{ map_counter.value }}</span>
+                      <span class="pin-tooltip">{{ dish.title }}</span>
+                    </div>
+                    {% set map_counter.value = map_counter.value + 1 %}
+                  {% endfor %}
+                </div>
+
+                <!-- HTML Image Map Coordinates -->
+                <map name="image-map" id="image-map">
+                  <area target="" alt="china" title="china" href="" coords="449,25,465,37,529,48,634,8,740,0,718,41,650,66,622,70,654,81,636,94,652,140,620,180,568,196,534,184,500,189,475,176,482,154,458,138,404,150,342,124,340,97,306,66,353,42,352,21,403,0,422,6,429,20,442,26,445,28" shape="poly">
+                  <area target="" alt="vietnam" title="vietnam" href="" coords="510,190,521,205,547,239,546,253,525,271,529,279,557,263,556,238,534,205,549,190,532,183" shape="poly">
+                  <area target="" alt="indonesia" title="indonesia" href="" coords="537,384,535,364,513,336,470,304,458,306,518,381,539,396,588,406,667,417,573,392,543,386,593,370,562,366,556,337,615,296,629,306,617,319,624,334,618,343,614,355,610,372,625,365,637,336,654,336,673,334,643,352,657,349,648,357,658,383,639,365,637,384,629,369,725,346,782,362,782,404,746,381,726,367,713,351" shape="poly">
+                  <area target="" alt="philippines" title="philippines" href="" coords="636,232,642,251,619,284,646,261,653,278,652,292,676,307,686,290,678,261,650,237,656,222,643,209" shape="poly">
+                  <area target="" alt="cambodia" title="cambodia" href="" coords="546,241,511,245,515,265,528,271,547,255" shape="poly">
+                  <area target="" alt="thailand" title="thailand" href="" coords="533,243,527,219,502,217,495,198,476,208,480,228,486,248,489,261,480,287,494,303,512,303,494,279,499,251,513,257,513,243" shape="poly">
+                  <area target="" alt="malaysia" title="malaysia" href="" coords="491,304,502,325,521,335,521,315,511,302" shape="poly">
+                  <area target="" alt="myanmar" title="myanmar" href="" coords="476,149,458,157,449,178,438,195,454,216,451,232,473,225,484,264,486,232,478,214,500,191,475,177,484,155" shape="poly">
+                  <area target="" alt="turkiye" title="turkiye" href="" coords="93,85,-1,51" shape="rect">
+                  <area target="" alt="saudi arabia" title="saudi arabia" href="" coords="43,120,65,116,97,135,120,138,153,181,177,186,176,201,121,215,117,225,87,221,56,190,52,174,46,169,26,143,39,135" shape="poly">
+                  <area target="" alt="south korea" title="south korea" href="" coords="704,71,682,101" shape="rect">
+                  <area target="" alt="japan" title="japan" href="" coords="817,25,796,19,780,39,782,52,769,78,705,109,712,121,743,102,763,99,787,88,792,59,795,44,812,41" shape="poly">
+                  <area target="" alt="india" title="india" href="" coords="336,94,318,99,304,96,315,119,288,147,275,151,286,170,267,172,278,195,298,192,312,248,332,286,355,272,353,230,403,195,416,184,412,165,430,164,436,175,441,187,459,155,475,148,457,138,439,143,439,154,415,150,408,148,410,157,380,152,350,141,357,132,342,124" shape="poly">
+                </map>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <app-footer></app-footer>
+
+  <script src="{{ url_for('static', filename='scripts/components.js') }}"></script>
+
+  <!-- ==================================
+       STICKY SUBNAV BEHAVIOR
+       ================================== -->
+  <script>
+    (function initScrollUpStickyNav() {
+      const subnav = document.querySelector('.results-subnav');
+      if (!subnav) return;
+
+      let lastScrollY = window.scrollY;
+
+      function handleScroll() {
+        if (window.innerWidth <= 600) {
+          subnav.classList.remove('is-sticky', 'nav-hidden');
+          return;
+        }
+
+        const initialOffsetTop = subnav.offsetTop;
+        const currentScrollY = window.scrollY;
+
+        if (currentScrollY > initialOffsetTop) {
+          subnav.classList.add('is-sticky');
+
+          if (currentScrollY > lastScrollY) {
+            subnav.classList.add('nav-hidden');
+          } else if (currentScrollY < lastScrollY) {
+            subnav.classList.remove('nav-hidden'); 
+          }
+        } else {
+          subnav.classList.remove('is-sticky', 'nav-hidden');
+        }
+
+        lastScrollY = currentScrollY;
+      }
+
+      window.addEventListener('scroll', handleScroll);
+      window.addEventListener('resize', handleScroll);
+      handleScroll();
+    })();
+  </script>
+
+  <!-- ==================================
+       EXTRACTED ENTITIES FILTERING
+       ================================== -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const filterInputs = document.querySelectorAll('input[name="entity_filter"]');
+      const chips = document.querySelectorAll('.entity-chip');
+
+      filterInputs.forEach(input => {
+        input.addEventListener('change', (e) => {
+          const selectedFilter = e.target.value;
+
+          chips.forEach(chip => {
+            if (selectedFilter === 'all') {
+              chip.style.display = 'inline-block';
+            } else {
+              const chipType = chip.getAttribute('data-type');
+              if (chipType === selectedFilter) {
+                chip.style.display = 'inline-block';
+              } else {
+                chip.style.display = 'none';
+              }
+            }
+          });
+        });
+      });
+    });
+  </script>
+
+  <!-- ==================================
+       DYNAMIC MAP PIN PLACEMENT
+       ================================== -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const mapImg = document.getElementById("world-map-img");
+
+      function placePinsRandomly() {
+        const naturalWidth = mapImg.naturalWidth || 817;
+        const naturalHeight = mapImg.naturalHeight || 417;
+
+        const pins = document.querySelectorAll("#map-pins-layer .map-pin-number");
+
+        pins.forEach((pin) => {
+          const country = pin.getAttribute("data-country");
+          if (!country) return;
+
+          const area = document.querySelector(`map[name="image-map"] area[alt="${country}"]`) ||
+                       document.querySelector(`map[name="image-map"] area[title="${country}"]`);
+
+          if (!area) return;
+
+          const coords = area.getAttribute("coords").split(",").map(Number);
+          const shape = area.getAttribute("shape").toLowerCase();
+
+          let point = null;
+
+          if (shape === "poly") {
+            const polygon = [];
+            for (let i = 0; i < coords.length; i += 2) {
+              polygon.push({ x: coords[i], y: coords[i + 1] });
+            }
+            point = getRandomPointInPolygon(polygon);
+          } else if (shape === "rect") {
+            const [x1, y1, x2, y2] = coords;
+            const minX = Math.min(x1, x2);
+            const maxX = Math.max(x1, x2);
+            const minY = Math.min(y1, y2);
+            const maxY = Math.max(y1, y2);
+
+            point = {
+              x: minX + Math.random() * (maxX - minX),
+              y: minY + Math.random() * (maxY - minY)
+            };
+          }
+
+          if (point) {
+            const leftPercent = (point.x / naturalWidth) * 100;
+            const topPercent = (point.y / naturalHeight) * 100;
+
+            pin.style.left = `${leftPercent}%`;
+            pin.style.top = `${topPercent}%`;
+          }
+        });
+      }
+
+      function isPointInPolygon(point, vs) {
+        let x = point.x, y = point.y;
+        let inside = false;
+        for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+          let xi = vs[i].x, yi = vs[i].y;
+          let xj = vs[j].x, yj = vs[j].y;
+
+          let intersect = ((yi > y) !== (yj > y)) &&
+              (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+          if (intersect) inside = !inside;
+        }
+        return inside;
+      }
+
+      function getRandomPointInPolygon(polygon) {
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+        polygon.forEach((p) => {
+          if (p.x < minX) minX = p.x;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.y > maxY) maxY = p.y;
+        });
+
+        let point;
+        let attempts = 0;
+        const maxAttempts = 200;
+
+        do {
+          point = {
+            x: minX + Math.random() * (maxX - minX),
+            y: minY + Math.random() * (maxY - minY)
+          };
+          attempts++;
+        } while (!isPointInPolygon(point, polygon) && attempts < maxAttempts);
+
+        return point;
+      }
+
+      if (mapImg.complete) {
+        placePinsRandomly();
+      } else {
+        mapImg.addEventListener("load", placePinsRandomly);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+# Cuisync Web App
+
+### *Note when updating on Github:*
+*Only update/upload files through your respective branches. Click on the main drop down to select other branches (you will not be able to update it on the main branch).*
+*To create pull request (merge your work with main branch), click **contribute** when an update has been made and then **create pull request** to notify the team for a new update.*
+
+
+## Setup & Installation
+
+Follow these steps to set up the environment and run the app locally.
+
+### 1. Clone or Download the Repository
+* Click the green **Code** button at the top of this repository page and select **Download ZIP**.
+* Extract the `.zip` file to your computer.
+
+### 2. Set Up a Virtual Environment (`venv`)
+It is recommended to run this project inside a Python virtual environment to keep dependencies isolated. Type this into your terminal.
+
+**On Windows:**
+```bash
+# Create the virtual environment
+python -m venv venv
+
+# Activate the virtual environment
+venv\Scripts\activate
+```
+
+**On Mac/Linux:**
+```bash
+# Create the virtual environment
+python3 -m venv venv
+
+# Activate the virtual environment
+source venv/bin/activate
+```
+
+### 3. Install Required Dependencies
+With your virtual environment active, run:
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Download Required Dataset Files
+Download from this Drive folder: 
+[Google Drive](https://drive.google.com/drive/folders/1OePoC482z8081cXCIbWCHIp_b-FbBUsh?usp=sharing)
+and place all files in the main project folder (outside other folders) alongside **app.py.**
+
+
+### 5. Run program locally (for development only)
+Only run it through **app.py** and open it on your browser with this url:
+```plaintext
+http://127.0.0.1:8000
+```
