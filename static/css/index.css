@@ -323,7 +323,6 @@ hr {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-<<<<<<< HEAD
 .file-name-text {
   font-size: 0.85rem;
   color: var(--maroon-dark);
@@ -430,16 +429,6 @@ hr {
 }
 
 .btn-remove-image {
-=======
-.file-name-text {
-  font-size: 0.85rem;
-  color: var(--maroon-dark);
-  font-weight: 500;
-  word-break: break-all;
-}
-
-.btn-remove-image {
->>>>>>> 2614a66d828c5eb7335de96a0f8ad5f209954400
   background-color: transparent;
   border: 1px solid var(--maroon-main);
   color: var(--maroon-main);
@@ -616,7 +605,6 @@ hr {
   margin-bottom: 22px;
 }
 
-<<<<<<< HEAD
 .modal-ok-btn {
   padding: 10px 40px;
 }
@@ -665,11 +653,6 @@ hr {
   color: var(--text-muted);
   font-size: 0.78rem;
 }
-=======
-.modal-ok-btn {
-  padding: 10px 40px;
-}
->>>>>>> 2614a66d828c5eb7335de96a0f8ad5f209954400
 
 /* ==========================================================================
    MEDIA QUERIES FOR HOME
@@ -738,8 +721,4 @@ hr {
     font-size: 0.75rem;
     padding: 10px 12px;
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 2614a66d828c5eb7335de96a0f8ad5f209954400
