@@ -232,9 +232,9 @@
               </div>
             </div>
 
-            <!-- Cooking Instructions/Actions Tags -->
+            <!-- Cooking Actions Tags -->
             <div class="entity-group">
-              <span class="entity-category-label">COOKING INSTRUCTIONS</span>
+              <span class="entity-category-label">COOKING ACTIONS</span>
               <div class="chips-wrapper">
                 <!-- Shared Actions -->
                 {% for item in entities.actions.shared %}
@@ -248,6 +248,48 @@
 
                 <!-- Unique to Target Actions -->
                 {% for item in entities.actions.target_unique %}
+                  <span class="entity-chip chip-green" data-type="target">{{ item }}</span>
+                {% endfor %}
+              </div>
+            </div>
+
+            <!-- Cookware Tags -->
+            <div class="entity-group">
+              <span class="entity-category-label">COOKWARE</span>
+              <div class="chips-wrapper">
+                <!-- Shared Cookware -->
+                {% for item in entities.cookware.shared %}
+                  <span class="entity-chip chip-gold" data-type="shared">{{ item }}</span>
+                {% endfor %}
+
+                <!-- Unique to Source Cookware -->
+                {% for item in entities.cookware.source_unique %}
+                  <span class="entity-chip chip-maroon" data-type="source">{{ item }}</span>
+                {% endfor %}
+
+                <!-- Unique to Target Cookware -->
+                {% for item in entities.cookware.target_unique %}
+                  <span class="entity-chip chip-green" data-type="target">{{ item }}</span>
+                {% endfor %}
+              </div>
+            </div>
+
+            <!-- Utensils Tags -->
+            <div class="entity-group">
+              <span class="entity-category-label">UTENSILS</span>
+              <div class="chips-wrapper">
+                <!-- Shared Utensils -->
+                {% for item in entities.utensils.shared %}
+                  <span class="entity-chip chip-gold" data-type="shared">{{ item }}</span>
+                {% endfor %}
+
+                <!-- Unique to Source Utensils -->
+                {% for item in entities.utensils.source_unique %}
+                  <span class="entity-chip chip-maroon" data-type="source">{{ item }}</span>
+                {% endfor %}
+
+                <!-- Unique to Target Utensils -->
+                {% for item in entities.utensils.target_unique %}
                   <span class="entity-chip chip-green" data-type="target">{{ item }}</span>
                 {% endfor %}
               </div>
@@ -268,174 +310,199 @@
       </div>
     </section>
 
-    <!-- ==================================
-         SECTION 3: GEOGRAPHICAL DISTRIBUTION
-         ================================== -->
-    <section class="section-dark" id="geo-distribution">
-      <div class="inner-content">
-        <h2 class="section-heading">SIMILARITY ACROSS OTHER REGIONS</h2>
-        <div class="heading-line"></div>
+<!-- ==================================
+     SECTION 3: GEOGRAPHICAL DISTRIBUTION
+     ================================== -->
+<section class="section-dark geo-map-section" id="geo-distribution">
+  <div class="inner-content">
+    <!-- Header aligned with new mockup layout -->
+    <div class="geo-map-header">
+      <div class="header-text-group">
+        <h2 class="section-heading">OTHER SIMILAR CUISINES</h2>
+        <p class="section-subheading">
+          An editorial deconstruction of how Rome's shepherds and Tokyo's noodle masters discovered the identical thermodynamic laws of fat-suspension comfort food.
+        </p>
+      </div>
+      <button type="button" class="btn-full-view" id="openMapModal">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+        </svg>
+        <span>FULL VIEW MAP</span>
+      </button>
+    </div>
 
-        <div class="geo-split-layout">
-          {% set card_counter = namespace(value=1) %}
+    <!-- Map Pan Wrapper styled as the outer card -->
+    <div class="map-pan-wrapper">
+      <div class="map-placeholder">
+        <img src="{{ url_for('static', filename='assets/WorldMap-temp.png') }}" class="map-graphic" id="world-map-img" alt="World Map" usemap="#image-map">
+        
+        <map name="image-map" id="image-map">
+          <area target="" alt="china" title="china" href="#" coords="449,25,465,37,529,48,634,8,740,0,718,41,650,66,622,70,654,81,636,94,652,140,620,180,568,196,534,184,500,189,475,176,482,154,458,138,404,150,342,124,340,97,306,66,353,42,352,21,403,0,422,6,429,20,442,26,445,28" shape="poly">
+          <area target="" alt="vietnam" title="vietnam" href="#" coords="510,190,521,205,547,239,546,253,525,271,529,279,557,263,556,238,534,205,549,190,532,183" shape="poly">
+          <area target="" alt="indonesia" title="indonesia" href="#" coords="537,384,535,364,513,336,470,304,458,306,518,381,539,396,588,406,667,417,573,392,543,386,593,370,562,366,556,337,615,296,629,306,617,319,624,334,618,343,614,355,610,372,625,365,637,336,654,336,673,334,643,352,657,349,648,357,658,383,639,365,637,384,629,369,725,346,782,362,782,404,746,381,726,367,713,351" shape="poly">
+          <area target="" alt="philippines" title="philippines" href="#" coords="636,232,642,251,619,284,646,261,653,278,652,292,676,307,686,290,678,261,650,237,656,222,643,209" shape="poly">
+          <area target="" alt="cambodia" title="cambodia" href="#" coords="546,241,511,245,515,265,528,271,547,255" shape="poly">
+          <area target="" alt="thailand" title="thailand" href="#" coords="533,243,527,219,502,217,495,198,476,208,480,228,486,248,489,261,480,287,494,303,512,303,494,279,499,251,513,257,513,243" shape="poly">
+          <area target="" alt="malaysia" title="malaysia" href="#" coords="491,304,502,325,521,335,521,315,511,302" shape="poly">
+          <area target="" alt="myanmar" title="myanmar" href="#" coords="476,149,458,157,449,178,438,195,454,216,451,232,473,225,484,264,486,232,478,214,500,191,475,177,484,155" shape="poly">
+          <area target="" alt="turkiye" title="turkiye" href="#" coords="93,85,-1,51" shape="rect">
+          <area target="" alt="saudi arabia" title="saudi arabia" href="#" coords="43,120,65,116,97,135,120,138,153,181,177,186,176,201,121,215,117,225,87,221,56,190,52,174,46,169,26,143,39,135" shape="poly">
+          <area target="" alt="south korea" title="south korea" href="#" coords="704,71,682,101" shape="rect">
+          <area target="" alt="japan" title="japan" href="#" coords="817,25,796,19,780,39,782,52,769,78,705,109,712,121,743,102,763,99,787,88,792,59,795,44,812,41" shape="poly">
+          <area target="" alt="india" title="india" href="#" coords="336,94,318,99,304,96,315,119,288,147,275,151,286,170,267,172,278,195,298,192,312,248,332,286,355,272,353,230,403,195,416,184,412,165,430,164,436,175,441,187,459,155,475,148,457,138,439,143,439,154,415,150,408,148,410,157,380,152,350,141,357,132,342,124" shape="poly">
+        </map>
 
-          <!-- Left Sidebar: Regional Dish Match List -->
-          <div class="geo-sidebar">
-            <div class="geo-cards-scroll">
+        <!-- Dynamic Pins Container -->
+        <div id="map-pins-layer"></div>
+      </div>
 
-              <!-- Main Dish Group -->
-              <div class="card-group" data-category="main-dish">
-                <h4 class="group-label">MAIN DISH</h4>
-                {% if recommended_dish %}
-                  <div class="geo-card active-card">
-                    <div class="card-img-wrapper">
-                      <img src="{{ recommended_dish.image_link if recommended_dish.image_link else '' }}" 
-                           alt="{{ recommended_dish.title }}" 
-                           referrerpolicy="no-referrer">
-                    </div>
-                    <div class="card-info">
-                      <h5>{{ recommended_dish.title }}</h5>
-                      <p class="card-region">{{ recommended_dish.country }}</p>
-                      <p class="card-subregion">{{ recommended_dish.region | upper }} REGION</p>
-                      <div class="card-bar-wrapper">
-                        <span>MATCHING SCORE</span>
-                        <strong class="score-val">{{ similarity_score }}%</strong>
-                      </div>
-                    </div>
-                    <span class="card-number-badge badge-main-dish">{{ card_counter.value }}</span>
-                  </div>
-                  {% set card_counter.value = card_counter.value + 1 %}
-                {% else %}
-                  <p>No main dish found.</p>
-                {% endif %}
-              </div>
-
-              <!-- Regional Variations Group -->
-              <div class="card-group" data-category="regional">
-                <h4 class="group-label">REGIONAL VARIATIONS</h4>
-                {% for dish in regional_variations %}
-                  <div class="geo-card">
-                    <div class="card-img-wrapper">
-                      <img src="{{ dish.image_link if dish.image_link else '' }}" 
-                           alt="{{ dish.title }}" 
-                           referrerpolicy="no-referrer">
-                    </div>
-                    <div class="card-info">
-                      <h5>{{ dish.title }}</h5>
-                      <p class="card-region">{{ dish.country }}</p>
-                      <p class="card-subregion">{{ dish.region | upper }} REGION</p>
-                      <div class="card-bar-wrapper">
-                        <span>MATCHING SCORE</span>
-                        <strong class="score-val">{{ dish.score }}%</strong>
-                      </div>
-                    </div>
-                    <span class="card-number-badge badge-regional">{{ card_counter.value }}</span>
-                  </div>
-                  {% set card_counter.value = card_counter.value + 1 %}
-                {% else %}
-                  <p>No regional variations found.</p>
-                {% endfor %}
-              </div>
-
-              <!-- International Similarities Group -->
-              <div class="card-group" data-category="international">
-                <h4 class="group-label">INTERNATIONAL SIMILARITIES</h4>
-                {% for dish in international_similarities %}
-                  <div class="geo-card">
-                    <div class="card-img-wrapper">
-                      <img src="{{ dish.image_link if dish.image_link else '' }}" 
-                           alt="{{ dish.title }}" 
-                           referrerpolicy="no-referrer">
-                    </div>
-                    <div class="card-info">
-                      <h5>{{ dish.title }}</h5>
-                      <p class="card-region">{{ dish.country }}</p>
-                      <p class="card-subregion">{{ dish.region | upper }} REGION</p>
-                      <div class="card-bar-wrapper">
-                        <span>MATCHING SCORE</span>
-                        <strong class="score-val">{{ dish.score }}%</strong>
-                      </div>
-                    </div>
-                    <span class="card-number-badge badge-international">{{ card_counter.value }}</span>
-                  </div>
-                  {% set card_counter.value = card_counter.value + 1 %}
-                {% else %}
-                  <p>No international matches found.</p>
-                {% endfor %}
-              </div>
-
-            </div>
+      <!-- Floating Route Summary Bar -->
+      <div type="button" class="route-info-bar" id="openMapModal">
+        <div class="route-details">
+          <div class="route-text-group">
+            <span class="route-value">GEOGRAPHICAL MAP</span>
           </div>
-
-          <!-- Right Container: Interactive World Map -->
-          <div class="geo-map-container">
-            <div class="geo-map-header">
-              <h3>GEOGRAPHICAL DISTRIBUTION</h3>
-            </div>
-
-            <div class="map-pan-wrapper">
-              <div class="map-placeholder" id="map-placeholder">
-                <img src="{{ url_for('static', filename='assets/WorldMap-temp.png') }}" 
-                     class="map-graphic" 
-                     id="world-map-img"
-                     alt="World Map" 
-                     usemap="#image-map">
-
-                <!-- Dynamic Numbered Map Pins -->
-                <div id="map-pins-layer">
-                  {% set map_counter = namespace(value=1) %}
-
-                  <!-- Main Dish Pin -->
-                  {% if recommended_dish %}
-                    <div class="map-pin-number pin-main-dish" data-country="{{ recommended_dish.country | lower }}">
-                      <span class="pin-num">{{ map_counter.value }}</span>
-                      <span class="pin-tooltip">{{ recommended_dish.title }}</span>
-                    </div>
-                    {% set map_counter.value = map_counter.value + 1 %}
-                  {% endif %}
-
-                  <!-- Regional Variations Pins -->
-                  {% for dish in regional_variations %}
-                    <div class="map-pin-number pin-regional" data-country="{{ dish.country | lower }}">
-                      <span class="pin-num">{{ map_counter.value }}</span>
-                      <span class="pin-tooltip">{{ dish.title }}</span>
-                    </div>
-                    {% set map_counter.value = map_counter.value + 1 %}
-                  {% endfor %}
-
-                  <!-- International Similarities Pins -->
-                  {% for dish in international_similarities %}
-                    <div class="map-pin-number pin-international" data-country="{{ dish.country | lower }}">
-                      <span class="pin-num">{{ map_counter.value }}</span>
-                      <span class="pin-tooltip">{{ dish.title }}</span>
-                    </div>
-                    {% set map_counter.value = map_counter.value + 1 %}
-                  {% endfor %}
-                </div>
-
-                <!-- HTML Image Map Coordinates -->
-                <map name="image-map" id="image-map">
-                  <area target="" alt="china" title="china" href="" coords="449,25,465,37,529,48,634,8,740,0,718,41,650,66,622,70,654,81,636,94,652,140,620,180,568,196,534,184,500,189,475,176,482,154,458,138,404,150,342,124,340,97,306,66,353,42,352,21,403,0,422,6,429,20,442,26,445,28" shape="poly">
-                  <area target="" alt="vietnam" title="vietnam" href="" coords="510,190,521,205,547,239,546,253,525,271,529,279,557,263,556,238,534,205,549,190,532,183" shape="poly">
-                  <area target="" alt="indonesia" title="indonesia" href="" coords="537,384,535,364,513,336,470,304,458,306,518,381,539,396,588,406,667,417,573,392,543,386,593,370,562,366,556,337,615,296,629,306,617,319,624,334,618,343,614,355,610,372,625,365,637,336,654,336,673,334,643,352,657,349,648,357,658,383,639,365,637,384,629,369,725,346,782,362,782,404,746,381,726,367,713,351" shape="poly">
-                  <area target="" alt="philippines" title="philippines" href="" coords="636,232,642,251,619,284,646,261,653,278,652,292,676,307,686,290,678,261,650,237,656,222,643,209" shape="poly">
-                  <area target="" alt="cambodia" title="cambodia" href="" coords="546,241,511,245,515,265,528,271,547,255" shape="poly">
-                  <area target="" alt="thailand" title="thailand" href="" coords="533,243,527,219,502,217,495,198,476,208,480,228,486,248,489,261,480,287,494,303,512,303,494,279,499,251,513,257,513,243" shape="poly">
-                  <area target="" alt="malaysia" title="malaysia" href="" coords="491,304,502,325,521,335,521,315,511,302" shape="poly">
-                  <area target="" alt="myanmar" title="myanmar" href="" coords="476,149,458,157,449,178,438,195,454,216,451,232,473,225,484,264,486,232,478,214,500,191,475,177,484,155" shape="poly">
-                  <area target="" alt="turkiye" title="turkiye" href="" coords="93,85,-1,51" shape="rect">
-                  <area target="" alt="saudi arabia" title="saudi arabia" href="" coords="43,120,65,116,97,135,120,138,153,181,177,186,176,201,121,215,117,225,87,221,56,190,52,174,46,169,26,143,39,135" shape="poly">
-                  <area target="" alt="south korea" title="south korea" href="" coords="704,71,682,101" shape="rect">
-                  <area target="" alt="japan" title="japan" href="" coords="817,25,796,19,780,39,782,52,769,78,705,109,712,121,743,102,763,99,787,88,792,59,795,44,812,41" shape="poly">
-                  <area target="" alt="india" title="india" href="" coords="336,94,318,99,304,96,315,119,288,147,275,151,286,170,267,172,278,195,298,192,312,248,332,286,355,272,353,230,403,195,416,184,412,165,430,164,436,175,441,187,459,155,475,148,457,138,439,143,439,154,415,150,408,148,410,157,380,152,350,141,357,132,342,124" shape="poly">
-                </map>
-              </div>
-            </div>
-          </div>
-
+        </div>
+        <div class="route-hint">
+          <span>Click to browse full map view & similarity summaries</span>
+          <svg class="icon-arrow" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M7 17L17 7M17 7H7M17 7V17" />
+          </svg>
         </div>
       </div>
-    </section>
+    </div>
+  </div>
+</section>
+<!-- ==================================
+     FULL-SCREEN MAP MODAL OVERLAY
+     ================================== -->
+<div class="map-modal-overlay" id="mapModal">
+  <div class="map-modal-container">
+    
+    <!-- COLLAPSIBLE LEFT SIDEBAR PANEL -->
+    <aside class="map-panel-left" id="mapSidebar">
+      <button type="button" class="btn-toggle-sidebar" id="toggleSidebar" aria-label="Toggle Panel">
+        <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+
+      <div class="panel-inner-scroll">
+        <!-- Dish Card -->
+        <div class="panel-dish-card">
+          <div class="panel-img-wrapper">
+            <img id="modalDishImg" src="" alt="Selected Dish">
+            <span class="panel-img-badge" id="modalDishLocation"></span>
+          </div>
+
+          <div class="panel-dish-header">
+            <div class="title-row">
+              <h3 id="modalDishTitle"></h3>
+              <a href="#" target="_blank" class="btn-mini-link" id="modalRecipeLink" style="display: none;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+                LINK
+              </a>
+            </div>
+            <p class="panel-region-sub" id="modalDishRegion"></p>
+          </div>
+        </div>
+
+        <!-- Tab Controls -->
+        <div class="panel-tabs">
+          <button type="button" class="tab-btn active" data-tab="recipe">RECIPE BREAKDOWN</button>
+          <button type="button" class="tab-btn" data-tab="similarity">SIMILARITY SUMMARY</button>
+        </div>
+
+        <!-- TAB CONTENT 1: RECIPE BREAKDOWN -->
+        <div class="tab-content active" id="tab-recipe">
+          <div class="panel-legend">
+            <span class="legend-chip gold-dot"><span class="shared-entity">Shared Entities</span></span>
+            <span class="legend-chip maroon-dot"><span id="modalSourceDishLabel"></span></span>
+            <span class="legend-chip green-dot"><span class="active-dish-name"></span></span>
+          </div>
+
+          <div class="panel-entity-section">
+            <span class="entity-title">INGREDIENTS</span>
+            <div class="chips-wrapper" id="modalIngredients"></div>
+          </div>
+
+          <div class="panel-entity-section">
+            <span class="entity-title">COOKING ACTIONS</span>
+            <div class="chips-wrapper" id="modalActions"></div>
+          </div>
+
+          <div class="panel-entity-section">
+            <span class="entity-title">COOKWARE</span>
+            <div class="chips-wrapper" id="modalCookware"></div>
+          </div>
+
+          <div class="panel-entity-section">
+            <span class="entity-title">UTENSILS</span>
+            <div class="chips-wrapper" id="modalUtensils"></div>
+          </div>
+        </div>
+
+        <!-- TAB CONTENT 2: SIMILARITY SUMMARY -->
+        <div class="tab-content" id="tab-similarity">
+          <div class="modal-metric-box">
+            <span class="metric-label">OVERALL SIMILARITY SCORE</span>
+            <div class="metric-score" id="modalOverallScore">{{ similarity_score }}%</div>
+          </div>
+
+          <div class="modal-progress-list">
+            <div class="progress-item">
+              <div class="progress-info"><span>INGREDIENT WEIGHT</span><span>93%</span></div>
+              <div class="progress-track"><div class="progress-fill" style="width: 93%;"></div></div>
+            </div>
+            <div class="progress-item">
+              <div class="progress-info"><span>ACTION WEIGHT</span><span>4%</span></div>
+              <div class="progress-track"><div class="progress-fill" style="width: 4%;"></div></div>
+            </div>
+            <div class="progress-item">
+              <div class="progress-info"><span>COOKWARE WEIGHT</span><span>2%</span></div>
+              <div class="progress-track"><div class="progress-fill" style="width: 2%;"></div></div>
+            </div>
+            <div class="progress-item">
+              <div class="progress-info"><span>UTENSIL WEIGHT</span><span>1%</span></div>
+              <div class="progress-track"><div class="progress-fill" style="width: 1%;"></div></div>
+            </div>
+          </div>
+
+          <div class="modal-ai-quote">
+            <p id="modalDirections">{{ recommended_dish.directions if recommended_dish else source_dish.directions }}</p>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+    <!-- RIGHT MAIN CANVAS: MAP VIEW -->
+    <main class="map-canvas-right">
+      <div class="map-filter-bar">
+        <button type="button" class="map-filter-pill active" data-layer="main">MAIN DISH</button>
+        <button type="button" class="map-filter-pill active" data-layer="regional">REGIONAL VARIATIONS</button>
+        <button type="button" class="map-filter-pill active" data-layer="international">INTERNATIONAL SIMILARITIES</button>
+      </div>
+
+      <button type="button" class="btn-exit-map" id="closeMapModal">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+        </svg>
+        <span>EXIT FULL SCREEN MAP</span>
+      </button>
+
+      <div class="modal-map-viewport" id="modalMapBody"></div>
+
+      <div class="map-zoom-controls">
+        <button type="button" class="map-zoom-btn" id="mapZoomIn" aria-label="Zoom in">+</button>
+        <button type="button" class="map-zoom-btn" id="mapZoomOut" aria-label="Zoom out">&minus;</button>
+        <button type="button" class="map-zoom-btn map-zoom-reset" id="mapZoomReset" aria-label="Reset zoom">RESET</button>
+      </div>
+    </main>
+
+  </div>
+</div>
+
   </main>
 
   <app-footer></app-footer>
@@ -511,107 +578,533 @@
     });
   </script>
 
-  <!-- ==================================
-       DYNAMIC MAP PIN PLACEMENT
-       ================================== -->
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const mapImg = document.getElementById("world-map-img");
+<script type="application/json" id="map-data">
+  {{ {
+    "sourceDish": source_dish,
+    "recommendedDish": recommended_dish,
+    "entities": entities,
+    "similarityScore": similarity_score,
+    "regionalVariations": regional_variations,
+    "internationalSimilarities": international_similarities
+  } | tojson }}
+</script>
 
-      function placePinsRandomly() {
+<script>
+  const MAP_DATA = JSON.parse(document.getElementById('map-data').textContent);
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // UI Elements
+    const openBtn = document.getElementById('openMapModal');
+    const closeBtn = document.getElementById('closeMapModal');
+    const modal = document.getElementById('mapModal');
+    const toggleSidebarBtn = document.getElementById('toggleSidebar');
+    const sidebar = document.getElementById('mapSidebar');
+    const modalMapBody = document.getElementById('modalMapBody');
+    const mapPanWrapper = document.querySelector('.map-pan-wrapper');
+    const originalMapPlaceholder = document.querySelector('.map-pan-wrapper .map-placeholder');
+    // Safe fallback for initial active dish
+    const activeDish = MAP_DATA.recommendedDish || MAP_DATA.sourceDish || {};
+
+    // Helper: Safely generate chip HTML for entity lists
+    function createChips(items, chipClass) {
+      if (!Array.isArray(items) || !items.length) return '';
+      return items.map(item => `<span class="entity-chip ${chipClass}">${item}</span>`).join('');
+    }
+
+    // Helper: Update Left Sidebar with Active Dish Data
+    function updateSidebarDish(dish) {
+      if (!dish || typeof dish !== 'object') return;
+
+      // Header details
+      const titleElem = document.getElementById('modalDishTitle');
+      if (titleElem) titleElem.textContent = dish.title || 'Unknown Dish';
+
+      const locElem = document.getElementById('modalDishLocation');
+      if (locElem) locElem.textContent = `${dish.region || ''}, ${dish.country || ''}`;
+
+      const regSubElem = document.getElementById('modalDishRegion');
+      if (regSubElem) regSubElem.textContent = `${(dish.region || 'UNKNOWN').toUpperCase()} REGION`;
+
+      // Dish Image
+      const imgElem = document.getElementById('modalDishImg');
+      if (imgElem) {
+        if (dish.image_link) {
+          imgElem.src = dish.image_link;
+          imgElem.style.display = 'block';
+        } else {
+          imgElem.style.display = 'none';
+        }
+      }
+
+      // External Recipe Link
+      const linkElem = document.getElementById('modalRecipeLink');
+      if (linkElem) {
+        if (dish.recipe_link) {
+          linkElem.href = dish.recipe_link;
+          linkElem.style.display = 'inline-flex';
+        } else {
+          linkElem.style.display = 'none';
+        }
+      }
+
+      // Dynamic dish names in entity legend
+      const activeNameElems = document.querySelectorAll('.active-dish-name');
+      activeNameElems.forEach(el => {
+        el.textContent = dish.title || '';
+      });
+
+      const sourceLabelElem = document.getElementById('modalSourceDishLabel');
+      if (sourceLabelElem) {
+        sourceLabelElem.textContent = (MAP_DATA.sourceDish && MAP_DATA.sourceDish.title) || '';
+      }
+
+      // Helper: render shared / source-unique / target-unique chips for one entity category.
+      // Color always reflects uniqueness (gold = shared, maroon = unique to source dish,
+      // green = unique to the active/target dish) -- never the entity category itself.
+      function renderEntityGroup(elementId, categoryData) {
+        const wrapper = document.getElementById(elementId);
+        if (!wrapper || !categoryData) return;
+        wrapper.innerHTML =
+          createChips(categoryData.shared, 'chip-gold') +
+          createChips(categoryData.source_unique, 'chip-maroon') +
+          createChips(categoryData.target_unique, 'chip-green');
+      }
+
+      if (MAP_DATA.entities) {
+        renderEntityGroup('modalIngredients', MAP_DATA.entities.ingredients);
+        renderEntityGroup('modalActions', MAP_DATA.entities.actions);
+        renderEntityGroup('modalCookware', MAP_DATA.entities.cookware);
+        renderEntityGroup('modalUtensils', MAP_DATA.entities.utensils);
+      }
+
+      // Render Directions / AI Summary
+      const directionsElem = document.getElementById('modalDirections');
+      if (directionsElem) {
+        directionsElem.textContent = dish.directions || 'No directions available for this entry.';
+      }
+    }
+
+    // ==================================
+    // MAP PINS: build a pin for the main dish, top 3 regional variations,
+    // and top 5 international similarities, drop them on the map (randomized
+    // within their country's shape), and wire up hover preview + click.
+    // ==================================
+    const mapImg = document.getElementById('world-map-img');
+    const pinsLayer = document.getElementById('map-pins-layer');
+
+    // A couple of country-name aliases in case the dataset spells them
+    // differently than the <area alt="..."> values on the map.
+    const COUNTRY_ALIASES = {
+      'turkey': 'turkiye',
+      'korea': 'south korea',
+      'republic of korea': 'south korea',
+      'korea, south': 'south korea'
+    };
+
+    function normalizeCountryKey(country) {
+      if (!country) return '';
+      const key = country.toString().trim().toLowerCase();
+      return COUNTRY_ALIASES[key] || key;
+    }
+
+    function findAreaForCountry(country) {
+      const key = normalizeCountryKey(country);
+      if (!key) return null;
+      return document.querySelector(`map[name="image-map"] area[alt="${key}"]`) ||
+             document.querySelector(`map[name="image-map"] area[title="${key}"]`);
+    }
+
+    function isPointInPolygon(point, vs) {
+      let x = point.x, y = point.y;
+      let inside = false;
+      for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+        let xi = vs[i].x, yi = vs[i].y;
+        let xj = vs[j].x, yj = vs[j].y;
+
+        let intersect = ((yi > y) !== (yj > y)) &&
+            (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    function getRandomPointInPolygon(polygon) {
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+      polygon.forEach((p) => {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.y > maxY) maxY = p.y;
+      });
+
+      let point;
+      let attempts = 0;
+      const maxAttempts = 200;
+
+      do {
+        point = {
+          x: minX + Math.random() * (maxX - minX),
+          y: minY + Math.random() * (maxY - minY)
+        };
+        attempts++;
+      } while (!isPointInPolygon(point, polygon) && attempts < maxAttempts);
+
+      return point;
+    }
+
+    // Picks a randomized (x, y) in image-pixel space somewhere inside the
+    // given country's area shape, or null if the country isn't on the map.
+    function getRandomPointForCountry(country) {
+      const area = findAreaForCountry(country);
+      if (!area) return null;
+
+      const coords = area.getAttribute('coords').split(',').map(Number);
+      const shape = area.getAttribute('shape').toLowerCase();
+
+      if (shape === 'poly') {
+        const polygon = [];
+        for (let i = 0; i < coords.length; i += 2) {
+          polygon.push({ x: coords[i], y: coords[i + 1] });
+        }
+        return getRandomPointInPolygon(polygon);
+      }
+
+      if (shape === 'rect') {
+        const [x1, y1, x2, y2] = coords;
+        const minX = Math.min(x1, x2);
+        const maxX = Math.max(x1, x2);
+        const minY = Math.min(y1, y2);
+        const maxY = Math.max(y1, y2);
+        return {
+          x: minX + Math.random() * (maxX - minX),
+          y: minY + Math.random() * (maxY - minY)
+        };
+      }
+
+      return null;
+    }
+
+    // Single floating hover/focus preview card, reused for every pin.
+    const tooltip = document.createElement('div');
+    tooltip.className = 'map-pin-tooltip';
+    tooltip.innerHTML = `
+      <img class="map-pin-tooltip-img" alt="">
+      <div class="map-pin-tooltip-body">
+        <span class="map-pin-tooltip-title"></span>
+        <span class="map-pin-tooltip-meta"></span>
+        <span class="map-pin-tooltip-score"></span>
+      </div>
+    `;
+    document.body.appendChild(tooltip);
+    const tooltipImg = tooltip.querySelector('.map-pin-tooltip-img');
+    const tooltipTitle = tooltip.querySelector('.map-pin-tooltip-title');
+    const tooltipMeta = tooltip.querySelector('.map-pin-tooltip-meta');
+    const tooltipScore = tooltip.querySelector('.map-pin-tooltip-score');
+
+    function showTooltip(pinElem, dish, score) {
+      tooltipImg.src = dish.image_link || '';
+      tooltipTitle.textContent = dish.title || 'Unknown Dish';
+      tooltipMeta.textContent = `${dish.region || 'No Specific'} \u2022 ${dish.country || ''}`;
+      tooltipScore.textContent = (score !== null && score !== undefined && score !== '')
+        ? `${score}% similarity`
+        : '';
+
+      tooltip.classList.add('visible');
+
+      const pinRect = pinElem.getBoundingClientRect();
+      const tooltipRect = tooltip.getBoundingClientRect();
+
+      let left = pinRect.left + (pinRect.width / 2) - (tooltipRect.width / 2);
+      let top = pinRect.top - tooltipRect.height - 12;
+
+      // Keep the card on-screen: flip below the pin if it would run off the
+      // top, and clamp horizontally within the viewport.
+      if (top < 8) {
+        top = pinRect.bottom + 12;
+      }
+      left = Math.max(8, Math.min(left, window.innerWidth - tooltipRect.width - 8));
+
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${top}px`;
+    }
+
+    function hideTooltip() {
+      tooltip.classList.remove('visible');
+    }
+
+    // Builds one pin <button> for a dish and drops it on the map.
+    function createPin(dish, score, typeClass) {
+      if (!dish || !dish.country) return null;
+
+      const point = getRandomPointForCountry(dish.country);
+      if (!point) return null;
+
+      const pin = document.createElement('button');
+      pin.type = 'button';
+      pin.className = `map-pin map-pin--${typeClass}`;
+      pin.setAttribute('aria-label', `${dish.title || 'Dish'} (${dish.country || ''})`);
+
+      const img = document.createElement('img');
+      img.src = dish.image_link || '';
+      img.alt = dish.title || '';
+      img.referrerPolicy = 'no-referrer';
+      pin.appendChild(img);
+
+      pin.addEventListener('mouseenter', () => showTooltip(pin, dish, score));
+      pin.addEventListener('focus', () => showTooltip(pin, dish, score));
+      pin.addEventListener('mouseleave', hideTooltip);
+      pin.addEventListener('blur', hideTooltip);
+      pin.addEventListener('click', () => {
+        document.querySelectorAll('.map-pin.is-active').forEach(p => p.classList.remove('is-active'));
+        pin.classList.add('is-active');
+        updateSidebarDish(dish);
+      });
+
+      pinsLayer.appendChild(pin);
+
+      // Position once the map's natural size is known (percent-based so it
+      // scales correctly whether the map is in the small preview or full modal).
+      const positionPin = () => {
         const naturalWidth = mapImg.naturalWidth || 817;
         const naturalHeight = mapImg.naturalHeight || 417;
-
-        const pins = document.querySelectorAll("#map-pins-layer .map-pin-number");
-
-        pins.forEach((pin) => {
-          const country = pin.getAttribute("data-country");
-          if (!country) return;
-
-          const area = document.querySelector(`map[name="image-map"] area[alt="${country}"]`) ||
-                       document.querySelector(`map[name="image-map"] area[title="${country}"]`);
-
-          if (!area) return;
-
-          const coords = area.getAttribute("coords").split(",").map(Number);
-          const shape = area.getAttribute("shape").toLowerCase();
-
-          let point = null;
-
-          if (shape === "poly") {
-            const polygon = [];
-            for (let i = 0; i < coords.length; i += 2) {
-              polygon.push({ x: coords[i], y: coords[i + 1] });
-            }
-            point = getRandomPointInPolygon(polygon);
-          } else if (shape === "rect") {
-            const [x1, y1, x2, y2] = coords;
-            const minX = Math.min(x1, x2);
-            const maxX = Math.max(x1, x2);
-            const minY = Math.min(y1, y2);
-            const maxY = Math.max(y1, y2);
-
-            point = {
-              x: minX + Math.random() * (maxX - minX),
-              y: minY + Math.random() * (maxY - minY)
-            };
-          }
-
-          if (point) {
-            const leftPercent = (point.x / naturalWidth) * 100;
-            const topPercent = (point.y / naturalHeight) * 100;
-
-            pin.style.left = `${leftPercent}%`;
-            pin.style.top = `${topPercent}%`;
-          }
-        });
-      }
-
-      function isPointInPolygon(point, vs) {
-        let x = point.x, y = point.y;
-        let inside = false;
-        for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
-          let xi = vs[i].x, yi = vs[i].y;
-          let xj = vs[j].x, yj = vs[j].y;
-
-          let intersect = ((yi > y) !== (yj > y)) &&
-              (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-          if (intersect) inside = !inside;
-        }
-        return inside;
-      }
-
-      function getRandomPointInPolygon(polygon) {
-        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-
-        polygon.forEach((p) => {
-          if (p.x < minX) minX = p.x;
-          if (p.x > maxX) maxX = p.x;
-          if (p.y < minY) minY = p.y;
-          if (p.y > maxY) maxY = p.y;
-        });
-
-        let point;
-        let attempts = 0;
-        const maxAttempts = 200;
-
-        do {
-          point = {
-            x: minX + Math.random() * (maxX - minX),
-            y: minY + Math.random() * (maxY - minY)
-          };
-          attempts++;
-        } while (!isPointInPolygon(point, polygon) && attempts < maxAttempts);
-
-        return point;
-      }
+        pin.style.left = `${(point.x / naturalWidth) * 100}%`;
+        pin.style.top = `${(point.y / naturalHeight) * 100}%`;
+      };
 
       if (mapImg.complete) {
-        placePinsRandomly();
+        positionPin();
       } else {
-        mapImg.addEventListener("load", placePinsRandomly);
+        mapImg.addEventListener('load', positionPin, { once: true });
+      }
+
+      return pin;
+    }
+
+    function buildAllPins() {
+      if (!pinsLayer || !mapImg) return;
+      pinsLayer.innerHTML = '';
+
+      if (MAP_DATA.recommendedDish) {
+        createPin(MAP_DATA.recommendedDish, MAP_DATA.similarityScore, 'main');
+      }
+
+      (MAP_DATA.regionalVariations || []).slice(0, 3).forEach(dish => {
+        createPin(dish, dish.score, 'regional');
+      });
+
+      (MAP_DATA.internationalSimilarities || []).slice(0, 5).forEach(dish => {
+        createPin(dish, dish.score, 'international');
+      });
+    }
+
+    buildAllPins();
+
+    // ==================================
+    // FULL-SCREEN MAP: PAN & ZOOM
+    // Drag to pan, scroll wheel or the +/-/RESET buttons to zoom. Panning
+    // starts only when the pointer goes down on empty map space (not on a
+    // pin), so pins keep working normally for hover/click.
+    // ==================================
+    const zoomInBtn = document.getElementById('mapZoomIn');
+    const zoomOutBtn = document.getElementById('mapZoomOut');
+    const zoomResetBtn = document.getElementById('mapZoomReset');
+
+    const MIN_SCALE = 1;
+    const MAX_SCALE = 4;
+    let mapScale = 1;
+    let mapTranslateX = 0;
+    let mapTranslateY = 0;
+    let isPanning = false;
+    let panStartX = 0;
+    let panStartY = 0;
+    let panStartTranslateX = 0;
+    let panStartTranslateY = 0;
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    // Keeps the (scaled) map covering the full viewport -- no empty gaps
+    // creeping in at the edges while panning or zooming.
+    function clampMapTranslate() {
+      if (!modalMapBody) return;
+      const viewportWidth = modalMapBody.clientWidth;
+      const viewportHeight = modalMapBody.clientHeight;
+      const scaledWidth = viewportWidth * mapScale;
+      const scaledHeight = viewportHeight * mapScale;
+
+      const minX = Math.min(0, viewportWidth - scaledWidth);
+      const minY = Math.min(0, viewportHeight - scaledHeight);
+
+      mapTranslateX = clamp(mapTranslateX, minX, 0);
+      mapTranslateY = clamp(mapTranslateY, minY, 0);
+    }
+
+    function applyMapTransform() {
+      if (!originalMapPlaceholder) return;
+      originalMapPlaceholder.style.transform =
+        `translate(${mapTranslateX}px, ${mapTranslateY}px) scale(${mapScale})`;
+    }
+
+    function resetMapTransform() {
+      mapScale = 1;
+      mapTranslateX = 0;
+      mapTranslateY = 0;
+      applyMapTransform();
+    }
+
+    // Zooms toward a specific point (in viewport-local pixel coordinates),
+    // keeping that point visually fixed under the cursor/finger.
+    function zoomMapTo(newScale, pivotX, pivotY) {
+      const clampedScale = clamp(newScale, MIN_SCALE, MAX_SCALE);
+      const scaleRatio = clampedScale / mapScale;
+
+      mapTranslateX = pivotX - (pivotX - mapTranslateX) * scaleRatio;
+      mapTranslateY = pivotY - (pivotY - mapTranslateY) * scaleRatio;
+      mapScale = clampedScale;
+
+      clampMapTranslate();
+      applyMapTransform();
+    }
+
+    function zoomMapByFactor(factor) {
+      if (!modalMapBody) return;
+      const rect = modalMapBody.getBoundingClientRect();
+      zoomMapTo(mapScale * factor, rect.width / 2, rect.height / 2);
+    }
+
+    if (modalMapBody) {
+      modalMapBody.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const rect = modalMapBody.getBoundingClientRect();
+        const pivotX = e.clientX - rect.left;
+        const pivotY = e.clientY - rect.top;
+        const zoomFactor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+        zoomMapTo(mapScale * zoomFactor, pivotX, pivotY);
+      }, { passive: false });
+
+      modalMapBody.addEventListener('pointerdown', (e) => {
+        if (mapScale <= MIN_SCALE) return;
+        if (e.target.closest('.map-pin')) return;
+
+        isPanning = true;
+        modalMapBody.setPointerCapture(e.pointerId);
+        modalMapBody.classList.add('is-panning');
+        panStartX = e.clientX;
+        panStartY = e.clientY;
+        panStartTranslateX = mapTranslateX;
+        panStartTranslateY = mapTranslateY;
+      });
+
+      modalMapBody.addEventListener('pointermove', (e) => {
+        if (!isPanning) return;
+        mapTranslateX = panStartTranslateX + (e.clientX - panStartX);
+        mapTranslateY = panStartTranslateY + (e.clientY - panStartY);
+        clampMapTranslate();
+        applyMapTransform();
+      });
+
+      const endMapPan = () => {
+        isPanning = false;
+        modalMapBody.classList.remove('is-panning');
+      };
+      modalMapBody.addEventListener('pointerup', endMapPan);
+      modalMapBody.addEventListener('pointercancel', endMapPan);
+      modalMapBody.addEventListener('pointerleave', endMapPan);
+    }
+
+    if (zoomInBtn) zoomInBtn.addEventListener('click', () => zoomMapByFactor(1.4));
+    if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => zoomMapByFactor(1 / 1.4));
+    if (zoomResetBtn) zoomResetBtn.addEventListener('click', resetMapTransform);
+
+    // Modal Control Handlers
+    // NOTE: the map placeholder (image + area map + live pins) is *moved* into
+    // the modal rather than cloned, so the pins keep their hover/click
+    // behavior instead of losing their event listeners on a clone.
+    if (openBtn && modal) {
+      openBtn.addEventListener('click', () => {
+        if (modalMapBody && originalMapPlaceholder) {
+          modalMapBody.appendChild(originalMapPlaceholder);
+        }
+
+        resetMapTransform();
+        updateSidebarDish(activeDish);
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      });
+    }
+
+    const closeModal = () => {
+      if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+
+      resetMapTransform();
+
+      // Move the map back into the small dashboard preview.
+      if (mapPanWrapper && originalMapPlaceholder && !mapPanWrapper.contains(originalMapPlaceholder)) {
+        mapPanWrapper.insertBefore(originalMapPlaceholder, mapPanWrapper.firstChild);
+      }
+    };
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeModal);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal && modal.classList.contains('active')) {
+        closeModal();
       }
     });
-  </script>
+
+    // Sidebar Collapsible Toggle
+    if (toggleSidebarBtn && sidebar) {
+      toggleSidebarBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+      });
+    }
+
+    // Sidebar Tab Navigation
+    if (sidebar) {
+      const tabBtns = sidebar.querySelectorAll('.tab-btn');
+      const tabContents = sidebar.querySelectorAll('.tab-content');
+
+      tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          tabBtns.forEach(b => b.classList.remove('active'));
+          tabContents.forEach(c => c.classList.remove('active'));
+
+          btn.classList.add('active');
+          const targetTab = btn.getAttribute('data-tab');
+          const targetContent = sidebar.querySelector(`#tab-${targetTab}`);
+          if (targetContent) {
+            targetContent.classList.add('active');
+          }
+        });
+      });
+    }
+
+    // Map Filter Layer Toggles
+    // All three layers start ON (all pins visible). Clicking a pill toggles
+    // that category's pins on/off independently -- it does not affect the
+    // other two pills.
+    const filterPills = document.querySelectorAll('.map-filter-pill');
+    filterPills.forEach(pill => {
+      pill.classList.add('active');
+
+      pill.addEventListener('click', () => {
+        pill.classList.toggle('active');
+        const isActive = pill.classList.contains('active');
+        const layer = pill.getAttribute('data-layer');
+
+        document.querySelectorAll(`.map-pin--${layer}`).forEach(pinEl => {
+          pinEl.style.display = isActive ? '' : 'none';
+        });
+      });
+    });
+  });
+</script>
 </body>
 </html>

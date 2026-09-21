@@ -42,8 +42,15 @@ def parse_items(text_field):
         return []
     return [item.strip().title() for item in text_field.split(',') if item.strip()]
 
-@app.route("/")
+def format_recipe_url(link):
+    """Formats recipe link to ensure absolute HTTP/HTTPS URL standard."""
+    if not link:
+        return ""
+    if link.startswith("http://") or link.startswith("https://"):
+        return link
+    return f"https://{link}"
 
+@app.route("/")
 @app.route("/home")
 def home():
     return render_template("index.html")
@@ -72,6 +79,7 @@ def search_text():
     if source_dish:
         if not source_dish.get("region"):
             source_dish["region"] = "No Specific"
+        source_dish["recipe_link"] = format_recipe_url(source_dish.get("recipe_link", ""))
     else:
         source_dish = {
             "title": dish_name,
@@ -79,7 +87,11 @@ def search_text():
             "region": "No Specific",
             "ingredient_text": "",
             "action_text": "",
-            "directions": "No direct match found for this entry."
+            "cookware_text": "",
+            "utensil_text": "",
+            "directions": "No direct match found for this entry.",
+            "recipe_link": "",
+            "image_link": ""
         }
 
     recommended_dish = None
@@ -108,15 +120,17 @@ def search_text():
             recommended_dish = RECIPES[best_global_idx].copy()
             if not recommended_dish.get("region"):
                 recommended_dish["region"] = "No Specific"
+            recommended_dish["recipe_link"] = format_recipe_url(recommended_dish.get("recipe_link", ""))
 
-            # Top 3 Regional Variations (excluding the main match)
+            # Top 3 Regional Variations (excluding main match)
             for idx in target_indices_sorted[1:4]:
                 dish = RECIPES[idx].copy()
                 dish["score"] = round(float(total_scores[idx]) * 100, 2)
                 dish["region"] = dish.get("region") or "No Specific"
+                dish["recipe_link"] = format_recipe_url(dish.get("recipe_link", ""))
                 regional_variations.append(dish)
 
-        # 4. International Similarities: Top 5 dishes, one each from 5 distinct non-target countries
+        # 4. International Similarities: Top 5 dishes from 5 distinct non-target countries
         all_indices_sorted = np.argsort(total_scores)[::-1]
         seen_countries = set([target_country.lower(), origin_country.lower()])
 
@@ -129,17 +143,24 @@ def search_text():
                 dish = recipe.copy()
                 dish["score"] = round(float(total_scores[idx]) * 100, 2)
                 dish["region"] = dish.get("region") or "No Specific"
+                dish["recipe_link"] = format_recipe_url(dish.get("recipe_link", ""))
                 international_similarities.append(dish)
 
                 if len(international_similarities) == 5:
                     break
 
-    # --- ENTITY EXTRACTION LOGIC ---
+    # --- ENTITY EXTRACTION & COMPARISON LOGIC ---
     src_ings = set(parse_items(source_dish.get("ingredient_text", "")))
     rec_ings = set(parse_items(recommended_dish.get("ingredient_text", ""))) if recommended_dish else set()
 
     src_actions = set(parse_items(source_dish.get("action_text", "")))
     rec_actions = set(parse_items(recommended_dish.get("action_text", ""))) if recommended_dish else set()
+
+    src_cookware = set(parse_items(source_dish.get("cookware_text", "")))
+    rec_cookware = set(parse_items(recommended_dish.get("cookware_text", ""))) if recommended_dish else set()
+
+    src_utensils = set(parse_items(source_dish.get("utensil_text", "")))
+    rec_utensils = set(parse_items(recommended_dish.get("utensil_text", ""))) if recommended_dish else set()
 
     entities = {
         "ingredients": {
@@ -151,7 +172,22 @@ def search_text():
             "shared": sorted(list(src_actions & rec_actions)),
             "source_unique": sorted(list(src_actions - rec_actions)),
             "target_unique": sorted(list(rec_actions - src_actions))
+        },
+        "cookware": {
+            "shared": sorted(list(src_cookware & rec_cookware)),
+            "source_unique": sorted(list(src_cookware - rec_cookware)),
+            "target_unique": sorted(list(rec_cookware - src_cookware))
+        },
+        "utensils": {
+            "shared": sorted(list(src_utensils & rec_utensils)),
+            "source_unique": sorted(list(src_utensils - rec_utensils)),
+            "target_unique": sorted(list(rec_utensils - src_utensils))
         }
+    }
+
+    # Weight percentages mapped for UI progress bars
+    feature_weights = {
+        key: round(value * 100) for key, value in WEIGHTS.items()
     }
 
     return render_template(
@@ -161,6 +197,7 @@ def search_text():
         target_country=target_country,
         entities=entities,
         similarity_score=similarity_score,
+        feature_weights=feature_weights,
         regional_variations=regional_variations,
         international_similarities=international_similarities
     )

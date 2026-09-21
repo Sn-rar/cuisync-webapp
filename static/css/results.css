@@ -502,12 +502,6 @@
   display: inline-block;
 }
 
-.chip-gold {
-  background-color: #e8dda8;
-  border: 1px solid var(--gold-accent);
-  color: #736021;
-}
-
 .chip-maroon {
   background-color: #e2a8a8;
   border: 1px solid var(--maroon-light);
@@ -552,421 +546,717 @@
 /* ==========================================================================
    GEOGRAPHICAL DISTRIBUTION SPLIT LAYOUT
    ========================================================================== */
-#geo-distribution .inner-content {
-  max-width: 100% !important;
-  width: 100%;
-  padding-left: 2rem;
-  padding-right: 2rem;
-  box-sizing: border-box;
+/* Header Action Button */
+/* Base Section Styling */
+.section-dark.geo-map-section {
+  background-color: var(--bg-deep-red);
+  padding: 2.5rem;
+  border-radius: 16px;
+  color: var(--text-gold);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-.geo-split-layout {
-  display: grid;
-  grid-template-columns: 360px 1fr;
-  gap: 24px;
-  width: 100%;
-  align-items: stretch;
-  margin-top: 20px;
-}
-
-.geo-sidebar {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  max-height: 600px;
-}
-
-.geo-cards-scroll {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto !important;
-  padding-right: 6px;
-  overflow-x: hidden;
-}
-
-.geo-cards-scroll::-webkit-scrollbar {
-  width: 5px;
-  overflow-x: hidden;
-}
-
-.geo-cards-scroll::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-}
-
-.geo-cards-scroll::-webkit-scrollbar-thumb {
-  background-color: var(--gold-accent, #c8a860);
-  border-radius: 4px;
-}
-
-.group-label {
-  color: var(--gold-accent, #c8a860);
-  font-size: 0.78rem;
-  letter-spacing: 1px;
-  margin-bottom: 8px;
-  border-bottom: 1px solid rgba(200, 168, 96, 0.3);
-  padding-bottom: 4px;
-}
-
-.geo-card {
-  position: relative;
-  background-color: var(--cream-bg, #f5efe6);
-  border: 2px solid var(--gold-accent, #c8a860);
-  border-radius: 12px;
-  padding: 10px;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  margin-bottom: 10px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.card-number {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  background-color: var(--gold-accent, #c8a860);
-  color: #2b2008;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  font-size: 0.65rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2;
-}
-
-.card-img-wrapper {
-  width: 80px;
-  height: 70px;
-  border-radius: 8px;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.card-img-wrapper img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.card-info h5 {
-  font-family: 'Playfair Display', serif;
-  font-size: 0.95rem;
-  color: var(--maroon-dark, #5c0606);
-  margin: 0 0 2px 0;
-}
-
-.card-region {
-  font-size: 0.65rem;
-  color: #666;
-  margin: 0;
-}
-
-.card-subregion {
-  font-size: 0.58rem;
-  font-weight: 700;
-  color: #888;
-  letter-spacing: 0.5px;
-  margin: 0 0 6px 0;
-}
-
-.card-bar-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.55rem;
-  font-weight: 700;
-  color: #444;
-}
-
-.score-bar {
-  flex-grow: 1;
-  height: 5px;
-  background-color: #ddd;
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.score-fill {
-  height: 100%;
-  background-color: var(--gold-accent, #c8a860);
-}
-
-.score-val {
-  font-size: 0.65rem;
-  color: var(--maroon-dark, #5c0606);
-}
-
-/* ==========================================================================
-   MAP DISPLAY (RIGHT SIDE OF SPLIT LAYOUT)
-   ========================================================================== */
-.geo-map-container {
-  position: relative;
-  border-radius: 8px;
-  overflow: hidden !important;
-  background-color: #f1ebdf;
-  border: 2px solid var(--gold-accent, #c8a860);
-  display: flex;
-  flex-direction: column;
-  height: 600px;
-  z-index: 1;
-}
-
+/* Header Area */
 .geo-map-header {
-  position: relative;
-  z-index: 10;
-  background: linear-gradient(90deg, #d4a359, #8b0000);
-  padding: 10px 20px;
-  color: #ffffff;
-  text-align: center;
-  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  gap: 2rem;
 }
 
-.geo-map-header h3 {
-  font-family: 'Playfair Display', serif;
-  font-size: 0.95rem;
-  letter-spacing: 1.5px;
+.header-text-group {
+  max-width: 700px;
+}
+
+.section-heading {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.5rem 0;
+  color: #ffffff;
+  text-transform: uppercase;
+}
+
+.section-subheading {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--text-sub);
   margin: 0;
 }
 
-.geo-map-container .map-pan-wrapper {
-  position: relative;
-  flex: 1;
-  width: 100%;
-  height: 100%;
-  overflow: hidden !important;
-  display: flex;
+/* Action Button */
+.btn-full-view {
+  background-color: var(--gold-accent);
+  color: var(--dark-text);
+  border: none;
+  padding: 0.65rem 1.25rem;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
 }
 
-.geo-map-container .map-placeholder {
+.btn-full-view:hover {
+  background-color: #b48139;
+}
+
+/* Outer Card Container */
+.map-pan-wrapper {
+  position: relative;
+  width: 100%;
+  height: 300px;
+  background-color: rgba(0, 0, 0, 0.25);
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Map Canvas Container */
+.map-placeholder {
   position: relative;
   width: 100%;
   height: 100%;
+}
+
+.map-placeholder::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  /* Gradient from dark red/transparent down to dark shadow at the bottom */
+  background: linear-gradient(
+    180deg, 
+    rgba(110, 39, 39, 0.1) 40%, 
+    rgba(121, 29, 29, 0.75) 100%
+  );
+  pointer-events: none; /* Allows clicks to pass through to the map image underneath */
+  z-index: 1;
 }
 
 .map-graphic {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center;
   display: block;
 }
 
-.map-pin-simple {
+/* Dynamic Pins Layer */
+#map-pins-layer {
   position: absolute;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  pointer-events: auto;
-  cursor: pointer;
-}
-
-.pin-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 2px solid #ffffff;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-}
-
-.pin-red { background-color: #e06d63; }
-.pin-gold { background-color: #cbb259; }
-.pin-darkred { background-color: #800000; width: 18px; height: 18px; }
-
-.pin-title {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #2b2008;
-  text-shadow: 0 1px 2px #ffffff, 0 -1px 2px #ffffff, 1px 0 2px #ffffff, -1px 0 2px #ffffff;
-  white-space: nowrap;
-  margin-top: 2px;
-}
-
-.pin-main {
-  font-size: 0.85rem;
-  color: #800000;
-}
-
-/* ==========================================================================
-   MAP OVERLAY FILTER PILLS
-   ========================================================================== */
-.map-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px 16px;
-  border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  cursor: pointer;
-  user-select: none;
-  transition: all 0.2s ease-in-out;
-}
-
-.map-filter-overlay {
-  position: absolute;
-  top: 55px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 15;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.map-pill.pill-gold {
-  border: 1.5px solid var(--gold-accent, #c8a860);
-  color: #565005f3;
-}
-
-.map-pill.pill-gold:has(input:checked) {
-  background-color: #c8a860;
-  color: #ffffff;
-}
-
-.map-pill.pill-green {
-  border: 1.5px solid #2d6b4f;
-  color: #2d6b4f;
-}
-
-.map-pill.pill-green:has(input:checked) {
-  background-color: #2d6b4f;
-  color: #ffffff;
-}
-
-.green-b {
-  font-weight: 600;
-  color: #215438;
-}
-
-/* ==========================================================================
-   MAP PIN & CARD NUMBER BADGES
-   ========================================================================== */
-.card-number-badge {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  color: #ffffff;
-  font-weight: 700;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
   z-index: 2;
 }
 
-.map-pin-number {
+/* Individual Map Pin (circular dish thumbnail marker) */
+.map-pin {
   position: absolute;
   transform: translate(-50%, -50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   border-radius: 50%;
-  color: #ffffff;
-  font-weight: 700;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-  border: 2px solid #ffffff;
-  z-index: 5;
-  pointer-events: auto;
+  border: 2px solid var(--gold-accent);
+  background-color: var(--cream-card);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
   cursor: pointer;
-  user-select: none;
+  pointer-events: auto;
+  overflow: hidden;
+  z-index: 3;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, z-index 0s;
 }
 
-/* Category colors & sizes, shared between card badges and map pins */
-.card-number-badge.badge-main-dish,
-.map-pin-number.pin-main-dish {
-  background-color: #800000;
-  width: 26px;
-  height: 26px;
+.map-pin img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 50%;
+  background-color: var(--pill-bg);
+}
+
+.map-pin:hover,
+.map-pin:focus-visible,
+.map-pin.is-active {
+  transform: translate(-50%, -50%) scale(1.2);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+  z-index: 5;
+}
+
+/* Main dish pin: larger, gold ring */
+.map-pin--main {
+  width: 42px;
+  height: 42px;
+  border-width: 3px;
+  border-color: var(--gold-accent);
+  z-index: 4;
+}
+
+/* Regional variation pins: green ring */
+.map-pin--regional {
+  border-color: #2d6b4f;
+}
+
+/* International similarity pins: maroon ring */
+.map-pin--international {
+  border-color: var(--maroon-main);
+}
+
+/* Hover / Focus Preview Card for a Pin */
+.map-pin-tooltip {
+  position: fixed;
+  display: none;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 250px;
+  padding: 0;
+  background-color: var(--cream-card);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 1000000;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.map-pin-tooltip.visible {
+  display: flex;
+}
+
+.map-pin-tooltip-img {
+  width: 90px;
+  height: 90px;
+  min-width: 90px;
+  align-self: flex-start;
+  border-radius: 0;
+  border: none;
+  object-fit: cover;
+  background-color: var(--pill-bg);
+}
+
+.map-pin-tooltip-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px 10px 0;
+}
+
+.map-pin-tooltip-title {
   font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-pin-tooltip-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-pin-tooltip-score {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--maroon-main);
+  margin-top: 2px;
+}
+
+/* Bottom Floating Route Info Bar */
+.route-info-bar {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 1.25rem;
+  right: 1.25rem;
+  background-color: var(--pill-bg);
+  color: var(--dark-text);
+  border-radius: 14px;
+  padding: 0.85rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   z-index: 10;
 }
 
-.card-number-badge.badge-regional,
-.map-pin-number.pin-regional {
-  background-color: #2e7d32;
-  width: 22px;
-  height: 22px;
-  font-size: 0.75rem;
+.route-details {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
-.card-number-badge.badge-international,
-.map-pin-number.pin-international {
-  background-color: #d4a017;
-  color: #2b2008;
-  width: 22px;
-  height: 22px;
-  font-size: 0.75rem;
+.route-text-group {
+  display: flex;
+  flex-direction: column;
 }
 
-/* ==========================================================================
-   SPEECH BUBBLE TOOLTIP
-   ========================================================================== */
-.map-pin-number .pin-tooltip {
-  position: absolute;
-  bottom: 135%;
-  left: 50%;
-  transform: translateX(-50%) translateY(6px);
-  background-color: #2b261f;
-  color: #f1ebdf;
-  padding: 6px 12px;
-  border-radius: 12px;
-  font-size: 0.75rem;
+.route-value {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--dark-text);
+}
+
+.route-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  white-space: nowrap;
-  border: 1.5px solid var(--gold-accent, #c8a860);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-  pointer-events: none;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+  color: #726262;
+}
+
+/* Modal Core Overlay */
+.map-modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.85);
+  z-index: 999999;
+  backdrop-filter: blur(6px);
+}
+
+.map-modal-overlay.active {
+  display: flex;
+}
+
+.map-modal-container {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+  background-color: #e3d2bd;
+}
+
+/* Sidebar Styling
+   Positioned absolutely, floating on top of the map canvas, so the map
+   underneath can extend the full width of the screen instead of being
+   squeezed into the leftover space beside the panel. */
+.map-panel-left {
+  width: 360px;
+  height: 100%;
+  background-color: #f7f1e5;
+  border-right: 1px solid rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 10;
+  box-shadow: 4px 0 15px rgba(0,0,0,0.15);
+}
+
+.map-panel-left.collapsed {
+  transform: translateX(-360px);
+}
+
+.btn-toggle-sidebar {
+  position: absolute;
+  top: 50%;
+  right: -16px;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  background-color: #f7f1e5;
+  border: 1px solid rgba(0,0,0,0.15);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  z-index: 20;
+  box-shadow: 2px 0 6px rgba(0,0,0,0.1);
+}
+
+.map-panel-left.collapsed .btn-toggle-sidebar .chevron-icon {
+  transform: rotate(180deg);
+}
+
+.panel-inner-scroll {
+  padding: 16px;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.panel-dish-card {
+  background: #f7f3ed;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  margin-bottom: 16px;
+}
+
+.panel-img-wrapper {
+  position: relative;
+  height: 180px;
+  background-color: #e2d8cd;
+}
+
+.panel-img-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.panel-img-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 0.68rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.panel-dish-header {
+  padding: 12px 14px;
+}
+
+.title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title-row h3 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.25rem;
+  color: #5c0606;
+  margin: 0;
+}
+
+.btn-mini-link {
+  background-color: #7a1414;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 12px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.panel-region-sub {
+  font-size: 0.7rem;
+  color: #777;
+  margin: 4px 0 0 0;
+  letter-spacing: 0.5px;
+}
+
+/* Tabs */
+.panel-tabs {
+  display: flex;
+  border-bottom: 2px solid #e0d4c3;
+  margin-bottom: 16px;
+}
+
+.tab-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 8px 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #a08c75;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+
+.tab-btn.active {
+  color: #7a1414;
+  border-bottom-color: #7a1414;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* Entity Chips & Legend */
+.panel-legend {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 0.68rem;
+}
+
+.legend-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.gold-dot::before, .maroon-dot::before, .green-dot::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.gold-dot::before { background-color: #d4af37; }
+.maroon-dot::before { background-color: #732121; }
+.green-dot::before { background-color: #2e7d32; }
+
+.panel-entity-section {
+  margin-bottom: 14px;
+}
+
+.entity-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #7a1414;
+  display: block;
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+
+.chips-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.entity-chip {
+  font-size: 0.68rem;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.chip-gold {
+  background-color: #c7a74872;
+  color: #8f6b00;
+  border: 1px solid #8f6b00;
+}
+
+/* Metrics & Progress Bars */
+.modal-metric-box {
+  background-color: var(--text-cream);
+  padding: 12px;
+  border-radius: 8px;
+  text-align: center;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+}
+
+.metric-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #777;
+}
+
+.metric-score {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #7a1414;
+}
+
+.modal-progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #444;
+  margin-bottom: 4px;
+}
+
+.progress-track {
+  height: 6px;
+  background-color: #e0d4c3;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #7a1414;
+}
+
+.modal-ai-quote {
+  background: #f7f3ed;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  color: #555;
+  line-height: 1.4;
+  border-left: 3px solid #7a1414;
+}
+
+/* Right Map Viewport
+   Absolutely positioned to fill the entire modal container (full browser
+   width/height), so the map extends underneath the floating sidebar panel
+   rather than stopping at its edge. */
+.map-canvas-right {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1;
+}
+
+.map-filter-bar {
+  position: absolute;
+  top: 16px;
+  /* Sits clear of the sidebar by default (360px panel + 20px gutter);
+     slides back to the screen edge once the panel is collapsed. */
+  left: 380px;
+  display: flex;
+  gap: 8px;
+  z-index: 5;
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.map-panel-left.collapsed ~ .map-canvas-right .map-filter-bar {
+  left: 20px;
+}
+
+.map-filter-pill {
+  background-color: #7a1414;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  border-radius: 20px;
+  cursor: pointer;
+  opacity: 0.75;
+  transition: all 0.2s ease;
+}
+
+.map-filter-pill.active {
+  background-color: #2e7d32;
+  opacity: 1;
+}
+
+.btn-exit-map {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  background-color: #7a1414;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   z-index: 5;
 }
 
-.map-pin-number .pin-tooltip::before {
-  content: "";
+.modal-map-viewport {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+
+.modal-map-viewport.is-panning {
+  cursor: grabbing;
+}
+
+.modal-map-viewport .map-placeholder {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+/* The full-screen overlay map should read clean, without the tinted gradient
+   used on the small dashboard preview. */
+.modal-map-viewport .map-placeholder::after {
+  display: none;
+}
+
+/* Zoom Controls (bottom-right of the full-screen map) */
+.map-zoom-controls {
   position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border-width: 6px;
-  border-style: solid;
-  border-color: var(--gold-accent, #c8a860) transparent transparent transparent;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 5;
 }
 
-.map-pin-number .pin-tooltip::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border-width: 4px;
-  border-style: solid;
-  border-color: #2b261f transparent transparent transparent;
-  margin-top: -1px;
+.map-zoom-btn {
+  width: 36px;
+  height: 36px;
+  background-color: #7a1414;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
-.map-pin-number:hover .pin-tooltip {
-  opacity: 1;
-  visibility: visible;
-  transform: translateX(-50%) translateY(0);
+.map-zoom-btn:hover {
+  background-color: #932020;
 }
 
-.pin-tooltip {
-  z-index: 10000;
+.map-zoom-btn.map-zoom-reset {
+  font-size: 0.62rem;
+  letter-spacing: 0.3px;
 }
 
+.active-dish-name { 
+  color: var(--text-dark);
+}
+.shared-entity {
+  color: var(--text-dark);
+}
+
+#modalSourceDishLabel {
+  color: var(--text-dark);
+}
+
+   
 /* ==========================================================================
    RESPONSIVE ADJUSTMENTS FOR RESULTS
    ========================================================================== */
