@@ -38,7 +38,6 @@
   <main class="search-section" id="search-section">
     <div class="container">
       
-      <!-- Top Decorative Divider -->
       <div class="section-divider">
         <span class="line"></span>
         <span class="diamond">◆</span>
@@ -48,7 +47,6 @@
       <h2 class="section-title">DISCOVER ASIAN<br>CUISINE SIMILARITIES</h2>
       <p class="section-subtitle">Search for similarities using text input or image</p>
 
-      <!-- Search Tabs -->
       <div class="tab-toggle">
         <button type="button" class="tab-btn active" id="btn-text-tab" onclick="switchTab('text')">SEARCH BY TEXT</button>
         <button type="button" class="tab-btn" id="btn-image-tab" onclick="switchTab('image')">SEARCH BY IMAGE</button>
@@ -57,7 +55,6 @@
       <!-- TEXT SEARCH FORM -->
       <form class="search-form active" id="text-search-form" action="/search-text" method="POST">
         
-        <!-- DISH NAME AUTOCOMPLETE DROPDOWN -->
         <div class="form-group full-width">
           <label for="dish-name-input">DISH NAME</label>
           <div class="search-dropdown-wrapper">
@@ -73,7 +70,6 @@
           </div>
         </div>
 
-        <!-- COUNTRY SELECT DROPDOWNS -->
         <div class="form-row">
           <div class="form-group half-width">
             <label for="text-origin">COUNTRY OF ORIGIN</label>
@@ -127,6 +123,9 @@
 
       <!-- IMAGE SEARCH FORM -->
       <form class="search-form" id="image-search-form" action="/search-image" method="POST" enctype="multipart/form-data">
+        
+        <input type="hidden" name="extracted_dish_name" id="hidden-dish-name">
+        
         <div class="upload-dropzone" id="dropzone">
           <input type="file" id="image-upload-input" name="dish_image" accept="image/*" hidden>
           
@@ -144,6 +143,19 @@
           <div class="dropzone-preview" id="dropzone-preview" style="display: none;">
             <img id="preview-img" src="" alt="Uploaded Photo Preview">
             <p id="file-name" class="file-name-text"></p>
+            
+            <button type="button" id="selected-dish-card" class="selected-dish-card" style="display: none;" aria-label="Change selected dish">
+              <span class="selected-dish-label">SELECTED DISH</span>
+              <strong id="selected-dish-name"></strong>
+              <span id="selected-dish-country" class="selected-dish-country"></span>
+              <span class="selected-dish-change">Click to change</span>
+            </button>
+
+            <div id="ocr-loading" class="ocr-loading" style="display: none;" role="status" aria-live="polite">
+              <span>Scanning menu…</span>
+              <div class="ocr-loading-track" aria-hidden="true"><span></span></div>
+            </div>
+
             <button type="button" class="btn-remove-image" id="remove-img-btn">Remove Photo</button>
           </div>
         </div>
@@ -201,7 +213,6 @@
         </div>
       </form>
 
-      <!-- Bottom Decorative Divider -->
       <div class="section-divider">
         <span class="line"></span>
         <span class="diamond">◆</span>
@@ -216,6 +227,16 @@
   </section>
 
   <app-footer></app-footer>
+
+  <!-- Menu matches are intentionally selected by the user before comparison. -->
+  <div id="dish-picker-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="dish-picker-title">
+    <div class="modal-box dish-picker-box">
+      <button type="button" class="modal-close-btn" id="dish-picker-close" aria-label="Close">&times;</button>
+      <h3 id="dish-picker-title" class="modal-title">Choose a Dish from the Menu</h3>
+      <p class="modal-desc">We found these dishes in the image. Select the one you want to compare.</p>
+      <div id="dish-picker-list" class="dish-picker-list"></div>
+    </div>
+  </div>
 
   <!-- ==================================
        ERROR MODAL
@@ -232,9 +253,6 @@
 
   <script src="{{ url_for('static', filename='scripts/components.js') }}"></script>
   
-<!-- ==================================
-       SEARCH TAB & IMAGE UPLOAD SCRIPT
-       ================================== -->
   <script>
     function switchTab(tabType) {
       const textForm = document.getElementById('text-search-form');
@@ -260,82 +278,204 @@
     document.addEventListener('DOMContentLoaded', () => {
       const dropzone = document.getElementById('dropzone');
       const fileInput = document.getElementById('image-upload-input');
+      const imageForm = document.getElementById('image-search-form');
+      const originSelect = document.getElementById('img-origin');
+      const targetSelect = document.getElementById('img-target');
+      const imageSearchButton = imageForm.querySelector('button[type="submit"]');
+      const hiddenDishInput = document.getElementById('hidden-dish-name');
       const defaultState = document.getElementById('dropzone-default');
       const previewState = document.getElementById('dropzone-preview');
       const previewImg = document.getElementById('preview-img');
       const fileName = document.getElementById('file-name');
       const removeBtn = document.getElementById('remove-img-btn');
+      const selectedDishCard = document.getElementById('selected-dish-card');
+      const selectedDishName = document.getElementById('selected-dish-name');
+      const selectedDishCountry = document.getElementById('selected-dish-country');
+      const ocrLoading = document.getElementById('ocr-loading');
+      const picker = document.getElementById('dish-picker-overlay');
+      const pickerList = document.getElementById('dish-picker-list');
+      const pickerClose = document.getElementById('dish-picker-close');
+      let activeScanController = null;
+      let detectedMatches = [];
 
-      if (dropzone && fileInput) {
-        dropzone.addEventListener('click', (e) => {
-          if (e.target.closest('#remove-img-btn')) return;
-          fileInput.click();
-        });
+      function closeDishPicker() {
+        picker.classList.add('hidden');
+      }
 
-        fileInput.addEventListener('change', () => {
-          if (fileInput.files && fileInput.files[0]) {
-            displayPreview(fileInput.files[0]);
-          }
-        });
+      function setOcrLoading(isLoading) {
+        ocrLoading.style.display = isLoading ? 'block' : 'none';
+        originSelect.disabled = isLoading;
+        targetSelect.disabled = isLoading;
+        imageSearchButton.disabled = isLoading;
+        imageForm.classList.toggle('is-ocr-loading', isLoading);
+      }
 
-        ['dragenter', 'dragover'].forEach(eventName => {
-          dropzone.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            dropzone.classList.add('dragover');
-          }, false);
-        });
+      function selectDish(match, showCard = true, canChange = true) {
+        const option = [...originSelect.options].find(
+          (item) => item.value.toLowerCase() === match.country.toLowerCase()
+        );
+        if (option) originSelect.value = option.value;
+        hiddenDishInput.value = match.title;
+        selectedDishName.textContent = match.title;
+        selectedDishCountry.textContent = match.country;
+        selectedDishCard.style.display = showCard ? 'block' : 'none';
+        selectedDishCard.querySelector('.selected-dish-change').style.display = canChange ? 'inline' : 'none';
+        selectedDishCard.setAttribute(
+          'aria-label',
+          canChange ? 'Change selected dish' : 'Selected dish'
+        );
+        closeDishPicker();
+      }
 
-        ['dragleave', 'drop'].forEach(eventName => {
-          dropzone.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            dropzone.classList.remove('dragover');
-          }, false);
-        });
-
-        dropzone.addEventListener('drop', (e) => {
-          const dt = e.dataTransfer;
-          const files = dt.files;
-          if (files && files[0]) {
-            fileInput.files = files;
-            displayPreview(files[0]);
-          }
-        });
-
-        function displayPreview(file) {
-          if (!file.type.startsWith('image/')) {
-            alert('Please upload an image file.');
-            return;
-          }
-
-          const reader = new FileReader();
-          reader.onload = (e) => {
-            previewImg.src = e.target.result;
-            fileName.textContent = file.name;
-            defaultState.style.display = 'none';
-            previewState.style.display = 'flex';
-          };
-          reader.readAsDataURL(file);
+      function showDishPicker(matches) {
+        detectedMatches = matches;
+        if (matches.length === 1) {
+          // Show the detected dish, without a change option when no alternative exists.
+          selectDish(matches[0], true, false);
+          return;
         }
+        pickerList.replaceChildren();
+        matches.forEach((match) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'dish-picker-option';
+          button.innerHTML = `<strong></strong><span></span>`;
+          button.querySelector('strong').textContent = match.title;
+          button.querySelector('span').textContent = match.country;
+          button.addEventListener('click', () => selectDish(match));
+          pickerList.appendChild(button);
+        });
+        picker.classList.remove('hidden');
+      }
 
-        if (removeBtn) {
-          removeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            fileInput.value = '';
-            previewImg.src = '';
-            fileName.textContent = '';
-            previewState.style.display = 'none';
-            defaultState.style.display = 'block';
+      async function extractImageInfo(file) {
+        hiddenDishInput.value = '';
+        closeDishPicker();
+        selectedDishCard.style.display = 'none';
+        detectedMatches = [];
+        // Scan immediately after upload. If the user later supplies a country
+        // hint, that change triggers a second scan with that script's model.
+        // A new scan supersedes an older one, preventing stale results.
+        if (activeScanController) activeScanController.abort();
+        const scanController = new AbortController();
+        activeScanController = scanController;
+        const formData = new FormData();
+        formData.append('dish_image', file);
+        formData.append('origin_country', originSelect.value);
+        setOcrLoading(true);
+
+        try {
+          const response = await fetch('/extract-dish-info', {
+            method: 'POST',
+            body: formData,
+            signal: scanController.signal,
           });
+          const data = await response.json();
+          if (activeScanController !== scanController) return;
+
+          if (data.matches && data.matches.length) {
+            const detectedCountries = [...new Set(
+              data.matches.map((match) => match.country.toLowerCase())
+            )];
+            // When every recognized recipe belongs to one country, set the
+            // origin immediately. The user still chooses the specific dish.
+            if (detectedCountries.length === 1) {
+              const option = [...originSelect.options].find(
+                (item) => item.value.toLowerCase() === detectedCountries[0]
+              );
+              if (option) originSelect.value = option.value;
+            }
+            showDishPicker(data.matches);
+          } else {
+            showErrorModal('We Can\'t Find a Dish', data.message || 'No menu dishes matched the recipe database.');
+          }
+        } catch (err) {
+          if (err.name === 'AbortError') return;
+          console.error('Error connecting to extraction service:', err);
+          showErrorModal('Scanning Error', 'The menu could not be scanned. Please try the photo again.');
+        } finally {
+          if (activeScanController === scanController) {
+            activeScanController = null;
+            setOcrLoading(false);
+          }
         }
       }
+
+      function displayPreview(file) {
+        if (!file.type.startsWith('image/')) {
+          showErrorModal('Unsupported File', 'Please upload an image file.');
+          return;
+        }
+        // A prior menu selection must not constrain this new menu. Its origin
+        // will be inferred again from the freshly detected database matches.
+        originSelect.value = '';
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          previewImg.src = event.target.result;
+          fileName.textContent = file.name;
+          defaultState.style.display = 'none';
+          previewState.style.display = 'flex';
+        };
+        reader.readAsDataURL(file);
+        extractImageInfo(file);
+      }
+
+      dropzone.addEventListener('click', (event) => {
+        if (!event.target.closest('#remove-img-btn')) fileInput.click();
+      });
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files[0]) displayPreview(fileInput.files[0]);
+      });
+      ['dragenter', 'dragover'].forEach((eventName) => dropzone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropzone.classList.add('dragover');
+      }));
+      ['dragleave', 'drop'].forEach((eventName) => dropzone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropzone.classList.remove('dragover');
+      }));
+      dropzone.addEventListener('drop', (event) => {
+        const [file] = event.dataTransfer.files;
+        if (file) {
+          fileInput.files = event.dataTransfer.files;
+          displayPreview(file);
+        }
+      });
+
+      // Re-scan an existing image with the correct script model when origin changes.
+      originSelect.addEventListener('change', () => {
+        if (fileInput.files[0]) extractImageInfo(fileInput.files[0]);
+      });
+      pickerClose.addEventListener('click', closeDishPicker);
+      picker.addEventListener('click', (event) => {
+        if (event.target === picker) closeDishPicker();
+      });
+      selectedDishCard.addEventListener('click', () => {
+        if (detectedMatches.length >= 2) showDishPicker(detectedMatches);
+      });
+      removeBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (activeScanController) activeScanController.abort();
+        setOcrLoading(false);
+        fileInput.value = '';
+        previewImg.src = '';
+        fileName.textContent = '';
+        hiddenDishInput.value = '';
+        selectedDishCard.style.display = 'none';
+        detectedMatches = [];
+        closeDishPicker();
+        previewState.style.display = 'none';
+        defaultState.style.display = 'block';
+      });
+      imageForm.addEventListener('submit', (event) => {
+        if (fileInput.files[0] && !hiddenDishInput.value) {
+          event.preventDefault();
+          showErrorModal('Choose a Dish', 'Select one of the detected menu dishes before starting the comparison.');
+        }
+      });
     });
   </script>
 
-  <!-- ==================================
-       RECIPE DATABASE LOADER SCRIPT
-       ================================== -->
   <script>
     let DISH_DATABASE = [];
     let DISH_RECORDS = [];
@@ -355,9 +495,6 @@
             .filter((r) => r.title && typeof r.title === "string");
 
           DISH_DATABASE = DISH_RECORDS.map((r) => r.title);
-          console.log(`Successfully loaded ${DISH_DATABASE.length} recipes for autocomplete.`);
-        } else {
-          console.error("Failed to load /recipes.json - HTTP Status:", response.status);
         }
       } catch (err) {
         console.error("Error fetching /recipes.json:", err);
@@ -367,9 +504,6 @@
     loadRecipeDatabase();
   </script>
 
-  <!-- ==================================
-       DISH AUTOCOMPLETE & AUTOFILL SCRIPT
-       ================================== -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const dishInput = document.getElementById("dish-name-input");
@@ -399,7 +533,6 @@
       function getTopMatches(query, limit = 5) {
         const q = query.trim().toLowerCase();
         if (!q) return [];
-
         const unique = [...new Set(DISH_DATABASE)];
         const startsWith = [];
         const contains = [];
@@ -412,14 +545,12 @@
             contains.push(title);
           }
         }
-
         return [...startsWith, ...contains].slice(0, limit);
       }
 
       function renderDropdown(matches) {
         dropdownList.innerHTML = "";
         activeIndex = -1;
-
         if (matches.length === 0) {
           dropdownList.classList.add("hidden");
           return;
@@ -438,7 +569,6 @@
           });
           dropdownList.appendChild(li);
         });
-
         dropdownList.classList.remove("hidden");
       }
 
@@ -506,9 +636,6 @@
     });
   </script>
 
-  <!-- ==================================
-       FORM VALIDATION & ERROR MODAL SCRIPT
-       ================================== -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const textForm = document.getElementById("text-search-form");
@@ -529,9 +656,7 @@
             return;
           }
 
-          if (typeof DISH_RECORDS === "undefined" || DISH_RECORDS.length === 0) {
-            return;
-          }
+          if (typeof DISH_RECORDS === "undefined" || DISH_RECORDS.length === 0) return;
 
           const dishLower = typedDish.toLowerCase();
           const originLower = originCountry.toLowerCase();
@@ -596,7 +721,9 @@
       }
       
       const dishInput = document.getElementById("dish-name-input");
-      if (dishInput) dishInput.focus();
+      if (dishInput && !dishInput.closest('form').classList.contains('hidden')) {
+        dishInput.focus();
+      }
     }
 
     document.addEventListener("keydown", (e) => {
@@ -610,5 +737,17 @@
       }
     });
   </script>
+
+  <!-- ==================================
+       BACKEND ERROR HANDLER SCRIPT
+       ================================== -->
+  {% if error_title and error_desc %}
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      showErrorModal({{ error_title|tojson }}, {{ error_desc|tojson }});
+      switchTab('image');
+    });
+  </script>
+  {% endif %}
 </body>
 </html>
