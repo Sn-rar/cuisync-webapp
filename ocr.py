@@ -4,16 +4,9 @@ import os
 import re
 import sys
 import threading
+from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from difflib import SequenceMatcher
-
-# 1. Suppress low-level Paddle & PaddleX logs BEFORE initializing engines
-os.environ["GLOG_minloglevel"] = "3"           # Suppress Paddle C++ logs (0=INFO, 1=WARN, 2=ERR, 3=FATAL)
-os.environ["PADDLE_PDX_LOG_LEVEL"] = "ERROR"   # Suppress PaddleX pipeline inspection logs
-
-logging.getLogger("ppocr").setLevel(logging.ERROR)
-logging.getLogger("paddlex").setLevel(logging.ERROR)
-logging.getLogger("paddle").setLevel(logging.ERROR)
 
 import cv2
 import numpy as np
@@ -72,24 +65,34 @@ COUNTRY_LANG_MAP = {
 }
 
 OCR_ENGINES = {}
+# Guards lazy engine creation so two threads can't build the same language's
+# PaddleOCR instance at once (wasteful, and PaddleOCR init isn't guaranteed
+# thread-safe on its own).
 _ENGINE_LOCK = threading.Lock()
 
-UNSUPPORTED_LANGS = frozenset({"km", "my"})
-
-# In PP-OCRv5, 'tl', 'id', 'ms' all route to 'latin_PP-OCRv5_mobile_rec'.
-# Running distinct distinct script families avoids repeating the exact same model.
 AUTO_OCR_LANGUAGES = (
-    "japan",   # Japanese CJK / Kana
-    "ch",      # Simplified Chinese Hanzi
-    "korean",  # Hangul
-    "th",      # Thai
-    "hi",      # Devanagari / Hindi
-    "ar",      # Arabic
-    "vi",      # Vietnamese (special Latin tonal marks)
-    "en",      # General Latin (covers English, Tagalog, Indonesian, Malay)
+    "japan",
+    "ch",
+    "th",
+    "km",
+    "my",
+    "korean",
+    "hi",
+    "ar",
+    *(
+        lang
+        for lang in sorted(set(COUNTRY_LANG_MAP.values()))
+        if lang not in {"japan", "ch", "th", "km", "my", "korean", "hi", "ar"}
+    ),
+    "en",
 )
 
-OCR_WORKER_COUNT = max(2, min(len(AUTO_OCR_LANGUAGES), os.cpu_count() or 4))
+# Caps how many language engines run at once. Running all of them
+# concurrently (rather than one after another) is the main speed win here:
+# total wall-clock time becomes roughly "the slowest single engine" instead
+# of "the sum of every engine," since Paddle's inference releases the GIL
+# during the actual forward pass. Capped by CPU count so we don't oversubscribe.
+OCR_WORKER_COUNT = 1
 
 NON_ASCII_BONUS_MULTIPLIER = 1.5
 
@@ -117,11 +120,6 @@ def get_logger():
 
 def get_ocr_for_language(lang):
     """Load and cache a PaddleOCR engine for one supported language (thread-safe)."""
-    if lang in UNSUPPORTED_LANGS:
-        raise ValueError(
-            f"PaddleOCR has no model for lang={lang!r} in any version. "
-            "Khmer and Burmese require a different OCR backend."
-        )
     engine = OCR_ENGINES.get(lang)
     if engine is None:
         with _ENGINE_LOCK:
@@ -129,23 +127,16 @@ def get_ocr_for_language(lang):
             if engine is None:
                 engine = PaddleOCR(
                     lang=lang,
-                    ocr_version="PP-OCRv5",
+                    ocr_version="PP-OCRv3",
                     use_doc_orientation_classify=False,
                     use_doc_unwarping=False,
                     use_textline_orientation=False,
-                    text_det_limit_side_len=960,
+                    text_det_limit_side_len=640,
                     text_det_limit_type="max",
-                    text_recognition_batch_size=16,
-                    show_log=False,
+                    text_recognition_batch_size=1,
                 )
                 OCR_ENGINES[lang] = engine
     return engine
-
-
-def warmup_ocr_engines():
-    """Call this once when your app initializes to preload all models ahead of requests."""
-    for lang in AUTO_OCR_LANGUAGES:
-        get_ocr_for_language(lang)
 
 
 def get_ocr(country=""):
@@ -197,6 +188,10 @@ def ocr_quality(lines, scores, language=""):
         base *= 1.8
     elif language == "th" and THAI_RANGE.search(full_text):
         base *= 3.0
+    elif language == "km" and KHMER_RANGE.search(full_text):
+        base *= 3.0
+    elif language == "my" and MYANMAR_RANGE.search(full_text):
+        base *= 3.0
     elif language == "korean" and HANGUL_RANGE.search(full_text):
         base *= 3.0
     elif language == "hi" and DEVANAGARI_RANGE.search(full_text):
@@ -210,7 +205,8 @@ def ocr_quality(lines, scores, language=""):
 
 
 def _run_language_ocr(language, image):
-    """Run one language's OCR engine without crashing concurrent execution."""
+    """Run one language's OCR engine; never raises, so one bad engine can't
+    sink the whole concurrent batch."""
     try:
         lines, scores = extract_lines_with_scores(
             image, get_ocr_for_language(language)
@@ -222,16 +218,27 @@ def _run_language_ocr(language, image):
 
 
 def automatic_ocr(image):
-    """Detect text and merge related script families."""
+    """Detect text using supported OCR languages concurrently.
+
+    Uses a small worker pool to avoid CPU/RAM oversubscription while retaining
+    the original multi-language detection behavior.
+    """
     results = {}
-    with ThreadPoolExecutor(max_workers=OCR_WORKER_COUNT) as executor:
-        futures = [
-            executor.submit(_run_language_ocr, language, image)
-            for language in AUTO_OCR_LANGUAGES
-        ]
-        for future in as_completed(futures):
-            language, lines, scores = future.result()
-            results[language] = (lines, scores)
+
+    # Avoid executor overhead when the configuration contains only one language.
+    if len(AUTO_OCR_LANGUAGES) == 1:
+        language = AUTO_OCR_LANGUAGES[0]
+        _, lines, scores = _run_language_ocr(language, image)
+        results[language] = (lines, scores)
+    else:
+        with ThreadPoolExecutor(max_workers=OCR_WORKER_COUNT) as executor:
+            futures = {
+                executor.submit(_run_language_ocr, language, image): language
+                for language in AUTO_OCR_LANGUAGES
+            }
+            for future in as_completed(futures):
+                language, lines, scores = future.result()
+                results[language] = (lines, scores)
 
     best_lines = []
     best_score = -1.0
@@ -247,7 +254,7 @@ def automatic_ocr(image):
             for line in lines:
                 cjk_pool[line] = max(cjk_pool.get(line, 0), len(line))
 
-        if language == "th" and SEA_RANGE.search(full_text):
+        if language in ("th", "km", "my") and SEA_RANGE.search(full_text):
             for line in lines:
                 sea_pool[line] = max(sea_pool.get(line, 0), len(line))
 
@@ -257,19 +264,13 @@ def automatic_ocr(image):
             best_score = score
             best_language = language
 
-    if cjk_pool and (best_language in ("japan", "ch")):
-        merged = list(dict.fromkeys(best_lines + list(cjk_pool.keys())))
-        get_logger().info("OCR extracted text (CJK combined): %s", merged)
-        return merged
+    if cjk_pool and best_language in ("japan", "ch"):
+        return list(dict.fromkeys(best_lines + list(cjk_pool.keys())))
 
-    if sea_pool and best_language == "th":
-        merged = list(dict.fromkeys(best_lines + list(sea_pool.keys())))
-        get_logger().info("OCR extracted text (Southeast Asia combined): %s", merged)
-        return merged
+    if sea_pool and best_language in ("th", "km", "my"):
+        return list(dict.fromkeys(best_lines + list(sea_pool.keys())))
 
-    get_logger().info("OCR extracted text (%s): %s", best_language, best_lines)
     return best_lines
-
 
 def romanize_japanese(text):
     """Convert Japanese Kanji and Kana to Hepburn Romaji using pykakasi."""
@@ -279,6 +280,7 @@ def romanize_japanese(text):
     return " ".join(item["hepburn"] for item in result if item.get("hepburn")).strip()
 
 
+@lru_cache(maxsize=8192)
 def romanize_text(text, mode="standard"):
     """Convert non-Latin writing to Latin characters without translating."""
     text = str(text)
@@ -295,6 +297,7 @@ def romanize_lines(lines):
     """Romanize OCR text and log readings for CJK and Southeast Asian scripts."""
     romanized_std = [romanize_text(line, mode="standard") for line in lines if str(line).strip()]
 
+    # 1. CJK / Japanese Check
     has_cjk = any(CJK_RANGE.search(str(line)) or KANA_RANGE.search(str(line)) for line in lines)
     if has_cjk:
         romanized_ja = [romanize_text(line, mode="japanese") for line in lines if str(line).strip()]
@@ -302,6 +305,7 @@ def romanize_lines(lines):
         get_logger().info("Romanized text (Japanese Hepburn): %s", " ".join(romanized_ja))
         return list(dict.fromkeys(romanized_std + romanized_ja))
 
+    # 2. Southeast Asian Check: Thailand, Cambodia, Myanmar
     has_sea = any(SEA_RANGE.search(str(line)) for line in lines)
     if has_sea:
         romanized_sea = [romanize_text(line, mode="standard") for line in lines if str(line).strip()]
@@ -312,6 +316,7 @@ def romanize_lines(lines):
     return romanized_std
 
 
+@lru_cache(maxsize=16384)
 def match_key(text, mode="standard"):
     """Create a punctuation- and accent-insensitive key for recipe matching."""
     return re.sub(r"[^a-z0-9]+", "", romanize_text(text, mode=mode).casefold())
@@ -330,11 +335,13 @@ def menu_candidates(romanized_lines):
         if key_std:
             raw_keys.append(key_std)
 
+        # CJK Candidate Key
         if CJK_RANGE.search(line_str) or KANA_RANGE.search(line_str):
             key_ja = match_key(line_str, mode="japanese")
             if key_ja and key_ja != key_std:
                 raw_keys.append(key_ja)
 
+        # Southeast Asian (Thailand, Cambodia, Myanmar) Candidate Key
         if SEA_RANGE.search(line_str):
             key_sea = match_key(line_str, mode="standard")
             if key_sea and key_sea != key_std:
@@ -376,6 +383,7 @@ def is_recipe_match(title_key, candidate_search_string, length_buckets):
     return False
 
 
+@lru_cache(maxsize=16384)
 def title_key_variants(title, alternative_title="", country=""):
     """Return every matchable key for a recipe title without splitting on dashes."""
     is_japan = (country or "").strip().lower() in ("japan", "japanese")
@@ -403,33 +411,39 @@ def title_key_variants(title, alternative_title="", country=""):
 
 def find_recipes(romanized_lines, origin_country="", recipes=None):
     """Return every database recipe recognized in a menu, without translating."""
-    if recipes is None:
-        recipes = []
+    if not recipes:
+        return []
 
     candidate_keys = menu_candidates(romanized_lines)
+    if not candidate_keys:
+        return []
+
     candidate_search_string, length_buckets = build_candidate_index(candidate_keys)
     origin_key = origin_country.strip().casefold()
+
     matches = []
     seen = set()
 
-    recipe_title_key_variants = [
-        title_key_variants(
-            recipe.get("title", ""),
-            recipe.get("alternative_title", ""),
-            country=recipe.get("country", "")
-        )
-        for recipe in recipes
-    ]
-    recipe_country_keys = [
-        recipe.get("country", "").strip().casefold() for recipe in recipes
-    ]
-
-    for index, recipe in enumerate(recipes):
+    # Filter the recipe list first. This avoids doing romanization/key generation
+    # for recipes that can never match the requested country.
+    filtered_recipes = []
+    for recipe in recipes:
         title = recipe.get("title", "").strip()
-        if not title or (origin_key and recipe_country_keys[index] != origin_key):
+        if not title:
             continue
 
-        title_keys = recipe_title_key_variants[index]
+        country = recipe.get("country", "").strip()
+        if origin_key and country.casefold() != origin_key:
+            continue
+
+        filtered_recipes.append((recipe, title, country))
+
+    for recipe, title, country in filtered_recipes:
+        title_keys = title_key_variants(
+            title,
+            recipe.get("alternative_title", ""),
+            country=country,
+        )
         if not title_keys:
             continue
 
@@ -437,7 +451,6 @@ def find_recipes(romanized_lines, origin_country="", recipes=None):
             is_recipe_match(title_key, candidate_search_string, length_buckets)
             for title_key in title_keys
         ):
-            country = recipe.get("country", "").strip()
             identity = (title.casefold(), country.casefold())
             if identity not in seen:
                 matches.append({
@@ -445,17 +458,37 @@ def find_recipes(romanized_lines, origin_country="", recipes=None):
                     "country": country,
                     "alternative_title": recipe.get("alternative_title", "").strip(),
                     "image_link": recipe.get("image_link", "").strip(),
+                    "_title_key": match_key(title),
                 })
                 seen.add(identity)
 
-    return [
-        match
-        for match in matches
-        if not any(
+    # Remove shorter duplicate/substrings without repeatedly recalculating keys.
+    result = []
+    for match in matches:
+        title_key = match["_title_key"]
+        country_key = match["country"].casefold()
+
+        is_redundant = any(
             match is not other
-            and match["country"].casefold() == other["country"].casefold()
-            and match_key(match["title"]) != match_key(other["title"])
-            and match_key(match["title"]) in match_key(other["title"])
+            and country_key == other["country"].casefold()
+            and title_key != other["_title_key"]
+            and title_key in other["_title_key"]
             for other in matches
         )
-    ]
+
+        if not is_redundant:
+            match.pop("_title_key", None)
+            result.append(match)
+
+    return result
+
+
+# Optional fast path: when the country is already known, OCR only the mapped
+# language instead of loading/running every supported language.
+def automatic_ocr_for_country(image, country):
+    """Run only the OCR language associated with a known country."""
+    language = COUNTRY_LANG_MAP.get((country or "").strip().lower(), "en")
+    lines, _scores = extract_lines_with_scores(image, get_ocr_for_language(language))
+    get_logger().info("OCR extracted text (%s): %s", language, lines)
+    return lines
+
