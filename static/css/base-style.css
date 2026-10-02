@@ -35,6 +35,13 @@ a {
   --text-muted: #7d6e64;
   --text-cream: #eae3d2;
   --text-white: #ffffff;
+  --bg-deep-red: #6a0909;
+  --btn-gold: #f5d1a4;
+  --text-gold: #f8e5c8;
+  --text-sub: #e0adad;
+  --pill-bg: #fefcf9;
+  --dark-text: #2c1a1a;
+  --chip-dark: #520909;
 }
 
 /* ==========================================================================
