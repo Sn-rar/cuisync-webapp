@@ -103,7 +103,18 @@ def parse_items(text_field):
         return []
     return [item.strip().title() for item in text_field.split(",") if item.strip()]
 
+def format_recipe_url(link):
+    """Formats recipe link to ensure absolute HTTP/HTTPS URL standard."""
+    if not link:
+        return ""
+    if link.startswith("http://") or link.startswith("https://"):
+        return link
+    return f"https://{link}"
 
+@app.route("/")
+@app.route("/home")
+def home():
+    return render_template("index.html")
 
 
 
@@ -122,15 +133,22 @@ def get_search_results(dish_name, origin_country, target_country):
             break
 
     if source_dish:
-        source_dish["region"] = source_dish.get("region") or "No Specific"
+        if not source_dish.get("region"):
+            source_dish["region"] = "No Specific"
+        source_dish["recipe_link"] = format_recipe_url(source_dish.get("recipe_link", ""))
     else:
         source_dish = {
             "title": dish_name,
             "country": origin_country,
+            "country_region": "",
             "region": "No Specific",
             "ingredient_text": "",
             "action_text": "",
+            "cookware_text": "",
+            "utensil_text": "",
             "directions": "No direct match found for this entry.",
+            "recipe_link": "",
+            "image_link": ""
         }
 
     recommended_dish = None
@@ -161,6 +179,28 @@ def get_search_results(dish_name, origin_country, target_country):
             recommended_dish["region"] = (
                 recommended_dish.get("region") or "No Specific"
             )
+            # Sort target candidates by similarity score descending
+            target_indices_sorted = sorted(target_indices, key=lambda i: total_scores[i], reverse=True)
+
+            # Top 1 Target Dish (Main Dish)
+            best_global_idx = target_indices_sorted[0]
+            similarity_score = round(float(total_scores[best_global_idx]) * 100, 2)
+            recommended_dish = RECIPES[best_global_idx].copy()
+            if not recommended_dish.get("region"):
+                recommended_dish["region"] = "No Specific"
+            recommended_dish["recipe_link"] = format_recipe_url(recommended_dish.get("recipe_link", ""))
+
+            # Top 3 Regional Variations (excluding main match)
+            for idx in target_indices_sorted[1:4]:
+                dish = RECIPES[idx].copy()
+                dish["score"] = round(float(total_scores[idx]) * 100, 2)
+                dish["region"] = dish.get("region") or "No Specific"
+                dish["recipe_link"] = format_recipe_url(dish.get("recipe_link", ""))
+                regional_variations.append(dish)
+
+        # 4. International Similarities: Top 5 dishes from 5 distinct non-target countries
+        all_indices_sorted = np.argsort(total_scores)[::-1]
+        seen_countries = set([target_country.lower(), origin_country.lower()])
 
             for index in ordered_targets[1:4]:
                 dish = RECIPES[index].copy()
@@ -181,6 +221,15 @@ def get_search_results(dish_name, origin_country, target_country):
             international_similarities.append(dish)
             if len(international_similarities) == 5:
                 break
+                dish["recipe_link"] = format_recipe_url(dish.get("recipe_link", ""))
+                international_similarities.append(dish)
+
+                if len(international_similarities) == 5:
+                    break
+
+    # --- ENTITY EXTRACTION & COMPARISON LOGIC ---
+    src_ings = set(parse_items(source_dish.get("ingredient_text", "")))
+    rec_ings = set(parse_items(recommended_dish.get("ingredient_text", ""))) if recommended_dish else set()
 
     source_ingredients = set(parse_items(source_dish.get("ingredient_text", "")))
     recommended_ingredients = set(
@@ -195,6 +244,12 @@ def get_search_results(dish_name, origin_country, target_country):
         else []
     )
 
+    src_cookware = set(parse_items(source_dish.get("cookware_text", "")))
+    rec_cookware = set(parse_items(recommended_dish.get("cookware_text", ""))) if recommended_dish else set()
+
+    src_utensils = set(parse_items(source_dish.get("utensil_text", "")))
+    rec_utensils = set(parse_items(recommended_dish.get("utensil_text", ""))) if recommended_dish else set()
+
     entities = {
         "ingredients": {
             "shared": sorted(source_ingredients & recommended_ingredients),
@@ -206,6 +261,25 @@ def get_search_results(dish_name, origin_country, target_country):
             "source_unique": sorted(source_actions - recommended_actions),
             "target_unique": sorted(recommended_actions - source_actions),
         },
+            "shared": sorted(list(src_actions & rec_actions)),
+            "source_unique": sorted(list(src_actions - rec_actions)),
+            "target_unique": sorted(list(rec_actions - src_actions))
+        },
+        "cookware": {
+            "shared": sorted(list(src_cookware & rec_cookware)),
+            "source_unique": sorted(list(src_cookware - rec_cookware)),
+            "target_unique": sorted(list(rec_cookware - src_cookware))
+        },
+        "utensils": {
+            "shared": sorted(list(src_utensils & rec_utensils)),
+            "source_unique": sorted(list(src_utensils - rec_utensils)),
+            "target_unique": sorted(list(rec_utensils - src_utensils))
+        }
+    }
+
+    # Weight percentages mapped for UI progress bars
+    feature_weights = {
+        key: round(value * 100) for key, value in WEIGHTS.items()
     }
 
     return render_template(
@@ -215,6 +289,7 @@ def get_search_results(dish_name, origin_country, target_country):
         target_country=target_country,
         entities=entities,
         similarity_score=similarity_score,
+        feature_weights=feature_weights,
         regional_variations=regional_variations,
         international_similarities=international_similarities,
     )
@@ -480,6 +555,238 @@ def search_image():
 @app.route("/analysis")
 def analysis():
     return render_template("analysis.html")
+
+#---ANALYSIS PAGE API---
+
+COUNTRY_REGIONS = {
+    "CHINA": "East Asia",
+    "JAPAN": "East Asia",
+    "SOUTH KOREA": "East Asia",
+
+    "CAMBODIA": "Southeast Asia",
+    "INDONESIA": "Southeast Asia",
+    "MALAYSIA": "Southeast Asia",
+    "MYANMAR": "Southeast Asia",
+    "PHILIPPINES": "Southeast Asia",
+    "THAILAND": "Southeast Asia",
+    "VIETNAM": "Southeast Asia",
+
+    "INDIA": "South Asia",
+
+    "SAUDI ARABIA": "West Asia",
+    "TURKIYE": "West Asia"
+}
+
+#ANALYSIS PAGE: 1. Normalize the country name and grouped them into regions.
+def normalize_analysis_country(country):
+    if not country:
+        return ""
+
+    return " ".join(
+        str(country).strip().upper().split()
+    )
+
+
+def get_analysis_region(country):
+    return COUNTRY_REGIONS.get(
+        normalize_analysis_country(country),
+        "Other Asia"
+    )
+
+def get_analysis_countries():
+    regions = {}
+
+    for recipe in RECIPES:
+        country = normalize_analysis_country(
+            recipe.get("country")
+        )
+
+        if not country:
+            continue
+
+        region = get_analysis_region(country)
+
+        if region not in regions:
+            regions[region] = set()
+
+        regions[region].add(country)
+
+    return {
+        region: sorted(countries)
+        for region, countries in sorted(regions.items())
+    }
+
+#ANALYSIS PAGE: 2. Function to get the recipe count per country.
+
+def get_analysis_country_counts():
+    counts = {}
+
+    for recipe in RECIPES:
+        country = normalize_analysis_country(
+            recipe.get("country")
+        )
+
+        if not country:
+            continue
+
+        counts[country] = counts.get(country, 0) + 1
+
+    return counts
+
+#ANALYSIS PAGE: 3. Function to get the recipe count per region
+def get_analysis_region_counts():
+    counts = {}
+
+    for recipe in RECIPES:
+        country = normalize_analysis_country (recipe.get("country"))
+
+        if not country:
+            continue
+
+        region = get_analysis_region(country)
+        counts[region] = counts.get(region,0) + 1
+
+    return counts
+
+#ANALYSIS PAGE: 4. Returns the count of the entity, which sorts everything from most common to least common.
+def get_analysis_top_entities(recipes, field, limit=15):
+    total_recipes = len(recipes)
+
+    if total_recipes == 0:
+        return []
+
+    entity_recipe_counts = {}
+
+    for recipe in recipes:
+        value = recipe.get(field, "")
+
+        if not value:
+            continue
+
+        # Count each entity only once per recipe.
+        items = set(parse_items(value))
+
+        for item in items:
+            if item:
+                entity_recipe_counts[item] = (
+                    entity_recipe_counts.get(item, 0) + 1
+                )
+
+    results = []
+
+    for entity, count in entity_recipe_counts.items():
+        percentage = (count / total_recipes) * 100
+
+        results.append({
+            "name": entity,
+            "count": count,
+            "percentage": round(percentage, 2)
+        })
+
+    results.sort(
+        key=lambda x: x["count"],
+        reverse=True
+    )
+
+    return results[:limit]
+
+#ANALYSIS PAGE: 4. Function to get analysis on the country selected by the user.
+def get_analysis_recipes_for_countries(countries):
+    # If there are not selected countries, all are queried.
+    if not countries:
+        return RECIPES
+
+    selected_countries = {
+        normalize_analysis_country(country)
+        for country in countries
+        if normalize_analysis_country(country)
+    }
+
+    if not selected_countries:
+        return RECIPES
+
+    return [
+        recipe
+        for recipe in RECIPES
+        if normalize_analysis_country(
+            recipe.get("country")
+        ) in selected_countries
+    ]
+
+#ANALYSIS PAGE: 4. Function to get the overview analysis of the recipe count per category.
+@app.route("/api/analysis/overview")
+def analysis_overview():
+    return jsonify({
+        "countries_by_region": #Calls the helper function to count the recipe per region.
+            get_analysis_countries(), 
+
+        "country_counts":
+            get_analysis_country_counts(), #Calls the helper function to count the recipe per country.
+
+        "region_counts":
+            get_analysis_region_counts(), #Calls the helper function to count the recipe per region.
+
+        "total_recipes": #Count the number of recipes on the dataset.
+            len(RECIPES)
+    })
+
+#ANALYSIS PAGE: 5. Function that receives the user's selected country and return the top ingredients results back.
+@app.route("/api/analysis/ingredients")
+def analysis_ingredients():
+    countries = request.args.getlist("country")
+
+    selected_recipes = (
+        get_analysis_recipes_for_countries(countries)
+    )
+
+    return jsonify({
+        "countries": countries,
+        "selected_country_count": len(countries),
+        "recipe_count": len(selected_recipes),
+        "results": get_analysis_top_entities(
+            selected_recipes,
+            "ingredient_text",
+            limit=15
+        )
+    })
+
+#ANALYSIS PAGE: 5. Function that receives the user's selected country and return the top directions results back.
+@app.route("/api/analysis/instructions")
+def analysis_instructions():
+    countries = request.args.getlist("country")
+
+    instruction_type = request.args.get(
+        "type",
+        "actions"
+    ).strip().lower()
+
+    field_map = {
+        "actions": "action_text",
+        "cooking_actions": "action_text",
+        "utensils": "utensil_text",
+        "cookware": "cookware_text"
+    }
+
+    field = field_map.get(
+        instruction_type,
+        "action_text"
+    )
+
+    selected_recipes = (
+        get_analysis_recipes_for_countries(countries)
+    )
+
+    return jsonify({
+        "countries": countries,
+        "selected_country_count": len(countries),
+        "type": instruction_type,
+        "recipe_count": len(selected_recipes),
+        "results": get_analysis_top_entities(
+            selected_recipes,
+            field,
+            limit=10
+        )
+    })
 
 
 @app.route("/faqs")

@@ -406,9 +406,9 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 30px;
-  padding: 0 150px;
+  padding: 0 100px;
 }
 
 .pill {
@@ -427,7 +427,6 @@
 .pill.active {
   background-color: var(--gold-accent);
   color: var(--maroon-dark);
-  border-color: var(--gold-accent);
   font-weight: 600;
 }
 
