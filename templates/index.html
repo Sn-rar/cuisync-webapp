@@ -136,7 +136,7 @@
                 <circle cx="12" cy="13" r="4"></circle>
               </svg>
             </div>
-            <p class="dropzone-title">Take a photo or upload a photo of a menu or recipe page</p>
+            <p class="dropzone-title">Upload a photo of a menu or recipe page</p>
             <p class="dropzone-subtitle">Accepting text in Chinese, Japanese, Korean, etc</p>
           </div>
 
@@ -145,14 +145,19 @@
             <p id="file-name" class="file-name-text"></p>
             
             <button type="button" id="selected-dish-card" class="selected-dish-card" style="display: none;" aria-label="Change selected dish">
-              <span class="selected-dish-label">SELECTED DISH</span>
-              <strong id="selected-dish-name"></strong>
-              <span id="selected-dish-country" class="selected-dish-country"></span>
-              <span class="selected-dish-change">Click to change</span>
+              
+              <div class="selected-dish-info">
+                <span class="selected-dish-label">SELECTED DISH</span>
+                <strong id="selected-dish-name"></strong>
+                <span id="selected-dish-alt-name" class="selected-dish-alt-name"></span>
+                <span id="selected-dish-country" class="selected-dish-country"></span>
+                <span class="selected-dish-change">Click to change</span>
+              </div>
+              <img id="selected-dish-image" class="selected-dish-image" alt="" />
             </button>
 
             <div id="ocr-loading" class="ocr-loading" style="display: none;" role="status" aria-live="polite">
-              <span>Scanning menu…</span>
+              <span>Scanning image…</span>
               <div class="ocr-loading-track" aria-hidden="true"><span></span></div>
             </div>
 
@@ -229,14 +234,28 @@
   <app-footer></app-footer>
 
   <!-- Menu matches are intentionally selected by the user before comparison. -->
-  <div id="dish-picker-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="dish-picker-title">
-    <div class="modal-box dish-picker-box">
-      <button type="button" class="modal-close-btn" id="dish-picker-close" aria-label="Close">&times;</button>
-      <h3 id="dish-picker-title" class="modal-title">Choose a Dish from the Menu</h3>
-      <p class="modal-desc">We found these dishes in the image. Select the one you want to compare.</p>
-      <div id="dish-picker-list" class="dish-picker-list"></div>
-    </div>
+  <!-- Menu matches are intentionally selected by the user before comparison. -->
+<div
+  id="dish-picker-overlay"
+  class="modal-overlay hidden"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="dish-picker-title"
+>
+  <div class="modal-box dish-picker-box">
+    <button
+      type="button"
+      class="modal-close-btn"
+      id="dish-picker-close"
+      aria-label="Close"
+    >&times;</button>
+    <h3 id="dish-picker-title" class="modal-title">Choose a Dish from the Menu</h3>
+    <p class="modal-desc">We found these dishes in the image. Select the one you want to compare.</p>
+    
+    <!-- JavaScript populates .dish-picker-option buttons here -->
+    <div id="dish-picker-list" class="dish-picker-list"></div>
   </div>
+</div>
 
   <!-- ==================================
        ERROR MODAL
@@ -252,6 +271,7 @@
   </div>
 
   <script src="{{ url_for('static', filename='scripts/components.js') }}"></script>
+  <script src="{{ url_for('static', filename='scripts/ocr.js') }}"></script>
   
   <script>
     function switchTab(tabType) {
@@ -275,6 +295,7 @@
       }
     }
 
+    /* OCR form behavior moved to static/scripts/ocr.js.
     document.addEventListener('DOMContentLoaded', () => {
       const dropzone = document.getElementById('dropzone');
       const fileInput = document.getElementById('image-upload-input');
@@ -387,7 +408,18 @@
             }
             showDishPicker(data.matches);
           } else {
-            showErrorModal('We Can\'t Find a Dish', data.message || 'No menu dishes matched the recipe database.');
+            const dishName = data.raw_text
+              ? data.raw_text
+                  .split(/\r?\n/)
+                  .map((line) => line.trim())
+                  .filter(Boolean)
+                  .join(" ")
+              : "this dish";
+
+            showErrorModal(
+              "We Can't Find Your Dish",
+              `We couldn't find "${dishName}" in the recipe database. Try another dish or use a clearer photo.`
+            );
           }
         } catch (err) {
           if (err.name === 'AbortError') return;
@@ -473,7 +505,7 @@
           showErrorModal('Choose a Dish', 'Select one of the detected menu dishes before starting the comparison.');
         }
       });
-    });
+    }); */
   </script>
 
   <script>
