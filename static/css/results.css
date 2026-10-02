@@ -35,8 +35,12 @@
   letter-spacing: 1.5px;
   text-transform: uppercase;
   color: var(--gold-accent);
-  margin-bottom: 8px;
+  margin-top: 8px;
   font-weight: 700;
+}
+
+.extracted-entities-container{
+  margin-bottom: 50px;
 }
 
 .section-heading.dark-text {
@@ -206,6 +210,13 @@
   color: var(--maroon-dark);
 }
 
+.dish-alt{
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  margin-bottom: 5px;
+}
+
 .dish-subtitle {
   font-size: 0.68rem;
   color: var(--text-muted);
@@ -353,7 +364,7 @@
   border-radius: 8px;
   padding: 25px 30px;
   position: relative;
-  margin-bottom: 50px;
+  margin-bottom: 10px;
 }
 
 .quote-icon {

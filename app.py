@@ -84,6 +84,7 @@ def search_text():
         source_dish = {
             "title": dish_name,
             "country": origin_country,
+            "country_region": "",
             "region": "No Specific",
             "ingredient_text": "",
             "action_text": "",

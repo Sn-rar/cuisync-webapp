@@ -63,10 +63,11 @@
               <img src="{{ source_dish.image_link if source_dish.image_link else '' }}" 
                    alt="{{ source_dish.title }}" 
                    referrerpolicy="no-referrer">
-              <span class="img-badge">{{ source_dish.country }}</span>
+              <span class="img-badge">{{ source_dish.country_region }}, {{ source_dish.country }}</span>
             </div>
             <div class="dish-card-body">
               <h3 class="dish-title">{{ source_dish.title }}</h3>
+              <p class="dish-alt"><i>{{source_dish.alternative_title}}</i></p>
               <p class="dish-subtitle">{{ source_dish.region }} Region</p>
               
               <div class="ingredient-tags">
@@ -86,10 +87,11 @@
               <img src="{{ recommended_dish.image_link if (recommended_dish and recommended_dish.image_link) else '' }}" 
                    alt="{% if recommended_dish %}{{ recommended_dish.title }}{% endif %}" 
                    referrerpolicy="no-referrer">
-              <span class="img-badge">{% if recommended_dish %}{{ recommended_dish.country }}{% endif %}</span>
+              <span class="img-badge">{% if recommended_dish %}{{ source_dish.country_region }}, {{ recommended_dish.country }}{% endif %}</span>
             </div>
             <div class="dish-card-body">
               <h3 class="dish-title">{% if recommended_dish %}{{ recommended_dish.title }}{% endif %}</h3>
+              <p class="dish-alt"><i>{% if recommended_dish %}{{recommended_dish.alternative_title}}{% endif %}</i></p>
               <p class="dish-subtitle">{% if recommended_dish %}{{ recommended_dish.region }} Region{% endif %}</p>
               
               <div class="ingredient-tags">
@@ -119,68 +121,6 @@
          ================================== -->
     <section class="section-light">
       <div class="inner-content">
-        
-        <h2 class="section-heading dark-text">SIMILARITY SUMMARY</h2>
-
-        <!-- Similarity Metrics Breakdown -->
-        <div class="similarity-metrics-grid">
-          <!-- Donut Score Display -->
-          <div class="donut-box">
-            <div class="donut-chart" style="--percent: 60;">
-              <div class="donut-center">
-                <span class="donut-percentage">60%</span>
-              </div>
-            </div>
-            <span class="donut-label">OVERALL SIMILARITY SCORE</span>
-          </div>
-
-          <!-- Progress Bar Indicators -->
-          <div class="progress-bars-box">
-            <div class="progress-item">
-              <div class="progress-info">
-                <span>INGREDIENT SIMILARITY</span>
-                <span>80%</span>
-              </div>
-              <div class="progress-track"><div class="progress-fill" style="width: 80%;"></div></div>
-            </div>
-
-            <div class="progress-item">
-              <div class="progress-info">
-                <span>COOKING ACTION SIMILARITY</span>
-                <span>60%</span>
-              </div>
-              <div class="progress-track"><div class="progress-fill" style="width: 60%;"></div></div>
-            </div>
-
-            <div class="progress-item">
-              <div class="progress-info">
-                <span>UTENSIL SIMILARITY</span>
-                <span>72%</span>
-              </div>
-              <div class="progress-track"><div class="progress-fill" style="width: 72%;"></div></div>
-            </div>
-
-            <div class="progress-item">
-              <div class="progress-info">
-                <span>COOKWARE SIMILARITY</span>
-                <span>50%</span>
-              </div>
-              <div class="progress-track"><div class="progress-fill" style="width: 50%;"></div></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- AI Explanation Card -->
-        <div class="quote-card">
-          <span class="quote-icon">&ldquo;&rdquo;</span>
-          <p class="quote-text">
-            Vietnamese Pho and La Paz Batchoy are similar because both revolve around a rich, meat-based broth seasoned by slow-cooking bones with aromatics like onion and garlic, and both incorporate noodles as a key component of the dish. They share key preparation steps including boiling bone broth for long hours, cooking and assembling noodles and ladle broth throughout the process. While specific herbs, garnishes, and types of protein may differ, the essence of broth preparation, noodle integration, and simmering techniques gives these dishes a comparable culinary structure.
-          </p>
-          <div class="quote-footer">
-            <span class="badge-mini">AI EXPLANATION</span>
-            <span class="footer-note">Generated using GPT-4o. Based on ingredients and cooking processes.</span>
-          </div>
-        </div>
 
         <!-- Extracted Entities Component -->
         <div class="extracted-entities-container">
@@ -306,6 +246,68 @@
 
           </div>
         </div>
+        
+        <h2 class="section-heading dark-text">SIMILARITY SUMMARY</h2>
+
+        <!-- Similarity Metrics Breakdown -->
+        <div class="similarity-metrics-grid">
+          <!-- Donut Score Display -->
+          <div class="donut-box">
+            <div class="donut-chart" style="--percent: 60;">
+              <div class="donut-center">
+                <span class="donut-percentage">60%</span>
+              </div>
+            </div>
+            <span class="donut-label">OVERALL SIMILARITY SCORE</span>
+          </div>
+
+          <!-- Progress Bar Indicators -->
+          <div class="progress-bars-box">
+            <div class="progress-item">
+              <div class="progress-info">
+                <span>INGREDIENT SIMILARITY</span>
+                <span>80%</span>
+              </div>
+              <div class="progress-track"><div class="progress-fill" style="width: 80%;"></div></div>
+            </div>
+
+            <div class="progress-item">
+              <div class="progress-info">
+                <span>COOKING ACTION SIMILARITY</span>
+                <span>60%</span>
+              </div>
+              <div class="progress-track"><div class="progress-fill" style="width: 60%;"></div></div>
+            </div>
+
+            <div class="progress-item">
+              <div class="progress-info">
+                <span>UTENSIL SIMILARITY</span>
+                <span>72%</span>
+              </div>
+              <div class="progress-track"><div class="progress-fill" style="width: 72%;"></div></div>
+            </div>
+
+            <div class="progress-item">
+              <div class="progress-info">
+                <span>COOKWARE SIMILARITY</span>
+                <span>50%</span>
+              </div>
+              <div class="progress-track"><div class="progress-fill" style="width: 50%;"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Explanation Card -->
+        <div class="quote-card">
+          <span class="quote-icon">&ldquo;&rdquo;</span>
+          <p class="quote-text">
+            Vietnamese Pho and La Paz Batchoy are similar because both revolve around a rich, meat-based broth seasoned by slow-cooking bones with aromatics like onion and garlic, and both incorporate noodles as a key component of the dish. They share key preparation steps including boiling bone broth for long hours, cooking and assembling noodles and ladle broth throughout the process. While specific herbs, garnishes, and types of protein may differ, the essence of broth preparation, noodle integration, and simmering techniques gives these dishes a comparable culinary structure.
+          </p>
+          <div class="quote-footer">
+            <span class="badge-mini">AI EXPLANATION</span>
+            <span class="footer-note">Generated using GPT-4o. Based on ingredients and cooking processes.</span>
+          </div>
+        </div>
 
       </div>
     </section>
@@ -403,6 +405,7 @@
                 LINK
               </a>
             </div>
+            <i><b><p class="panel-region-sub" id="modalDishAlt"></p></b></i>
             <p class="panel-region-sub" id="modalDishRegion"></p>
           </div>
         </div>
@@ -620,10 +623,13 @@
       if (titleElem) titleElem.textContent = dish.title || 'Unknown Dish';
 
       const locElem = document.getElementById('modalDishLocation');
-      if (locElem) locElem.textContent = `${dish.region || ''}, ${dish.country || ''}`;
+      if (locElem) locElem.textContent = `${dish.country_region || ''}, ${dish.country || ''}`;
 
-      const regSubElem = document.getElementById('modalDishRegion');
-      if (regSubElem) regSubElem.textContent = `${(dish.region || 'UNKNOWN').toUpperCase()} REGION`;
+      const regSubElem = document.getElementById('modalDishAlt');
+      if (regSubElem) regSubElem.textContent = `${(dish.alternative_title || '')}`;
+
+      const regAltElem = document.getElementById('modalDishRegion');
+      if (regAltElem) regAltElem.textContent = `${(dish.region || 'UNKNOWN').toUpperCase()} REGION`;
 
       // Dish Image
       const imgElem = document.getElementById('modalDishImg');
