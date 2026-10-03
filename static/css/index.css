@@ -413,6 +413,83 @@ hr {
   font-weight: 600;
 }
 
+.select-dish-prompt {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: min(100%, 480px);
+  margin: 4px auto 6px;
+  padding: 14px 16px;
+  border: 1.5px dashed var(--maroon-main);
+  border-radius: 8px;
+  background: #faf8f5;
+  color: var(--text-dark);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  animation: select-dish-prompt-in 0.25s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+}
+
+.select-dish-prompt:hover,
+.select-dish-prompt:focus-visible {
+  border-style: solid;
+  background: #f4eddd;
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.select-dish-prompt-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--maroon-main);
+  color: var(--text-white);
+}
+
+.select-dish-prompt-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.select-dish-prompt strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--maroon-dark);
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+}
+
+.select-dish-prompt-count {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.select-dish-prompt-arrow {
+  color: var(--maroon-main);
+  font-size: 1.8rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+@keyframes select-dish-prompt-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .select-dish-prompt { animation: none; transition: none; }
+}
+
 .ocr-loading {
   width: min(100%, 480px);
   margin: 4px auto 6px;
@@ -551,6 +628,46 @@ hr {
 
 .form-group select:focus {
   border-color: var(--gold-accent, #c8a860);
+}
+
+/* Country of origin on the image tab: same box as the selects, but it's
+   only a display (no arrow, can't be clicked open). */
+.origin-select-hidden {
+  display: none !important;
+}
+
+.origin-display {
+  width: 100%;
+  padding: 11.5px 16px;
+  background-color: var(--cream-bg);
+  border: 1px solid rgba(74, 74, 74, 0.407);
+  border-radius: 6px;
+  color: var(--text-dark);
+  font: inherit;
+  font-size: 13.3333px;   /* same size the browser gives the selects */
+  line-height: normal;
+  cursor: default;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.origin-display.is-placeholder {
+  color: var(--text-muted);
+}
+
+.origin-display.is-scanning {
+  animation: origin-scanning 1.2s ease-in-out infinite;
+}
+
+@keyframes origin-scanning {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .origin-display.is-scanning { animation: none; }
 }
 
 .form-group select option {

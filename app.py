@@ -240,7 +240,22 @@ def extract_dish_info():
         if image is None:
             return jsonify({"success": False, "message": "Invalid image format"})
 
-        lines = ocr.automatic_ocr(image)
+        try:
+            lines = ocr.automatic_ocr(image)
+        except ocr.UnsupportedScriptError as error:
+            # Khmer / Burmese / unreadable. If some dish still matched (e.g. an
+            # English line on the menu), carry on, otherwise tell the user.
+            lines = error.lines
+            if not ocr.find_recipes(ocr.romanize_lines(lines), recipes=RECIPES):
+                return jsonify({
+                    "success": False,
+                    "error": "unsupported_script",
+                    "message": str(error),
+                    "raw_text": "\n".join(lines),
+                    "romanized_text": "",
+                    "matches": [],
+                })
+
         if not lines:
             return jsonify({
                 "success": False,
@@ -290,8 +305,16 @@ def search_image():
         if image is None:
             return render_template("index.html", error_title="No Recipe Record", error_desc="Image format is not supported or corrupted.")
 
-        lines = ocr.automatic_ocr(image)
+        try:
+            lines = ocr.automatic_ocr(image)
+            unsupported_error = None
+        except ocr.UnsupportedScriptError as error:
+            lines = error.lines
+            unsupported_error = error
+
         matches = ocr.find_recipes(ocr.romanize_lines(lines), recipes=RECIPES)
+        if not matches and unsupported_error:
+            return render_template("index.html", error_title="Language Not Supported", error_desc=str(unsupported_error))
         if not matches:
             return render_template("index.html", error_title="No Recipe Record", error_desc="The uploaded image does not contain a recipe name found in our dataset.")
         recipe = matches[0]

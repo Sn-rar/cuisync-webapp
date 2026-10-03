@@ -4,17 +4,22 @@ import os
 import re
 import sys
 import threading
+import time
 from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from difflib import SequenceMatcher
 
 import cv2
 import numpy as np
 from flask import has_app_context
 from paddleocr import PaddleOCR
 
+
+# --- Setup ------------------------------------------------------------
+
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 VENDOR_DIR = os.path.join(ROOT_DIR, ".vendor")
+
+# Some packages live in .vendor instead of the venv, so make them importable.
 if os.path.isdir(VENDOR_DIR) and VENDOR_DIR not in sys.path:
     sys.path.insert(0, VENDOR_DIR)
 
@@ -22,7 +27,8 @@ try:
     from unidecode import unidecode
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
-        "The 'unidecode' package is required for OCR romanization but is not installed in the active environment."
+        "The 'unidecode' package is required for OCR romanization. "
+        "Install it with: pip install unidecode"
     ) from None
 
 try:
@@ -30,231 +36,524 @@ try:
     from indic_transliteration.sanscript import transliterate
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
-        "The 'indic-transliteration' package is required for Devanagari romanization but is not installed in the active environment."
+        "The 'indic-transliteration' package is required for "
+        "Devanagari romanization. "
+        "Install it with: pip install indic-transliteration"
     ) from None
 
-# Japanese Hepburn Romanizer
+# pykakasi is optional. Without it, Japanese text falls back to unidecode.
 try:
     import pykakasi
     _kakasi = pykakasi.kakasi()
 except ModuleNotFoundError:
     try:
-        sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".vendor"))
+        if VENDOR_DIR not in sys.path:
+            sys.path.insert(0, VENDOR_DIR)
         import pykakasi
         _kakasi = pykakasi.kakasi()
     except ModuleNotFoundError:
         _kakasi = None
 
+# PyThaiNLP is optional too. It romanizes Thai properly; without it Thai
+# falls back to unidecode, which mixes up the letters ("aikyaangkhmin").
+try:
+    from pythainlp.tokenize import word_tokenize as _thai_word_tokenize
+    from pythainlp.transliterate import romanize as _thai_romanize
+except ModuleNotFoundError:
+    _thai_word_tokenize = None
+    _thai_romanize = None
+    print(
+        "[CuiSync] WARNING: PyThaiNLP is not installed, so Thai menus will be "
+        "romanized badly and won't match. Fix: python -m pip install pythainlp",
+        flush=True,
+    )
+
 logger = logging.getLogger(__name__)
 
+
+# --- Languages and models ---------------------------------------------
+
+# Country name (lowercase) -> PaddleOCR language code
 COUNTRY_LANG_MAP = {
-    "cambodia": "km",
     "china": "ch",
     "india": "hi",
     "indonesia": "id",
     "japan": "japan",
     "malaysia": "ms",
-    "myanmar": "my",
     "philippines": "tl",
     "saudi arabia": "ar",
     "south korea": "korean",
     "thailand": "th",
-    "turkiye": "tr",
     "turkey": "tr",
     "vietnam": "vi",
 }
 
+# PP-OCRv5 Mobile recognition model for each language.
+# A few languages share the same model, e.g. all the Latin-alphabet ones.
+PP_OCRV5_REC_MODELS = {
+    "ch": "PP-OCRv5_mobile_rec",      # also reads Japanese and English
+    "japan": "PP-OCRv5_mobile_rec",
+    "korean": "korean_PP-OCRv5_mobile_rec",
+    "th": "th_PP-OCRv5_mobile_rec",
+    "ar": "arabic_PP-OCRv5_mobile_rec",
+    "hi": "devanagari_PP-OCRv5_mobile_rec",
+    "en": "en_PP-OCRv5_mobile_rec",
+    "id": "latin_PP-OCRv5_mobile_rec",
+    "ms": "latin_PP-OCRv5_mobile_rec",
+    "tl": "latin_PP-OCRv5_mobile_rec",
+    "tr": "latin_PP-OCRv5_mobile_rec",
+    "vi": "latin_PP-OCRv5_mobile_rec",
+}
+
+# Loaded engines, by language and by model. Loading a model is slow and
+# uses a lot of memory, so each one is only loaded once.
 OCR_ENGINES = {}
-# Guards lazy engine creation so two threads can't build the same language's
-# PaddleOCR instance at once (wasteful, and PaddleOCR init isn't guaranteed
-# thread-safe on its own).
+MODEL_ENGINES = {}
+
+# Languages PaddleOCR has no model for. We remember them so we don't
+# retry (and log the same error) on every request.
+OCR_UNAVAILABLE = set()
+
 _ENGINE_LOCK = threading.Lock()
 
+# Languages tried when we don't know where the menu is from.
+# English goes first so it wins ties on a plain English menu.
 AUTO_OCR_LANGUAGES = (
-    "japan",
-    "ch",
-    "th",
-    "km",
-    "my",
-    "korean",
-    "hi",
-    "ar",
-    *(
-        lang
-        for lang in sorted(set(COUNTRY_LANG_MAP.values()))
-        if lang not in {"japan", "ch", "th", "km", "my", "korean", "hi", "ar"}
-    ),
-    "en",
+    "en", "japan", "ch", "korean", "th", "hi",
+    "ar", "vi", "id", "ms", "tl", "tr",
 )
 
-# Caps how many language engines run at once. Running all of them
-# concurrently (rather than one after another) is the main speed win here:
-# total wall-clock time becomes roughly "the slowest single engine" instead
-# of "the sum of every engine," since Paddle's inference releases the GIL
-# during the actual forward pass. Capped by CPU count so we don't oversubscribe.
+# Keep this at 1. Every extra worker means another model in memory at once.
 OCR_WORKER_COUNT = 1
 
-NON_ASCII_BONUS_MULTIPLIER = 1.5
 
-# Script-specific Unicode character blocks
-KANA_RANGE = re.compile(r"[\u3040-\u309F\u30A0-\u30FF]")       # Japanese Hiragana & Katakana
-CJK_RANGE = re.compile(r"[\u4E00-\u9FFF]")                      # CJK Unified Ideographs (Kanji / Hanzi)
-HANGUL_RANGE = re.compile(r"[\uAC00-\uD7AF\u1100-\u11FF]")     # Korean Hangul
-THAI_RANGE = re.compile(r"[\u0E00-\u0E7F]")                     # Thai
-KHMER_RANGE = re.compile(r"[\u1780-\u17FF]")                    # Cambodian / Khmer
-MYANMAR_RANGE = re.compile(r"[\u1000-\u109F]")                  # Burmese / Myanmar
-SEA_RANGE = re.compile(r"[\u0E00-\u0E7F\u1780-\u17FF\u1000-\u109F]")  # Thailand, Cambodia, Myanmar combined
-ARABIC_RANGE = re.compile(r"[\u0600-\u06FF]")                   # Arabic
-DEVANAGARI_RANGE = re.compile(r"[\u0900-\u097F]")               # Hindi / Devanagari
+# --- Matching settings ------------------------------------------------
 
-MIN_SUBSTRING_MATCH_LEN = 4
+# A dish name can wrap onto at most this many lines.
+MAX_JOINED_LINES = 3
+
+# Typo tolerance for OCR mistakes. Kept strict on purpose so a different
+# dish that just shares some words is never returned.
+FUZZY_MIN_LEN = 8            # shorter names must match exactly
+FUZZY_MAX_LEN_DIFF = 2
+FUZZY_LETTERS_PER_EDIT = 8   # about 1 wrong letter allowed per 8 letters
+
+# Only look at the first 60 lines so a huge menu doesn't slow things down.
 MAX_CANDIDATE_LINES = 60
+
+# Sounds-alike matching for Thai and Arabic (see loose_key). It's looser, so
+# it only compares Thai text with Thai dishes and Arabic text with Saudi
+# dishes, and only against the native name (alternative_title).
+LOOSE_MATCH_COUNTRY = {"th": "thailand", "ar": "saudi arabia"}
+LOOSE_FUZZY_MIN_LEN = 7   # shorter sounds-alike keys must match exactly
+
+# Used when picking the best language. A model gets a bonus if its own
+# script shows up in the text, and a penalty if it only read Latin text
+# (those models can read English too, but shouldn't win on English menus).
+SCRIPT_MATCH_BONUS = 3.0
+SCRIPT_MISMATCH_PENALTY = 0.5
+
+
+# --- Script detection -------------------------------------------------
+
+KANA_RANGE = re.compile(r"[\u3040-\u309F\u30A0-\u30FF]")      # Japanese kana
+CJK_RANGE = re.compile(r"[\u4E00-\u9FFF]")                    # Chinese characters / kanji
+HANGUL_RANGE = re.compile(r"[\uAC00-\uD7AF\u1100-\u11FF]")    # Korean
+THAI_RANGE = re.compile(r"[\u0E00-\u0E7F]")
+SEA_RANGE = THAI_RANGE                                        # only Thai for now
+ARABIC_RANGE = re.compile(r"[\u0600-\u06FF]")
+DEVANAGARI_RANGE = re.compile(r"[\u0900-\u097F]")             # Hindi
+LATIN_DIACRITIC_RANGE = re.compile(r"[\u00C0-\u024F\u1E00-\u1EFF]")  # accented letters (vi, tr)
+
+# Khmer and Burmese. PaddleOCR has no model for either, so the OCR can't
+# read them. We only use these to spot them and tell the user.
+KHMER_RANGE = re.compile(r"[\u1780-\u17FF\u19E0-\u19FF]")
+MYANMAR_RANGE = re.compile(r"[\u1000-\u109F\uAA60-\uAA7F]")
+
+# On menus we can read, the best model is usually 0.9+ sure on average.
+# On Khmer and Burmese menus every model just guesses (around 0.55),
+# so anything under this means the text is in a script we don't support.
+MIN_READABLE_CONFIDENCE = 0.70
+
+UNSUPPORTED_SCRIPT_MESSAGE = (
+    "We couldn't read the text on this menu. It looks like it may be written "
+    "in Khmer or Burmese, which CuiSync can't read yet (or the photo may be too "
+    "blurry). Try a clearer photo, or a menu with English or romanized dish names."
+)
+
+
+class UnsupportedScriptError(Exception):
+    """Raised when the menu seems to be in a script the OCR can't read,
+    like Khmer or Burmese. `lines` keeps whatever text was read anyway."""
+
+    def __init__(self, message=UNSUPPORTED_SCRIPT_MESSAGE, lines=None):
+        super().__init__(message)
+        self.lines = lines or []
+
+
+# The script each non-Latin model is supposed to read
+SCRIPT_BY_LANGUAGE = {
+    "korean": HANGUL_RANGE,
+    "th": THAI_RANGE,
+    "hi": DEVANAGARI_RANGE,
+    "ar": ARABIC_RANGE,
+}
+
+
+def _print_timing(message):
+    # print() instead of the logger so it always shows in the terminal,
+    # even when Flask isn't running in debug mode.
+    print(f"[CuiSync] {message}", flush=True)
 
 
 def get_logger():
+    # Use Flask's logger inside a request, otherwise the normal one.
     if has_app_context():
         from flask import current_app
         return current_app.logger
     return logger
 
 
+# --- Running OCR ------------------------------------------------------
+
+def prepare_ocr_image(image, max_side=1600):
+    """Shrink big photos before OCR. Phone pictures can be 4000px+ wide,
+    which is slow and doesn't help accuracy. Smaller images are left as is."""
+    if image is None:
+        raise ValueError("OCR image is None.")
+    if not isinstance(image, np.ndarray):
+        raise TypeError(
+            "OCR image must be a numpy.ndarray. "
+            f"Received: {type(image).__name__}"
+        )
+    if image.size == 0:
+        raise ValueError("OCR image is empty.")
+
+    height, width = image.shape[:2]
+    longest_side = max(height, width)
+    if longest_side <= max_side:
+        return image
+
+    scale = max_side / float(longest_side)
+    new_width = max(1, int(round(width * scale)))
+    new_height = max(1, int(round(height * scale)))
+    return cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
+
+
+# Settings shared by every PaddleOCR engine. Orientation and unwarping
+# are off because menu photos are usually upright, and it's faster.
+_COMMON_PADDLE_KWARGS = dict(
+    use_doc_orientation_classify=False,
+    use_doc_unwarping=False,
+    use_textline_orientation=False,
+    text_det_limit_side_len=736,
+    text_det_limit_type="max",
+    text_det_thresh=0.30,
+    text_det_box_thresh=0.50,
+    text_det_unclip_ratio=1.6,
+    text_recognition_batch_size=4,
+    engine="paddle_static",
+)
+
+
 def get_ocr_for_language(lang):
-    """Load and cache a PaddleOCR engine for one supported language (thread-safe)."""
+    """Get the OCR engine for a language, loading it the first time.
+    Returns None if PaddleOCR has no model for that language."""
+    lang = (lang or "en").strip().lower()
+
+    # Quick check before taking the lock
     engine = OCR_ENGINES.get(lang)
-    if engine is None:
-        with _ENGINE_LOCK:
-            engine = OCR_ENGINES.get(lang)
+    if engine is not None:
+        return engine
+    if lang in OCR_UNAVAILABLE:
+        return None
+
+    with _ENGINE_LOCK:
+        # Check again in case another thread loaded it while we waited
+        engine = OCR_ENGINES.get(lang)
+        if engine is not None:
+            return engine
+        if lang in OCR_UNAVAILABLE:
+            return None
+
+        log = get_logger()
+        log.info("Initializing OCR engine for language '%s'", lang)
+
+        recognition_model = PP_OCRV5_REC_MODELS.get(lang)
+
+        if recognition_model:
+            # Reuse the engine if another language already loaded this model
+            engine = MODEL_ENGINES.get(recognition_model)
             if engine is None:
-                engine = PaddleOCR(
-                    lang=lang,
-                    ocr_version="PP-OCRv3",
-                    use_doc_orientation_classify=False,
-                    use_doc_unwarping=False,
-                    use_textline_orientation=False,
-                    text_det_limit_side_len=640,
-                    text_det_limit_type="max",
-                    text_recognition_batch_size=1,
+                log.info(
+                    "PP-OCRv5 Mobile: detector=%s recognizer=%s",
+                    "PP-OCRv5_mobile_det",
+                    recognition_model,
                 )
-                OCR_ENGINES[lang] = engine
-    return engine
+                engine = PaddleOCR(
+                    text_detection_model_name="PP-OCRv5_mobile_det",
+                    text_recognition_model_name=recognition_model,
+                    **_COMMON_PADDLE_KWARGS,
+                )
+                MODEL_ENGINES[recognition_model] = engine
+        else:
+            # No v5 model listed above, so let PaddleOCR pick one for us
+            log.warning(
+                "No dedicated PP-OCRv5 Mobile recognition "
+                "model configured for language '%s'. "
+                "Trying PaddleOCR language fallback.",
+                lang,
+            )
+            try:
+                engine = PaddleOCR(lang=lang, **_COMMON_PADDLE_KWARGS)
+            except ValueError as error:
+                # PaddleOCR throws ValueError when it has no model for the language
+                OCR_UNAVAILABLE.add(lang)
+                log.warning(
+                    "OCR language '%s' is not supported by the "
+                    "installed PaddleOCR and will be skipped: %s",
+                    lang,
+                    error,
+                )
+                return None
+
+        OCR_ENGINES[lang] = engine
+        return engine
 
 
 def get_ocr(country=""):
-    """Load the OCR engine mapped to a country, defaulting to English."""
-    lang = COUNTRY_LANG_MAP.get((country or "").strip().lower(), "en")
-    return get_ocr_for_language(lang)
+    """OCR engine for a country. Uses English if the country is unknown
+    or its language has no model."""
+    country_key = (country or "").strip().lower()
+    lang = COUNTRY_LANG_MAP.get(country_key, "en")
+    return get_ocr_for_language(lang) or get_ocr_for_language("en")
 
 
 def result_data(result):
-    """Return the serializable data from a PaddleOCR 3.x OCRResult."""
-    data = result.json
-    data = data() if callable(data) else data
-    if isinstance(data, str):
-        return json.loads(data)
-    if isinstance(data, dict):
-        return data
-    raise RuntimeError("PaddleOCR returned an unreadable result.")
+    """Turn a PaddleOCR result object into a plain dict."""
+    if result is None:
+        return {}
+
+    try:
+        data = result.json
+        if callable(data):
+            data = data()
+        if isinstance(data, str):
+            return json.loads(data)
+        if isinstance(data, dict):
+            return data
+    except Exception:
+        get_logger().exception("Failed to parse PaddleOCR result.")
+
+    return {}
 
 
-def extract_lines_with_scores(image, ocr_model):
-    """Return recognized lines and PaddleOCR confidence scores."""
+def extract_lines_with_scores(image, ocr_model, all_scores=None):
+    """Run OCR on the image and return (lines, confidence scores).
+
+    If you pass a list as all_scores, the confidence of every text box the
+    model found is added to it, including the ones that get thrown away.
+    That's what tells us whether the model could read the menu at all."""
     lines = []
     scores = []
-    for result in ocr_model.predict(image):
-        data = result_data(result)
-        payload = data.get("res", data)
-        result_scores = payload.get("rec_scores", [])
-        for index, text in enumerate(payload.get("rec_texts", [])):
-            text = str(text).strip()
-            if text:
-                lines.append(text)
+
+    if image is None or ocr_model is None:
+        return lines, scores
+
+    try:
+        results = ocr_model.predict(image)
+
+        for result in results:
+            data = result_data(result)
+            if not data:
+                continue
+
+            payload = data.get("res", data)
+            texts = payload.get("rec_texts") or []
+            rec_scores = payload.get("rec_scores") or []
+
+            for index, text in enumerate(texts):
+                text = str(text).strip()
+
                 try:
-                    scores.append(float(result_scores[index]))
+                    confidence = float(rec_scores[index])
                 except (IndexError, TypeError, ValueError):
-                    scores.append(0.5)
+                    confidence = 0.0
+
+                if all_scores is not None:
+                    all_scores.append(confidence if text else 0.0)
+
+                if not text:
+                    continue
+
+                # Skip text the model is really unsure about
+                if confidence < 0.20:
+                    continue
+
+                lines.append(text)
+                scores.append(confidence)
+
+    except Exception:
+        get_logger().exception("PaddleOCR prediction failed.")
+
     return lines, scores
 
 
 def ocr_quality(lines, scores, language=""):
-    """Prefer confident results that recognize more meaningful text."""
+    """Score how good one language's OCR result is, so we can pick the best one.
+
+    The base score is the amount of text read, weighted by confidence.
+    Then it's adjusted depending on whether the text is actually in the
+    script that model is made for. For example, the Korean model only
+    gets a bonus if it really found Korean letters.
+    """
     base = sum(max(score, 0.0) * len(line) for line, score in zip(lines, scores))
+
     full_text = "".join(lines)
     has_kana = bool(KANA_RANGE.search(full_text))
     has_cjk = bool(CJK_RANGE.search(full_text))
 
-    if language == "japan" and has_kana:
-        base *= 3.0
-    elif language == "ch" and has_cjk and not has_kana:
-        base *= 1.8
-    elif language == "th" and THAI_RANGE.search(full_text):
-        base *= 3.0
-    elif language == "km" and KHMER_RANGE.search(full_text):
-        base *= 3.0
-    elif language == "my" and MYANMAR_RANGE.search(full_text):
-        base *= 3.0
-    elif language == "korean" and HANGUL_RANGE.search(full_text):
-        base *= 3.0
-    elif language == "hi" and DEVANAGARI_RANGE.search(full_text):
-        base *= 3.0
-    elif language == "ar" and ARABIC_RANGE.search(full_text):
-        base *= 3.0
-    elif language != "en" and any(ord(ch) > 127 for ch in full_text):
-        base *= NON_ASCII_BONUS_MULTIPLIER
+    if language == "japan":
+        if has_kana:
+            base *= SCRIPT_MATCH_BONUS
+        elif not has_cjk:
+            base *= SCRIPT_MISMATCH_PENALTY
+
+    elif language == "ch":
+        if has_cjk and not has_kana:
+            base *= 1.8
+        elif has_kana:
+            # Kana means it's Japanese, so the Japanese model should win
+            base *= SCRIPT_MISMATCH_PENALTY
+        elif not has_cjk:
+            base *= SCRIPT_MISMATCH_PENALTY
+
+    elif language in SCRIPT_BY_LANGUAGE:
+        # Korean, Thai, Hindi, Arabic
+        if SCRIPT_BY_LANGUAGE[language].search(full_text):
+            base *= SCRIPT_MATCH_BONUS
+        else:
+            base *= SCRIPT_MISMATCH_PENALTY
+
+    elif language in ("vi", "tr"):
+        # Vietnamese and Turkish have lots of accented letters
+        if LATIN_DIACRITIC_RANGE.search(full_text):
+            base *= 1.3
+
+    elif language == "en":
+        # Small edge so English wins ties on plain English text
+        base *= 1.05
 
     return base
 
 
+def _average(values):
+    return sum(values) / len(values) if values else 0.0
+
+
+def check_supported_script(lines, box_scores):
+    """Raise UnsupportedScriptError if the menu looks like Khmer or Burmese.
+
+    box_scores holds, for each model that ran, the confidence of every text
+    box it found. If text was found but even the best model was mostly
+    guessing, the script is one we can't read."""
+    full_text = "".join(lines)
+    if KHMER_RANGE.search(full_text) or MYANMAR_RANGE.search(full_text):
+        raise UnsupportedScriptError(lines=lines)
+
+    found_text = any(box_scores)
+    best_average = max((_average(scores) for scores in box_scores), default=0.0)
+
+    if found_text and best_average < MIN_READABLE_CONFIDENCE:
+        _print_timing(f"Text looks unreadable (best average confidence {best_average:.2f})")
+        raise UnsupportedScriptError(lines=lines)
+
+
 def _run_language_ocr(language, image):
-    """Run one language's OCR engine; never raises, so one bad engine can't
-    sink the whole concurrent batch."""
+    """Run OCR for one language. Returns empty results instead of raising.
+    The last value is the confidence of every text box found."""
     try:
-        lines, scores = extract_lines_with_scores(
-            image, get_ocr_for_language(language)
-        )
+        engine = get_ocr_for_language(language)
+        if engine is None:
+            return language, [], [], []
+
+        box_scores = []
+        lines, scores = extract_lines_with_scores(image, engine, box_scores)
+        return language, lines, scores, box_scores
+
     except Exception:
-        get_logger().exception("OCR model '%s' failed, skipping", language)
-        return language, [], []
-    return language, lines, scores
+        get_logger().exception("OCR model '%s' failed.", language)
+        return language, [], [], []
 
 
 def automatic_ocr(image):
-    """Detect text using supported OCR languages concurrently.
+    """Read the menu when we don't know the country. Tries every model and
+    keeps the best result. Slower than automatic_ocr_for_country()."""
+    start_time = time.perf_counter()
+    image = prepare_ocr_image(image)
 
-    Uses a small worker pool to avoid CPU/RAM oversubscription while retaining
-    the original multi-language detection behavior.
-    """
+    languages = [
+        language for language in AUTO_OCR_LANGUAGES
+        if language not in OCR_UNAVAILABLE
+    ]
+
+    # Languages that share a model would give the exact same result,
+    # so group them and run each model only once (7 runs instead of 12).
+    model_groups = {}
+    for language in languages:
+        model_key = PP_OCRV5_REC_MODELS.get(language, language)
+        model_groups.setdefault(model_key, []).append(language)
+
     results = {}
+    box_scores_per_model = []
 
-    # Avoid executor overhead when the configuration contains only one language.
-    if len(AUTO_OCR_LANGUAGES) == 1:
-        language = AUTO_OCR_LANGUAGES[0]
-        _, lines, scores = _run_language_ocr(language, image)
-        results[language] = (lines, scores)
-    else:
+    def _store(group, lines, scores, box_scores):
+        box_scores_per_model.append(box_scores)
+        for group_language in group:
+            results[group_language] = (lines, scores)
+
+    groups = list(model_groups.values())
+
+    if len(groups) == 1:
+        _, lines, scores, box_scores = _run_language_ocr(groups[0][0], image)
+        _store(groups[0], lines, scores, box_scores)
+
+    elif groups:
         with ThreadPoolExecutor(max_workers=OCR_WORKER_COUNT) as executor:
             futures = {
-                executor.submit(_run_language_ocr, language, image): language
-                for language in AUTO_OCR_LANGUAGES
+                executor.submit(_run_language_ocr, group[0], image): group
+                for group in groups
             }
             for future in as_completed(futures):
-                language, lines, scores = future.result()
-                results[language] = (lines, scores)
+                group = futures[future]
+                try:
+                    _, lines, scores, box_scores = future.result()
+                    _store(group, lines, scores, box_scores)
+                except Exception:
+                    get_logger().exception("Automatic OCR failed for '%s'.", group[0])
 
+    # Pick the language with the best score
     best_lines = []
     best_score = -1.0
     best_language = "en"
+
+    # The Chinese and Japanese models sometimes read different lines of the
+    # same menu, so we keep both sets and merge them at the end.
     cjk_pool = {}
     sea_pool = {}
 
-    for language in AUTO_OCR_LANGUAGES:
+    for language in languages:
         lines, scores = results.get(language, ([], []))
+        if not lines:
+            continue
+
         full_text = "".join(lines)
 
         if language in ("japan", "ch") and CJK_RANGE.search(full_text):
             for line in lines:
                 cjk_pool[line] = max(cjk_pool.get(line, 0), len(line))
 
-        if language in ("th", "km", "my") and SEA_RANGE.search(full_text):
+        if language == "th" and SEA_RANGE.search(full_text):
             for line in lines:
                 sea_pool[line] = max(sea_pool.get(line, 0), len(line))
 
@@ -264,70 +563,216 @@ def automatic_ocr(image):
             best_score = score
             best_language = language
 
+    get_logger().info(
+        "Automatic OCR selected '%s' with quality score %.2f",
+        best_language,
+        best_score,
+    )
+
     if cjk_pool and best_language in ("japan", "ch"):
-        return list(dict.fromkeys(best_lines + list(cjk_pool.keys())))
+        final_lines = list(dict.fromkeys(best_lines + list(cjk_pool.keys())))
+    elif sea_pool and best_language == "th":
+        final_lines = list(dict.fromkeys(best_lines + list(sea_pool.keys())))
+    else:
+        final_lines = best_lines
 
-    if sea_pool and best_language in ("th", "km", "my"):
-        return list(dict.fromkeys(best_lines + list(sea_pool.keys())))
+    elapsed = time.perf_counter() - start_time
+    _print_timing(
+        f"OCR finished in {elapsed:.2f}s "
+        f"({len(groups)} models, picked '{best_language}', {len(final_lines)} lines read)"
+    )
 
-    return best_lines
+    # Stop here with a clear error if it's Khmer, Burmese or unreadable
+    check_supported_script(final_lines, box_scores_per_model)
+    return final_lines
+
+
+def automatic_ocr_for_country(image, country):
+    """Faster option when the country is already known: only one model runs.
+    Uses English if that country's language has no model."""
+    start_time = time.perf_counter()
+    image = prepare_ocr_image(image)
+
+    country_key = (country or "").strip().lower()
+    language = COUNTRY_LANG_MAP.get(country_key, "en")
+
+    try:
+        engine = get_ocr_for_language(language)
+        if engine is None:
+            get_logger().warning("No OCR model for '%s'; falling back to English.", language)
+            language = "en"
+            engine = get_ocr_for_language(language)
+
+        box_scores = []
+        lines, scores = extract_lines_with_scores(image, engine, box_scores)
+
+        get_logger().info(
+            "PP-OCR extracted [%s/%s]: %s",
+            country_key or "unknown",
+            language,
+            lines,
+        )
+
+        elapsed = time.perf_counter() - start_time
+        _print_timing(
+            f"OCR finished in {elapsed:.2f}s "
+            f"(1 model, '{language}', {len(lines)} lines read)"
+        )
+
+        check_supported_script(lines, [box_scores])
+        return lines
+
+    except UnsupportedScriptError:
+        raise
+
+    except Exception:
+        get_logger().exception(
+            "OCR failed for country='%s', language='%s'.",
+            country,
+            language,
+        )
+        elapsed = time.perf_counter() - start_time
+        _print_timing(f"OCR failed after {elapsed:.2f}s")
+        return []
+
+
+# --- Romanization -----------------------------------------------------
+# Turns non-Latin text into Latin letters so it can be compared with the
+# dataset names. It doesn't translate: 红烧肉 becomes "Hong Shao Rou".
 
 def romanize_japanese(text):
-    """Convert Japanese Kanji and Kana to Hepburn Romaji using pykakasi."""
+    """Japanese kanji/kana to Hepburn romaji (e.g. ラーメン -> raamen)."""
     if not _kakasi:
-        return text
-    result = _kakasi.convert(str(text))
-    return " ".join(item["hepburn"] for item in result if item.get("hepburn")).strip()
+        return str(text)
+
+    try:
+        result = _kakasi.convert(str(text))
+        return " ".join(item["hepburn"] for item in result if item.get("hepburn")).strip()
+    except Exception:
+        get_logger().exception("Japanese romanization failed.")
+        return str(text)
+
+
+THAI_TONE_MARKS = re.compile(r"[\u0E48-\u0E4C]")
+
+
+def romanize_thai(text):
+    """Thai to Latin letters using the official Thai system (RTGS),
+    e.g. ไก่ย่างขมิ้น -> "kaiyang khmin".
+
+    Thai has no spaces between words, so we split it into words first.
+    Tone marks are removed after splitting because they don't change the
+    spelling, and the romanizer makes mistakes on words that have them."""
+    words = _thai_word_tokenize(text, keep_whitespace=False)
+    return " ".join(_thai_romanize(THAI_TONE_MARKS.sub("", word), engine="royin") for word in words)
 
 
 @lru_cache(maxsize=8192)
 def romanize_text(text, mode="standard"):
-    """Convert non-Latin writing to Latin characters without translating."""
+    """Romanize one piece of text. mode="japanese" uses Japanese readings
+    for kanji instead of Chinese pinyin."""
     text = str(text)
-    if DEVANAGARI_RANGE.search(text):
-        text = transliterate(text, sanscript.DEVANAGARI, sanscript.ITRANS)
-    elif mode == "japanese" and _kakasi:
-        text = romanize_japanese(text)
-    else:
-        text = unidecode(text)
+
+    try:
+        if DEVANAGARI_RANGE.search(text):
+            text = transliterate(text, sanscript.DEVANAGARI, sanscript.ITRANS)
+            # ITRANS writes the silent "a" at the end of Hindi words
+            # (गाजर -> "gAjara"), but nobody says it and the dataset doesn't
+            # spell it ("Gajar"). A long a is a capital "A" in ITRANS, so a
+            # small "a" after a consonant at the end of a word is always silent.
+            text = re.sub(r"(?<=[b-df-hj-np-tv-z])a(?=\s|$)", "", text)
+        elif mode == "japanese" and _kakasi:
+            text = romanize_japanese(text)
+        elif THAI_RANGE.search(text) and _thai_romanize:
+            text = unidecode(romanize_thai(text))
+        else:
+            text = unidecode(text)
+    except Exception:
+        get_logger().exception("Romanization failed for text: %s", text)
+
     return re.sub(r"\s+", " ", text).strip()
 
 
-def romanize_lines(lines):
-    """Romanize OCR text and log readings for CJK and Southeast Asian scripts."""
-    romanized_std = [romanize_text(line, mode="standard") for line in lines if str(line).strip()]
+class RomanizedLine(str):
+    """A romanized line that still remembers which script it came from
+    ("th" for Thai, "ar" for Arabic, otherwise None). Works like a normal
+    string everywhere else."""
+    script = None
 
-    # 1. CJK / Japanese Check
-    has_cjk = any(CJK_RANGE.search(str(line)) or KANA_RANGE.search(str(line)) for line in lines)
+
+def _line_script(line):
+    if THAI_RANGE.search(line):
+        return "th"
+    if ARABIC_RANGE.search(line):
+        return "ar"
+    return None
+
+
+def _tag(text, script):
+    line = RomanizedLine(text)
+    line.script = script
+    return line
+
+
+def romanize_lines(lines):
+    """Romanize all OCR lines. Chinese/Japanese text gets two versions
+    (pinyin and Japanese romaji) since kanji can be read either way."""
+    clean_lines = [str(line).strip() for line in lines if str(line).strip()]
+    romanized_std = [
+        _tag(romanize_text(line, mode="standard"), _line_script(line))
+        for line in clean_lines
+    ]
+
+    has_cjk = any(CJK_RANGE.search(line) or KANA_RANGE.search(line) for line in clean_lines)
+
     if has_cjk:
-        romanized_ja = [romanize_text(line, mode="japanese") for line in lines if str(line).strip()]
+        romanized_ja = [romanize_text(line, mode="japanese") for line in clean_lines]
         get_logger().info("Romanized text (Standard/Pinyin): %s", " ".join(romanized_std))
         get_logger().info("Romanized text (Japanese Hepburn): %s", " ".join(romanized_ja))
         return list(dict.fromkeys(romanized_std + romanized_ja))
 
-    # 2. Southeast Asian Check: Thailand, Cambodia, Myanmar
-    has_sea = any(SEA_RANGE.search(str(line)) for line in lines)
+    has_sea = any(SEA_RANGE.search(line) for line in clean_lines)
+
     if has_sea:
-        romanized_sea = [romanize_text(line, mode="standard") for line in lines if str(line).strip()]
-        get_logger().info("Romanized text (Southeast Asia - TH/KM/MY): %s", " ".join(romanized_sea))
-        return list(dict.fromkeys(romanized_std + romanized_sea))
+        get_logger().info("Romanized text (Thai): %s", " ".join(romanized_std))
+        return list(dict.fromkeys(romanized_std))
 
     get_logger().info("Romanized text: %s", " ".join(romanized_std))
     return romanized_std
 
 
+# --- Matching OCR text to recipes -------------------------------------
+
 @lru_cache(maxsize=16384)
 def match_key(text, mode="standard"):
-    """Create a punctuation- and accent-insensitive key for recipe matching."""
-    return re.sub(r"[^a-z0-9]+", "", romanize_text(text, mode=mode).casefold())
+    """Simplify a name for comparing: lowercase, no spaces, accents or
+    punctuation. "Kare-Kare" and "kare kare" both become "karekare"."""
+    romanized = romanize_text(text, mode=mode)
+    return re.sub(r"[^a-z0-9]+", "", romanized.casefold())
+
+
+def clean_menu_line(line):
+    """Remove prices and dot leaders from a menu line,
+    e.g. "Chicken Adobo ..... P150.00" -> "Chicken Adobo"."""
+    line = str(line)
+
+    # Numbers and currency symbols (peso, dollar, euro, yen, pound, won, baht)
+    line = re.sub(r"[\d\u20B1$\u20AC\u00A5\u00A3\u20A9\u0E3F]+", " ", line)
+
+    # Runs of dots, dashes and similar separators
+    line = re.sub(r"[.\u2026_\-\u2013\u2014|:]{2,}", " ", line)
+
+    return re.sub(r"\s+", " ", line).strip()
 
 
 def menu_candidates(romanized_lines):
-    """Build complete dish candidates from romanized OCR fragments."""
+    """Possible dish names from the menu. Each line counts on its own, and
+    up to MAX_JOINED_LINES lines in a row are also joined together, in case
+    a long name wrapped onto the next line ("Chicken" / "Adobo")."""
     raw_keys = []
 
     for line in romanized_lines:
-        line_str = str(line).strip()
+        line_str = clean_menu_line(line)
         if not line_str:
             continue
 
@@ -335,58 +780,171 @@ def menu_candidates(romanized_lines):
         if key_std:
             raw_keys.append(key_std)
 
-        # CJK Candidate Key
+        # Also add the Japanese reading if the line still has kanji/kana
         if CJK_RANGE.search(line_str) or KANA_RANGE.search(line_str):
             key_ja = match_key(line_str, mode="japanese")
             if key_ja and key_ja != key_std:
                 raw_keys.append(key_ja)
 
-        # Southeast Asian (Thailand, Cambodia, Myanmar) Candidate Key
-        if SEA_RANGE.search(line_str):
-            key_sea = match_key(line_str, mode="standard")
-            if key_sea and key_sea != key_std:
-                raw_keys.append(key_sea)
-
     raw_keys = raw_keys[:MAX_CANDIDATE_LINES]
     candidates = set(raw_keys)
 
+    # Join lines that come one after another (for wrapped names)
     for start in range(len(raw_keys)):
-        joined = ""
-        for end in range(start, min(start + 10, len(raw_keys))):
+        joined = raw_keys[start]
+        for end in range(start + 1, min(start + MAX_JOINED_LINES, len(raw_keys))):
             joined += raw_keys[end]
             candidates.add(joined)
 
-    if raw_keys and len(raw_keys) <= 12:
-        candidates.add("".join(raw_keys))
     return candidates
 
 
+def loose_key(text, script):
+    """A "sounds-alike" version of a name for Thai and Arabic.
+
+    The dataset spells these names the casual English way ("Gai", "Pad",
+    "Baqsam"), but the romanizer can't: Thai comes out in the official
+    system ("kai", "phat") and Arabic has no written short vowels, so
+    بقسم is only "bqsm". So we drop the vowels, treat letters that sound
+    alike as the same, and squash double letters:
+        "Gai Yang Khamin" and "kaiyang khmin" -> "kynkmn"
+        "Baqsam" and "bqsm"                   -> "bksm"
+    """
+    key = match_key(text)
+
+    if script == "th":
+        for a, b in (("ph", "p"), ("th", "t"), ("kh", "k"), ("ch", "c"),
+                     ("j", "c"), ("g", "k"), ("d", "t"), ("b", "p")):
+            key = key.replace(a, b)
+        key = re.sub(r"[aeiou]", "", key)
+    else:
+        for a, b in (("q", "k"), ("g", "k"), ("kh", "k"), ("th", "t"),
+                     ("dh", "d"), ("sh", "s")):
+            key = key.replace(a, b)
+        # w and y are usually long vowels in Arabic, so drop them as well
+        key = re.sub(r"[aeiouwy]", "", key)
+
+    return re.sub(r"(.)\1+", r"\1", key)
+
+
+def loose_candidates(romanized_lines):
+    """Sounds-alike keys for the Thai and Arabic lines, grouped by script.
+    Like menu_candidates(), lines in a row are also joined together."""
+    by_script = {}
+    previous = []   # (script, key) of the lines just before this one
+
+    for line in list(romanized_lines)[:MAX_CANDIDATE_LINES]:
+        script = getattr(line, "script", None)
+        if script not in LOOSE_MATCH_COUNTRY:
+            previous = []
+            continue
+
+        key = loose_key(clean_menu_line(line), script)
+        if not key:
+            continue
+
+        keys = by_script.setdefault(script, set())
+        keys.add(key)
+
+        previous = [(s, k) for s, k in previous if s == script][-(MAX_JOINED_LINES - 1):]
+        joined = key
+        for _, earlier in reversed(previous):
+            joined = earlier + joined
+            keys.add(joined)
+        previous.append((script, key))
+
+    return by_script
+
+
+def is_loose_match(name_key, loose_keys):
+    """Return the sounds-alike key that matches, or None."""
+    if not name_key:
+        return None
+    if name_key in loose_keys:
+        return name_key
+    if len(name_key) >= LOOSE_FUZZY_MIN_LEN:
+        for candidate in loose_keys:
+            if len(candidate) >= LOOSE_FUZZY_MIN_LEN and edit_distance(name_key, candidate, 1) <= 1:
+                return candidate
+    return None
+
+
 def build_candidate_index(candidate_keys):
-    """Precompute a fast search string plus length buckets, once per request."""
-    search_string = "|" + "|".join(candidate_keys) + "|"
+    """Set the candidates up for fast lookup: a set for exact matches, and
+    a dict grouped by length so typo checks only compare similar-length names."""
+    candidate_set = set(candidate_keys)
+
     length_buckets = {}
-    for candidate in candidate_keys:
+    for candidate in candidate_set:
         length_buckets.setdefault(len(candidate), []).append(candidate)
-    return search_string, length_buckets
+
+    return candidate_set, length_buckets
 
 
-def is_recipe_match(title_key, candidate_search_string, length_buckets):
-    """Match exact menu text, tolerating a small OCR typo in a full title."""
-    if len(title_key) >= MIN_SUBSTRING_MATCH_LEN and title_key in candidate_search_string:
-        return True
+def is_recipe_match(title_key, candidate_set, length_buckets):
+    """Check if any menu line is this recipe's name. Returns the matching
+    line, or None.
 
-    if len(title_key) >= 8:
-        for length in range(len(title_key) - 4, len(title_key) + 5):
-            for candidate in length_buckets.get(length, ()):
-                if SequenceMatcher(None, title_key, candidate).ratio() >= 0.84:
-                    return True
-    return False
+    The whole line has to be the dish name. A dish doesn't count just
+    because its name appears inside a longer line, otherwise "Pork Adobo"
+    (not in the dataset) would match the dish called "Pork". Small OCR
+    typos are allowed for longer names only.
+    """
+    if not title_key:
+        return None
+
+    # Exact match
+    if title_key in candidate_set:
+        return title_key
+
+    # Short names have to be exact, a 1-letter typo could be another dish
+    if len(title_key) < FUZZY_MIN_LEN:
+        return None
+
+    max_edits = max(1, len(title_key) // FUZZY_LETTERS_PER_EDIT)
+
+    for length in range(
+        len(title_key) - FUZZY_MAX_LEN_DIFF,
+        len(title_key) + FUZZY_MAX_LEN_DIFF + 1,
+    ):
+        for candidate in length_buckets.get(length, ()):
+            if edit_distance(title_key, candidate, max_edits) <= max_edits:
+                return candidate
+
+    return None
+
+
+def edit_distance(a, b, limit):
+    """How many letters must be added, removed or changed to turn a into b.
+    Stops early once it's clearly more than `limit`, since that's all we need."""
+    if abs(len(a) - len(b)) > limit:
+        return limit + 1
+
+    previous = list(range(len(b) + 1))
+
+    for i, char_a in enumerate(a, 1):
+        current = [i]
+        for j, char_b in enumerate(b, 1):
+            current.append(min(
+                previous[j] + 1,                        # remove a letter
+                current[j - 1] + 1,                     # add a letter
+                previous[j - 1] + (char_a != char_b),   # change a letter
+            ))
+
+        if min(current) > limit:
+            return limit + 1
+
+        previous = current
+
+    return previous[-1]
 
 
 @lru_cache(maxsize=16384)
 def title_key_variants(title, alternative_title="", country=""):
-    """Return every matchable key for a recipe title without splitting on dashes."""
+    """All the ways a recipe can be matched: its title and its alternative
+    title, plus Japanese readings for Japanese recipes."""
     is_japan = (country or "").strip().lower() in ("japan", "japanese")
+
     raw_names = [title, alternative_title]
     keys = []
     seen = set()
@@ -396,21 +954,32 @@ def title_key_variants(title, alternative_title="", country=""):
             continue
 
         if is_japan:
-            k_ja = match_key(name, mode="japanese")
-            if k_ja and k_ja not in seen:
-                keys.append(k_ja)
-                seen.add(k_ja)
+            key_ja = match_key(name, mode="japanese")
+            if key_ja and key_ja not in seen:
+                keys.append(key_ja)
+                seen.add(key_ja)
 
-        k_std = match_key(name, mode="standard")
-        if k_std and k_std not in seen:
-            keys.append(k_std)
-            seen.add(k_std)
+        key_std = match_key(name, mode="standard")
+        if key_std and key_std not in seen:
+            keys.append(key_std)
+            seen.add(key_std)
 
     return keys
 
 
 def find_recipes(romanized_lines, origin_country="", recipes=None):
-    """Return every database recipe recognized in a menu, without translating."""
+    """Find the dataset recipes whose names appear on the menu.
+    Also prints how long the search took."""
+    start_time = time.perf_counter()
+    result = _find_recipes(romanized_lines, origin_country, recipes)
+
+    elapsed = time.perf_counter() - start_time
+    _print_timing(f"Search finished in {elapsed:.3f}s ({len(result)} dishes found)")
+    return result
+
+
+def _find_recipes(romanized_lines, origin_country, recipes):
+    """The actual search behind find_recipes()."""
     if not recipes:
         return []
 
@@ -418,21 +987,22 @@ def find_recipes(romanized_lines, origin_country="", recipes=None):
     if not candidate_keys:
         return []
 
-    candidate_search_string, length_buckets = build_candidate_index(candidate_keys)
-    origin_key = origin_country.strip().casefold()
+    loose_by_script = loose_candidates(romanized_lines)
 
+    candidate_set, length_buckets = build_candidate_index(candidate_keys)
+
+    origin_key = (origin_country or "").strip().casefold()
     matches = []
     seen = set()
 
-    # Filter the recipe list first. This avoids doing romanization/key generation
-    # for recipes that can never match the requested country.
+    # Only look at recipes from the chosen country (or all if none chosen)
     filtered_recipes = []
     for recipe in recipes:
-        title = recipe.get("title", "").strip()
+        title = (recipe.get("title", "") or "").strip()
         if not title:
             continue
 
-        country = recipe.get("country", "").strip()
+        country = (recipe.get("country", "") or "").strip()
         if origin_key and country.casefold() != origin_key:
             continue
 
@@ -441,54 +1011,69 @@ def find_recipes(romanized_lines, origin_country="", recipes=None):
     for recipe, title, country in filtered_recipes:
         title_keys = title_key_variants(
             title,
-            recipe.get("alternative_title", ""),
+            recipe.get("alternative_title", "") or "",
             country=country,
         )
         if not title_keys:
             continue
 
-        if any(
-            is_recipe_match(title_key, candidate_search_string, length_buckets)
-            for title_key in title_keys
-        ):
-            identity = (title.casefold(), country.casefold())
-            if identity not in seen:
-                matches.append({
-                    "title": title,
-                    "country": country,
-                    "alternative_title": recipe.get("alternative_title", "").strip(),
-                    "image_link": recipe.get("image_link", "").strip(),
-                    "_title_key": match_key(title),
-                })
-                seen.add(identity)
-
-    # Remove shorter duplicate/substrings without repeatedly recalculating keys.
-    result = []
-    for match in matches:
-        title_key = match["_title_key"]
-        country_key = match["country"].casefold()
-
-        is_redundant = any(
-            match is not other
-            and country_key == other["country"].casefold()
-            and title_key != other["_title_key"]
-            and title_key in other["_title_key"]
-            for other in matches
+        # First menu line that matches any version of this recipe's name
+        matched_candidate = next(
+            (
+                candidate
+                for candidate in (
+                    is_recipe_match(title_key, candidate_set, length_buckets)
+                    for title_key in title_keys
+                )
+                if candidate
+            ),
+            None,
         )
 
+        # Thai / Arabic: try the sounds-alike match on the native name
+        if not matched_candidate:
+            for script, loose_keys in loose_by_script.items():
+                if country.casefold() != LOOSE_MATCH_COUNTRY[script]:
+                    continue
+                alt_key = loose_key(recipe.get("alternative_title", "") or "", script)
+                hit = is_loose_match(alt_key, loose_keys)
+                if hit:
+                    matched_candidate = "~" + hit   # "~" keeps these apart from normal keys
+                    break
+
+        if not matched_candidate:
+            continue
+
+        # Skip duplicate recipes (same title and country)
+        identity = (title.casefold(), country.casefold())
+        if identity in seen:
+            continue
+
+        matches.append({
+            "title": title,
+            "country": country,
+            "alternative_title": (recipe.get("alternative_title", "") or "").strip(),
+            "image_link": (recipe.get("image_link", "") or "").strip(),
+            "_matched": matched_candidate,
+        })
+        seen.add(identity)
+
+    # If "Chicken" / "Adobo" on two lines matched "Chicken Adobo", drop
+    # the dishes that only matched one piece of it (like "Chicken").
+    result = []
+    for match in matches:
+        matched_key = match["_matched"]
+        is_redundant = any(
+            match is not other
+            and matched_key != other["_matched"]
+            and matched_key in other["_matched"]
+            for other in matches
+        )
         if not is_redundant:
-            match.pop("_title_key", None)
             result.append(match)
 
+    # Remove the helper key only after all the comparisons above are done
+    for match in result:
+        match.pop("_matched", None)
+
     return result
-
-
-# Optional fast path: when the country is already known, OCR only the mapped
-# language instead of loading/running every supported language.
-def automatic_ocr_for_country(image, country):
-    """Run only the OCR language associated with a known country."""
-    language = COUNTRY_LANG_MAP.get((country or "").strip().lower(), "en")
-    lines, _scores = extract_lines_with_scores(image, get_ocr_for_language(language))
-    get_logger().info("OCR extracted text (%s): %s", language, lines)
-    return lines
-
