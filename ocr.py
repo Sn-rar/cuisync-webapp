@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import re
@@ -6,12 +5,12 @@ import sys
 import threading
 import time
 from functools import lru_cache
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import cv2
 import numpy as np
 from flask import has_app_context
-from paddleocr import PaddleOCR
+from paddleocr import TextDetection, TextRecognition
+from paddlex.inference.pipelines.components import CropByPolys, SortQuadBoxes
 
 
 # --- Setup ------------------------------------------------------------
@@ -105,16 +104,8 @@ PP_OCRV5_REC_MODELS = {
     "vi": "latin_PP-OCRv5_mobile_rec",
 }
 
-# Loaded engines, by language and by model. Loading a model is slow and
-# uses a lot of memory, so each one is only loaded once.
-OCR_ENGINES = {}
-MODEL_ENGINES = {}
-
-# Languages PaddleOCR has no model for. We remember them so we don't
-# retry (and log the same error) on every request.
-OCR_UNAVAILABLE = set()
-
-_ENGINE_LOCK = threading.Lock()
+# One model finds where the text is; the ones above read it.
+DETECTION_MODEL = "PP-OCRv5_mobile_det"
 
 # Languages tried when we don't know where the menu is from.
 # English goes first so it wins ties on a plain English menu.
@@ -123,8 +114,18 @@ AUTO_OCR_LANGUAGES = (
     "ar", "vi", "id", "ms", "tl", "tr",
 )
 
-# Keep this at 1. Every extra worker means another model in memory at once.
-OCR_WORKER_COUNT = 1
+# Latin-alphabet languages (they share the English / Latin models)
+LATIN_LANGUAGES = ("en", "vi", "id", "ms", "tl", "tr")
+
+# The quick language check reads only this many of the longest lines
+# with every model, instead of the whole menu.
+PROBE_LINES = 3
+
+# Lines the model is less sure about than this are thrown away
+MIN_LINE_CONFIDENCE = 0.20
+
+# How many lines a model reads at once
+RECOGNITION_BATCH_SIZE = 8
 
 
 # --- Matching settings ------------------------------------------------
@@ -215,6 +216,13 @@ def get_logger():
 
 
 # --- Running OCR ------------------------------------------------------
+# How a menu photo is read:
+#   1. Find where the text is (one detection model, run once).
+#   2. Quick language check: read only the few longest lines with every
+#      model and keep the language that reads them best.
+#   3. Read all the lines with just that model.
+# Reading is the slow part (about 2 seconds per model for a whole menu),
+# so this is much faster than reading the whole menu with every model.
 
 def prepare_ocr_image(image, max_side=1600):
     """Shrink big photos before OCR. Phone pictures can be 4000px+ wide,
@@ -240,162 +248,106 @@ def prepare_ocr_image(image, max_side=1600):
     return cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_AREA)
 
 
-# Settings shared by every PaddleOCR engine. Orientation and unwarping
-# are off because menu photos are usually upright, and it's faster.
-_COMMON_PADDLE_KWARGS = dict(
-    use_doc_orientation_classify=False,
-    use_doc_unwarping=False,
-    use_textline_orientation=False,
-    text_det_limit_side_len=736,
-    text_det_limit_type="max",
-    text_det_thresh=0.30,
-    text_det_box_thresh=0.50,
-    text_det_unclip_ratio=1.6,
-    text_recognition_batch_size=4,
-    engine="paddle_static",
-)
+# Settings shared by every model
+_COMMON_MODEL_KWARGS = dict(engine="paddle_static")
+
+_DETECTOR = None
+_RECOGNIZERS = {}            # model name -> loaded model
+_MODEL_LOCK = threading.Lock()
+
+# PaddleOCR's own helpers: put boxes in reading order, then cut out each line
+_sort_boxes = SortQuadBoxes()
+_crop_by_polys = CropByPolys(det_box_type="quad")
 
 
-def get_ocr_for_language(lang):
-    """Get the OCR engine for a language, loading it the first time.
-    Returns None if PaddleOCR has no model for that language."""
-    lang = (lang or "en").strip().lower()
-
-    # Quick check before taking the lock
-    engine = OCR_ENGINES.get(lang)
-    if engine is not None:
-        return engine
-    if lang in OCR_UNAVAILABLE:
-        return None
-
-    with _ENGINE_LOCK:
-        # Check again in case another thread loaded it while we waited
-        engine = OCR_ENGINES.get(lang)
-        if engine is not None:
-            return engine
-        if lang in OCR_UNAVAILABLE:
-            return None
-
-        log = get_logger()
-        log.info("Initializing OCR engine for language '%s'", lang)
-
-        recognition_model = PP_OCRV5_REC_MODELS.get(lang)
-
-        if recognition_model:
-            # Reuse the engine if another language already loaded this model
-            engine = MODEL_ENGINES.get(recognition_model)
-            if engine is None:
-                log.info(
-                    "PP-OCRv5 Mobile: detector=%s recognizer=%s",
-                    "PP-OCRv5_mobile_det",
-                    recognition_model,
+def _get_detector():
+    """The text detection model, loaded the first time it's needed."""
+    global _DETECTOR
+    if _DETECTOR is None:
+        with _MODEL_LOCK:
+            if _DETECTOR is None:
+                get_logger().info("Loading OCR detection model %s", DETECTION_MODEL)
+                _DETECTOR = TextDetection(
+                    model_name=DETECTION_MODEL,
+                    limit_side_len=736,
+                    limit_type="max",
+                    thresh=0.30,
+                    box_thresh=0.50,
+                    unclip_ratio=1.6,
+                    **_COMMON_MODEL_KWARGS,
                 )
-                engine = PaddleOCR(
-                    text_detection_model_name="PP-OCRv5_mobile_det",
-                    text_recognition_model_name=recognition_model,
-                    **_COMMON_PADDLE_KWARGS,
-                )
-                MODEL_ENGINES[recognition_model] = engine
-        else:
-            # No v5 model listed above, so let PaddleOCR pick one for us
-            log.warning(
-                "No dedicated PP-OCRv5 Mobile recognition "
-                "model configured for language '%s'. "
-                "Trying PaddleOCR language fallback.",
-                lang,
-            )
-            try:
-                engine = PaddleOCR(lang=lang, **_COMMON_PADDLE_KWARGS)
-            except ValueError as error:
-                # PaddleOCR throws ValueError when it has no model for the language
-                OCR_UNAVAILABLE.add(lang)
-                log.warning(
-                    "OCR language '%s' is not supported by the "
-                    "installed PaddleOCR and will be skipped: %s",
-                    lang,
-                    error,
-                )
-                return None
-
-        OCR_ENGINES[lang] = engine
-        return engine
+    return _DETECTOR
 
 
-def get_ocr(country=""):
-    """OCR engine for a country. Uses English if the country is unknown
-    or its language has no model."""
-    country_key = (country or "").strip().lower()
-    lang = COUNTRY_LANG_MAP.get(country_key, "en")
-    return get_ocr_for_language(lang) or get_ocr_for_language("en")
+def _get_recognizer(model_name):
+    """A text recognition model, loaded the first time it's needed.
+    Languages that share a model also share the loaded copy."""
+    recognizer = _RECOGNIZERS.get(model_name)
+    if recognizer is None:
+        with _MODEL_LOCK:
+            recognizer = _RECOGNIZERS.get(model_name)
+            if recognizer is None:
+                get_logger().info("Loading OCR recognition model %s", model_name)
+                recognizer = TextRecognition(model_name=model_name, **_COMMON_MODEL_KWARGS)
+                _RECOGNIZERS[model_name] = recognizer
+    return recognizer
 
 
-def result_data(result):
-    """Turn a PaddleOCR result object into a plain dict."""
-    if result is None:
-        return {}
+def warm_up():
+    """Load every OCR model and run each once on a blank image.
 
+    Loading takes a while (around 20+ seconds for all of them), so app.py
+    calls this in the background when the app starts. That way the first
+    upload doesn't have to wait for it."""
+    start_time = time.perf_counter()
+    blank = np.full((48, 240, 3), 255, dtype=np.uint8)
     try:
-        data = result.json
-        if callable(data):
-            data = data()
-        if isinstance(data, str):
-            return json.loads(data)
-        if isinstance(data, dict):
-            return data
+        list(_get_detector().predict(blank))
+        for model_name in dict.fromkeys(PP_OCRV5_REC_MODELS.values()):
+            list(_get_recognizer(model_name).predict([blank]))
     except Exception:
-        get_logger().exception("Failed to parse PaddleOCR result.")
+        get_logger().exception("OCR warm-up failed.")
+        return
+    _print_timing(f"OCR models ready in {time.perf_counter() - start_time:.1f}s")
 
-    return {}
+
+def find_text_lines(image):
+    """Find the text on the photo and cut out each line as its own small
+    image, in reading order (top to bottom, left to right)."""
+    result = next(iter(_get_detector().predict(image)), None)
+    if result is None or len(result["dt_polys"]) == 0:
+        return []
+
+    boxes = _sort_boxes(result["dt_polys"])
+    crops = _crop_by_polys(image, boxes)
+    return [crop for crop in crops if crop.size and crop.shape[0] and crop.shape[1]]
 
 
-def extract_lines_with_scores(image, ocr_model, all_scores=None):
-    """Run OCR on the image and return (lines, confidence scores).
+def read_lines(crops, model_name):
+    """Read every cropped line with one model.
+    Returns a (text, confidence) pair for each line, in the same order."""
+    if not crops:
+        return []
 
-    If you pass a list as all_scores, the confidence of every text box the
-    model found is added to it, including the ones that get thrown away.
-    That's what tells us whether the model could read the menu at all."""
-    lines = []
-    scores = []
+    # Lines of similar shape are faster to read together, so sort them
+    # by width/height first and put the results back in order after.
+    order = sorted(range(len(crops)), key=lambda i: crops[i].shape[1] / float(crops[i].shape[0]))
+    results = [("", 0.0)] * len(crops)
 
-    if image is None or ocr_model is None:
-        return lines, scores
+    predictions = _get_recognizer(model_name).predict(
+        [crops[i] for i in order], batch_size=RECOGNITION_BATCH_SIZE
+    )
+    for i, prediction in zip(order, predictions):
+        results[i] = (str(prediction["rec_text"]).strip(), float(prediction["rec_score"]))
 
-    try:
-        results = ocr_model.predict(image)
+    return results
 
-        for result in results:
-            data = result_data(result)
-            if not data:
-                continue
 
-            payload = data.get("res", data)
-            texts = payload.get("rec_texts") or []
-            rec_scores = payload.get("rec_scores") or []
-
-            for index, text in enumerate(texts):
-                text = str(text).strip()
-
-                try:
-                    confidence = float(rec_scores[index])
-                except (IndexError, TypeError, ValueError):
-                    confidence = 0.0
-
-                if all_scores is not None:
-                    all_scores.append(confidence if text else 0.0)
-
-                if not text:
-                    continue
-
-                # Skip text the model is really unsure about
-                if confidence < 0.20:
-                    continue
-
-                lines.append(text)
-                scores.append(confidence)
-
-    except Exception:
-        get_logger().exception("PaddleOCR prediction failed.")
-
+def _good_lines(readings):
+    """The lines worth keeping, plus the confidence of every line (empty
+    ones count as 0) for the unsupported-script check."""
+    lines = [text for text, score in readings if text and score >= MIN_LINE_CONFIDENCE]
+    scores = [score if text else 0.0 for text, score in readings]
     return lines, scores
 
 
@@ -469,127 +421,99 @@ def check_supported_script(lines, box_scores):
         raise UnsupportedScriptError(lines=lines)
 
 
-def _run_language_ocr(language, image):
-    """Run OCR for one language. Returns empty results instead of raising.
-    The last value is the confidence of every text box found."""
-    try:
-        engine = get_ocr_for_language(language)
-        if engine is None:
-            return language, [], [], []
+def _pick_language(crops):
+    """The quick language check. Reads the few longest lines with every
+    model and returns the language whose result scores best, plus each
+    model's confidences (used to spot Khmer / Burmese early)."""
+    probe = sorted(crops, key=lambda crop: crop.shape[1], reverse=True)[:PROBE_LINES]
 
-        box_scores = []
-        lines, scores = extract_lines_with_scores(image, engine, box_scores)
-        return language, lines, scores, box_scores
+    model_groups = {}
+    for language in AUTO_OCR_LANGUAGES:
+        model_groups.setdefault(PP_OCRV5_REC_MODELS[language], []).append(language)
 
-    except Exception:
-        get_logger().exception("OCR model '%s' failed.", language)
-        return language, [], [], []
+    best_language, best_score, best_lines = "en", -1.0, []
+    scores_per_model = []
+
+    for model_name, languages in model_groups.items():
+        try:
+            lines, scores = _good_lines(read_lines(probe, model_name))
+        except Exception:
+            get_logger().exception("OCR model '%s' failed.", model_name)
+            continue
+
+        scores_per_model.append(scores)
+        kept_scores = [score for score in scores if score >= MIN_LINE_CONFIDENCE]
+
+        # Languages sharing a model read the same text, but are scored a
+        # bit differently (e.g. accented letters favour vi / tr)
+        for language in languages:
+            score = ocr_quality(lines, kept_scores, language)
+            if score > best_score:
+                best_language, best_score, best_lines = language, score, lines
+
+    return best_language, scores_per_model, best_lines
+
+
+def _second_latin_reading(best_lines, crops):
+    """Extra lines for accented Latin menus (Vietnamese mostly), read by
+    the Chinese model.
+
+    Neither the Latin nor the Chinese model knows Vietnamese letters with
+    stacked accents (ở, ố, ế, ộ...). The Latin model just drops them
+    ("Phở" -> "Ph") but the Chinese model swaps in a look-alike ("Phó"),
+    which romanizes to the right spelling. Lines that come out the same as
+    the first reading are skipped."""
+    lines, _ = _good_lines(read_lines(crops, PP_OCRV5_REC_MODELS["ch"]))
+    seen = {match_key(line) for line in best_lines}
+    extra = []
+
+    for line in lines:
+        if CJK_RANGE.search(line) or KANA_RANGE.search(line):
+            continue
+        key = match_key(line)
+        if key and key not in seen:
+            seen.add(key)
+            extra.append(line)
+
+    return extra
 
 
 def automatic_ocr(image):
-    """Read the menu when we don't know the country. Tries every model and
-    keeps the best result. Slower than automatic_ocr_for_country()."""
+    """Read the menu when we don't know the country (see the steps at the
+    top of this section). Returns the lines of text that were read."""
     start_time = time.perf_counter()
     image = prepare_ocr_image(image)
 
-    languages = [
-        language for language in AUTO_OCR_LANGUAGES
-        if language not in OCR_UNAVAILABLE
-    ]
+    crops = find_text_lines(image)
+    if not crops:
+        _print_timing(f"OCR finished in {time.perf_counter() - start_time:.2f}s (no text found)")
+        return []
 
-    # Languages that share a model would give the exact same result,
-    # so group them and run each model only once (7 runs instead of 12).
-    model_groups = {}
-    for language in languages:
-        model_key = PP_OCRV5_REC_MODELS.get(language, language)
-        model_groups.setdefault(model_key, []).append(language)
+    language, probe_scores, probe_lines = _pick_language(crops)
 
-    results = {}
-    box_scores_per_model = []
+    # Stop early with a clear error if it's Khmer, Burmese or unreadable
+    check_supported_script(probe_lines, probe_scores)
 
-    def _store(group, lines, scores, box_scores):
-        box_scores_per_model.append(box_scores)
-        for group_language in group:
-            results[group_language] = (lines, scores)
+    lines, scores = _good_lines(read_lines(crops, PP_OCRV5_REC_MODELS[language]))
 
-    groups = list(model_groups.values())
-
-    if len(groups) == 1:
-        _, lines, scores, box_scores = _run_language_ocr(groups[0][0], image)
-        _store(groups[0], lines, scores, box_scores)
-
-    elif groups:
-        with ThreadPoolExecutor(max_workers=OCR_WORKER_COUNT) as executor:
-            futures = {
-                executor.submit(_run_language_ocr, group[0], image): group
-                for group in groups
-            }
-            for future in as_completed(futures):
-                group = futures[future]
-                try:
-                    _, lines, scores, box_scores = future.result()
-                    _store(group, lines, scores, box_scores)
-                except Exception:
-                    get_logger().exception("Automatic OCR failed for '%s'.", group[0])
-
-    # Pick the language with the best score
-    best_lines = []
-    best_score = -1.0
-    best_language = "en"
-
-    # The Chinese and Japanese models sometimes read different lines of the
-    # same menu, so we keep both sets and merge them at the end.
-    cjk_pool = {}
-    sea_pool = {}
-
-    for language in languages:
-        lines, scores = results.get(language, ([], []))
-        if not lines:
-            continue
-
-        full_text = "".join(lines)
-
-        if language in ("japan", "ch") and CJK_RANGE.search(full_text):
-            for line in lines:
-                cjk_pool[line] = max(cjk_pool.get(line, 0), len(line))
-
-        if language == "th" and SEA_RANGE.search(full_text):
-            for line in lines:
-                sea_pool[line] = max(sea_pool.get(line, 0), len(line))
-
-        score = ocr_quality(lines, scores, language)
-        if score > best_score:
-            best_lines = lines
-            best_score = score
-            best_language = language
-
-    get_logger().info(
-        "Automatic OCR selected '%s' with quality score %.2f",
-        best_language,
-        best_score,
-    )
-
-    if cjk_pool and best_language in ("japan", "ch"):
-        final_lines = list(dict.fromkeys(best_lines + list(cjk_pool.keys())))
-    elif sea_pool and best_language == "th":
-        final_lines = list(dict.fromkeys(best_lines + list(sea_pool.keys())))
-    else:
-        final_lines = best_lines
+    # Accented Latin text (Vietnamese, Turkish): also keep the Chinese
+    # model's reading, it handles some accents the Latin model drops
+    if language in LATIN_LANGUAGES and LATIN_DIACRITIC_RANGE.search("".join(lines)):
+        lines = lines + _second_latin_reading(lines, crops)
 
     elapsed = time.perf_counter() - start_time
     _print_timing(
         f"OCR finished in {elapsed:.2f}s "
-        f"({len(groups)} models, picked '{best_language}', {len(final_lines)} lines read)"
+        f"({len(crops)} text lines found, picked '{language}', {len(lines)} lines read)"
     )
 
-    # Stop here with a clear error if it's Khmer, Burmese or unreadable
-    check_supported_script(final_lines, box_scores_per_model)
-    return final_lines
+    check_supported_script(lines, [scores])
+    return lines
 
 
 def automatic_ocr_for_country(image, country):
-    """Faster option when the country is already known: only one model runs.
-    Uses English if that country's language has no model."""
+    """Faster option when the country is already known: only that
+    country's model reads the menu (English if the country isn't listed)."""
     start_time = time.perf_counter()
     image = prepare_ocr_image(image)
 
@@ -597,43 +521,21 @@ def automatic_ocr_for_country(image, country):
     language = COUNTRY_LANG_MAP.get(country_key, "en")
 
     try:
-        engine = get_ocr_for_language(language)
-        if engine is None:
-            get_logger().warning("No OCR model for '%s'; falling back to English.", language)
-            language = "en"
-            engine = get_ocr_for_language(language)
-
-        box_scores = []
-        lines, scores = extract_lines_with_scores(image, engine, box_scores)
-
-        get_logger().info(
-            "PP-OCR extracted [%s/%s]: %s",
-            country_key or "unknown",
-            language,
-            lines,
-        )
-
-        elapsed = time.perf_counter() - start_time
-        _print_timing(
-            f"OCR finished in {elapsed:.2f}s "
-            f"(1 model, '{language}', {len(lines)} lines read)"
-        )
-
-        check_supported_script(lines, [box_scores])
-        return lines
-
-    except UnsupportedScriptError:
-        raise
-
+        crops = find_text_lines(image)
+        lines, scores = _good_lines(read_lines(crops, PP_OCRV5_REC_MODELS[language]))
     except Exception:
-        get_logger().exception(
-            "OCR failed for country='%s', language='%s'.",
-            country,
-            language,
-        )
-        elapsed = time.perf_counter() - start_time
-        _print_timing(f"OCR failed after {elapsed:.2f}s")
+        get_logger().exception("OCR failed for country='%s', language='%s'.", country, language)
+        _print_timing(f"OCR failed after {time.perf_counter() - start_time:.2f}s")
         return []
+
+    get_logger().info("PP-OCR extracted [%s/%s]: %s", country_key or "unknown", language, lines)
+    _print_timing(
+        f"OCR finished in {time.perf_counter() - start_time:.2f}s "
+        f"(1 model, '{language}', {len(lines)} lines read)"
+    )
+
+    check_supported_script(lines, [scores])
+    return lines
 
 
 # --- Romanization -----------------------------------------------------
@@ -869,6 +771,23 @@ def is_loose_match(name_key, loose_keys):
     return None
 
 
+def _single_line_keys(romanized_lines):
+    """The keys of each menu line on its own (not joined with others),
+    in the same forms find_recipes() stores in "_matched"."""
+    keys = set()
+    for line in list(romanized_lines)[:MAX_CANDIDATE_LINES]:
+        text = clean_menu_line(line)
+        if not text:
+            continue
+        keys.add(match_key(text, mode="standard"))
+        if CJK_RANGE.search(text) or KANA_RANGE.search(text):
+            keys.add(match_key(text, mode="japanese"))
+        script = getattr(line, "script", None)
+        if script in LOOSE_MATCH_COUNTRY:
+            keys.add("~" + loose_key(text, script))
+    return keys
+
+
 def build_candidate_index(candidate_keys):
     """Set the candidates up for fast lookup: a set for exact matches, and
     a dict grouped by length so typo checks only compare similar-length names."""
@@ -1060,11 +979,15 @@ def _find_recipes(romanized_lines, origin_country, recipes):
 
     # If "Chicken" / "Adobo" on two lines matched "Chicken Adobo", drop
     # the dishes that only matched one piece of it (like "Chicken").
+    # Only for names joined from several lines: if "Udon" and "Miso Udon"
+    # are both their own lines on the menu, both are real dishes.
+    single_lines = _single_line_keys(romanized_lines)
     result = []
     for match in matches:
         matched_key = match["_matched"]
         is_redundant = any(
             match is not other
+            and other["_matched"] not in single_lines
             and matched_key != other["_matched"]
             and matched_key in other["_matched"]
             for other in matches

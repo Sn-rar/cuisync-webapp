@@ -1,5 +1,6 @@
 import json
 import os
+import threading
 
 import cv2
 import numpy as np
@@ -565,4 +566,10 @@ def faqs():
 
 
 if __name__ == "__main__":
+    # Load the OCR models in the background so the first upload is fast.
+    # In debug mode Flask starts the app twice (a watcher + the real app);
+    # WERKZEUG_RUN_MAIN is only set in the real one, so we load them once.
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        threading.Thread(target=ocr.warm_up, daemon=True).start()
+
     app.run(host="127.0.0.1", port=8000, debug=True)
