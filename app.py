@@ -2,57 +2,17 @@ import difflib
 import json
 import os
 import re
-import traceback
+import threading
 
 import cv2
 import numpy as np
 from flask import Flask, Response, abort, jsonify, render_template, request
 import ocr
-import searchlog
 import softmatch as soft_settings
 from softmatch import SoftMatcher
-from searchlog import SearchTrace
 
 
 app = Flask(__name__)
-
-# ---- DEBUG TRACE -------------------------------------------------------------------------
-# While this is on, every request and every search is explained step by step in the terminal,
-# in search_debug.log, and in the browser at /debug/log. Turn it off before putting the site
-# online:  set CUISYNC_DEBUG=0   (Windows)   or   export CUISYNC_DEBUG=0   (Mac/Linux)
-DEBUG_TRACE = os.environ.get("CUISYNC_DEBUG", "1") == "1"
-searchlog.ENABLED = DEBUG_TRACE
-searchlog.LOG_FILE = os.path.join(app.root_path, "search_debug.log")
-
-_QUIET = ("/static", "/debug", "/recipes.json", "/api/", "/favicon")
-
-
-@app.before_request
-def _log_request():
-    if DEBUG_TRACE and not request.path.startswith(_QUIET):
-        form = {k: v for k, v in request.form.items()}
-        files = {k: f.filename for k, f in request.files.items()}
-        searchlog.log_line(f">> {request.method} {request.path}  form={form}  files={files}")
-
-
-@app.after_request
-def _log_response(response):
-    if DEBUG_TRACE and not request.path.startswith(_QUIET):
-        searchlog.log_line(f"<< {request.method} {request.path} -> {response.status_code} "
-                           f"{response.mimetype}, {response.calculate_content_length() or '?'} bytes")
-    return response
-
-
-try:                                   # tells us which template was really shown
-    from flask import template_rendered
-
-    @template_rendered.connect_via(app)
-    def _log_template(sender, template, context, **extra):
-        if DEBUG_TRACE:
-            searchlog.log_line(f"   template rendered: {template.name}")
-except ImportError:                    # very old Flask: skip this extra log line
-    pass
-
 
 # 1. Load JSON dataset from root directory
 json_path = os.path.join(app.root_path, 'recipes.json')
@@ -75,31 +35,6 @@ if len(MATCHER) != len(RECIPES):
         f"{len(MATCHER)}. Use the recipes.json that was exported together with them."
     )
 
-
-def _version_report():
-    """Which files are really running and where the trace goes (also shown at /debug/version)."""
-    log_path = searchlog.LOG_FILE
-    return "\n".join([
-        "=" * 70,
-        "CUISYNC IS RUNNING THESE FILES",
-        f"  app.py        : {os.path.abspath(__file__)}",
-        f"  softmatch.py  : {soft_settings.__file__}",
-        f"  searchlog.py  : {searchlog.__file__}",
-        f"  recipes       : {len(RECIPES)} loaded, {len(MATCHER)} in the vector files",
-        "  engine        : SoftMatcher (per-ingredient soft matching)",
-        f"  settings      : FLOOR={soft_settings.FLOOR}  IDF_POWER={soft_settings.IDF_POWER}  "
-        f"RECALL_WEIGHT={soft_settings.RECALL_WEIGHT}  TITLE_BOOST={soft_settings.TITLE_BOOST}  "
-        f"POSITION_DECAY={soft_settings.POSITION_DECAY}",
-        f"  debug trace   : {'ON' if DEBUG_TRACE else 'OFF  (turn on: set CUISYNC_DEBUG=1)'}",
-        f"  trace file    : {log_path}  "
-        f"({'exists, ' + str(os.path.getsize(log_path)) + ' bytes' if os.path.exists(log_path) else 'created after your first search'})",
-        f"  traces in memory: {len(searchlog.RECENT)}",
-        "  see the trace in the browser:  http://127.0.0.1:8000/debug/log",
-        "=" * 70,
-    ])
-
-
-print(_version_report(), flush=True)
 
 # 3. Define feature weights (Adjust ratios as needed to equal 1.0)
 WEIGHTS = {
@@ -154,19 +89,9 @@ def home():
     return render_template("index.html")
 
 
-
 # Finds the closest matching dish in the target country and compares ingredients, actions, and similar dishes.
 def get_search_results(dish_name, origin_country, target_country):
-    trace = SearchTrace("SEARCH")
 
-    def done(outcome, response):
-        trace.finish(outcome)
-        return response
-
-    trace.step("1. VALUES RECEIVED (repr shows hidden spaces / odd characters)")
-    trace.say(f"dish_name       = {dish_name!r}")
-    trace.say(f"origin_country  = {origin_country!r}")
-    trace.say(f"target_country  = {target_country!r}")
 
     # ---- 2. find the source dish (exact title + origin country, ignoring capitals) ----
     source_dish = None
@@ -180,25 +105,14 @@ def get_search_results(dish_name, origin_country, target_country):
             source_idx = index
             break
 
-    trace.step("2. SOURCE DISH LOOKUP (title or alternative title AND the exact origin country)")
     if source_dish is None:
-        trace.say("NOT FOUND in recipes.json")
         same_title = sorted({r["country"] for r in RECIPES if dish_name.lower() in recipe_names(r)})
-        if same_title:
-            trace.say(f"that title exists, but only under: {same_title}")
         close = difflib.get_close_matches(dish_name.lower(), [r["title"].lower() for r in RECIPES], n=5, cutoff=0.6)
-        if close:
-            trace.say(f"closest titles: {close}")
-        trace.say(f"countries in the data: {sorted({r['country'] for r in RECIPES})}")
-        return done("ERROR POP-UP (source dish not found) -> index.html", no_result_page(
+        return no_result_page(
             f'"{dish_name}" from {origin_country.title()} is not in our dataset, '
             "so there is nothing to compare."
-        ))
+        )
 
-    trace.say(f"FOUND: row {source_idx}, {source_dish['title']!r} ({source_dish['country']})")
-    for feature in WEIGHTS:
-        names = [MATCHER.items[feature][i] for i in MATCHER.recipe_ids[feature][source_idx]]
-        trace.say(f"{feature:12s} ({len(names)}): {', '.join(names) or '(none)'}")
 
     if not source_dish.get("region"):
         source_dish["region"] = "No Specific"
@@ -220,44 +134,25 @@ def get_search_results(dish_name, origin_country, target_country):
         for index, recipe in enumerate(RECIPES)
         if recipe["country"].lower() == target_country.lower()
     ]
-    trace.step("3. TARGET COUNTRY")
-    trace.say(f"{len(target_indices)} recipes have country == {target_country!r}")
     if not target_indices:
-        trace.say(f"countries in the data: {sorted({r['country'] for r in RECIPES})}")
-        return done("ERROR POP-UP (no recipes for the target country) -> index.html", no_result_page(
+        return no_result_page(
             f"Our dataset has no recipes from {target_country.title()}."
-        ))
+        )
 
     ordered_targets = sorted(
         target_indices, key=lambda index: total_scores[index], reverse=True
     )
     best_index = ordered_targets[0]
 
-    trace.step("4. TOP 5 IN THE TARGET COUNTRY (total = 0.93*ingr + 0.04*act + 0.02*cook + 0.01*uten)")
-    for rank, i in enumerate(ordered_targets[:5], 1):
-        parts = "  ".join(f"{name[:4]}={per_feature[name][i] * 100:3.0f}%" for name in WEIGHTS)
-        trace.say(f"#{rank} {total_scores[i] * 100:5.1f}%  {RECIPES[i]['title']}   [{parts}]")
 
-    trace.step(f"5. WHY #1 ({RECIPES[best_index]['title']!r}) SCORED WHAT IT DID")
-    trace.say("each SOURCE item -> its closest item in the match | match = similarity after FLOOR (0..1)"
-              " | weight = share of the source dish's score")
-    for feature in WEIGHTS:
-        rows = MATCHER.explain(feature, source_idx, best_index)
-        trace.say(f"{feature}: category score {per_feature[feature][best_index] * 100:.0f}%"
-                  + ("" if rows else "   (the source or the match has no items in this category -> 0)"))
-        for source_item, match_item, sim, weight in rows:
-            trace.say(f"    {source_item:24s} -> {match_item:24s} match={sim:.2f}  weight={weight * 100:.0f}%")
 
-    trace.step("6. THRESHOLD CHECK")
     passed = total_scores[best_index] >= SIMILARITY_THRESHOLD
-    trace.say(f"best score {total_scores[best_index] * 100:.1f}%  vs  SIMILARITY_THRESHOLD "
-              f"{SIMILARITY_THRESHOLD * 100:.0f}%  ->  {'PASS' if passed else 'FAIL'}")
     if not passed:
-        return done("ERROR POP-UP (best match below the threshold) -> index.html", no_result_page(
+        return no_result_page(
             f'No dish from {target_country.title()} in our dataset is similar enough to '
             f'"{source_dish["title"]}" to recommend (closest match is only '
             f"{total_scores[best_index] * 100:.0f}% similar)."
-        ))
+        )
 
     similarity_score = round(float(total_scores[best_index]) * 100, 2)
     recommended_dish = RECIPES[best_index].copy()
@@ -289,10 +184,6 @@ def get_search_results(dish_name, origin_country, target_country):
         if len(international_similarities) == 5:
             break
 
-    trace.step("7. WHAT THE RESULTS PAGE WILL SHOW")
-    trace.say(f"recommended : {recommended_dish['title']!r} ({similarity_score}%)")
-    trace.say(f"same country: {[(d['title'], d['score']) for d in regional_variations]}")
-    trace.say(f"other countries: {[(d['title'], d['country'], d['score']) for d in international_similarities]}")
 
     # --- ENTITY EXTRACTION & COMPARISON LOGIC ---
     source_ingredients = set(parse_items(source_dish.get("ingredient_text", "")))
@@ -348,7 +239,7 @@ def get_search_results(dish_name, origin_country, target_country):
         key: round(value * 100) for key, value in WEIGHTS.items()
     }
 
-    return done("RESULTS PAGE -> results.html", render_template(
+    return render_template(
         "results.html",
         source_dish=source_dish,
         recommended_dish=recommended_dish,
@@ -358,7 +249,7 @@ def get_search_results(dish_name, origin_country, target_country):
         feature_weights=feature_weights,
         regional_variations=regional_variations,
         international_similarities=international_similarities,
-    ))
+    )
 
 
 @app.route("/recipes.json")
@@ -377,29 +268,33 @@ def search_text():
 
 @app.route("/extract-dish-info", methods=["POST"])
 def extract_dish_info():
-    trace = SearchTrace("IMAGE UPLOAD (OCR)")
     if "dish_image" not in request.files:
-        trace.step("No file named 'dish_image' in the request")
-        trace.finish("JSON error: No image uploaded")
         return jsonify({"success": False, "message": "No image uploaded"})
 
     try:
         raw = request.files["dish_image"].read()
-        trace.step("1. FILE RECEIVED")
-        trace.say(f"{request.files['dish_image'].filename!r}, {len(raw)} bytes")
         image_bytes = np.frombuffer(raw, np.uint8)
         image = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
         if image is None:
-            trace.finish("JSON error: Invalid image format")
             return jsonify({"success": False, "message": "Invalid image format"})
-        trace.say(f"decoded image: {image.shape[1]}x{image.shape[0]} pixels")
 
-        lines = ocr.automatic_ocr(image)
-        trace.step(f"2. OCR TEXT ({len(lines)} lines)")
-        for line in lines:
-            trace.say(repr(line))
+        try:
+            lines = ocr.automatic_ocr(image)
+        except ocr.UnsupportedScriptError as error:
+            # Khmer / Burmese / unreadable. If some dish still matched (e.g. an
+            # English line on the menu), carry on, otherwise tell the user.
+            lines = error.lines
+            if not ocr.find_recipes(ocr.romanize_lines(lines), recipes=RECIPES):
+                return jsonify({
+                    "success": False,
+                    "error": "unsupported_script",
+                    "message": str(error),
+                    "raw_text": "\n".join(lines),
+                    "romanized_text": "",
+                    "matches": [],
+                })
+
         if not lines:
-            trace.finish("JSON: no text detected")
             return jsonify({
                 "success": False,
                 "message": "No text detected in image.",
@@ -409,14 +304,7 @@ def extract_dish_info():
             })
 
         romanized = ocr.romanize_lines(lines)
-        trace.step(f"3. ROMANIZED ({len(romanized)} lines)")
-        for line in romanized:
-            trace.say(repr(line))
         matches = ocr.find_recipes(romanized, recipes=RECIPES)
-        trace.step(f"4. DATASET MATCHES ({len(matches)})")
-        for m in matches:
-            trace.say(f"{m['title']!r} ({m['country']})")
-        trace.finish("JSON sent to the page" if matches else "JSON: no matching recipe")
         return jsonify({
             "success": bool(matches),
             "message": "" if matches else "No matching recipe found in dataset.",
@@ -425,9 +313,6 @@ def extract_dish_info():
             "matches": matches,
         })
     except Exception as error:
-        trace.step("ERROR")
-        trace.say(traceback.format_exc())
-        trace.finish("JSON error")
         return jsonify({"success": False, "message": f"Processing error: {error}"})
 
 
@@ -456,46 +341,22 @@ def search_image():
         if image is None:
             return render_template("index.html", error_title="No Recipe Record", error_desc="Image format is not supported or corrupted.")
 
-        lines = ocr.automatic_ocr(image)
+        try:
+            lines = ocr.automatic_ocr(image)
+            unsupported_error = None
+        except ocr.UnsupportedScriptError as error:
+            lines = error.lines
+            unsupported_error = error
+
         matches = ocr.find_recipes(ocr.romanize_lines(lines), recipes=RECIPES)
+        if not matches and unsupported_error:
+            return render_template("index.html", error_title="Language Not Supported", error_desc=str(unsupported_error))
         if not matches:
             return render_template("index.html", error_title="No Recipe Record", error_desc="The uploaded image does not contain a recipe name found in our dataset.")
         recipe = matches[0]
         return get_search_results(recipe["title"], recipe["country"], target_country)
     except Exception as error:
         return render_template("index.html", error_title="Processing Error", error_desc=f"An error occurred while processing the image: {error}")
-
-
-@app.route("/debug/log")
-def debug_log():
-    """Browser view of the last searches: http://127.0.0.1:8000/debug/log"""
-    if not DEBUG_TRACE:
-        abort(404)
-    body = "\n\n".join(reversed(searchlog.RECENT)) or "No searches yet. Run a search, then reload."
-    return Response(body, mimetype="text/plain; charset=utf-8")
-
-
-@app.route("/debug/version")
-def debug_version():
-    """Shows which files are running: http://127.0.0.1:8000/debug/version"""
-    if not DEBUG_TRACE:
-        abort(404)
-    return Response(_version_report(), mimetype="text/plain; charset=utf-8")
-
-
-@app.route("/debug/search")
-def debug_search():
-    """Run one search and show only its trace, e.g.
-    http://127.0.0.1:8000/debug/search?dish_name=Fried Chicken&origin_country=Japan&target_country=China"""
-    if not DEBUG_TRACE:
-        abort(404)
-    before = len(searchlog.RECENT)
-    get_search_results(
-        request.args.get("dish_name", "").strip(),
-        request.args.get("origin_country", "").strip(),
-        request.args.get("target_country", "").strip(),
-    )
-    return Response(searchlog.RECENT[-1], mimetype="text/plain; charset=utf-8")
 
 
 @app.route("/analysis")
@@ -740,4 +601,12 @@ def faqs():
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8000, debug=True, use_reloader=False)
+    # Load the OCR models in the background so the first upload is fast.
+    # With the reloader off there is only one process, so start the warm-up directly.
+    # If the reloader is ever turned on, Flask starts the app twice (a watcher + the
+    # real app); WERKZEUG_RUN_MAIN is only set in the real one, so load them once.
+    USE_RELOADER = False
+    if not USE_RELOADER or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        threading.Thread(target=ocr.warm_up, daemon=True).start()
+
+    app.run(host="127.0.0.1", port=8000, debug=False, use_reloader=USE_RELOADER)

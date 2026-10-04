@@ -60,7 +60,7 @@
         
         <div class="map-pan-wrapper">
           <div class="map-placeholder">
-            <img src="{{ url_for('static', filename='assets/WorldMap-temp.png') }}">
+            <svg id="country-heatmap" class="map-img" viewBox="0 0 1000 500" preserveAspectRatio="xMidYMid slice"></svg>
             <div class="map-legend">
               <span>0</span>
               <div class="legend-bar"></div>
@@ -177,6 +177,8 @@
   <app-footer></app-footer>
 
   <script src="{{ url_for('static', filename='scripts/components.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
 
   <script>
     let currentAnalysisCountry = "";
@@ -350,6 +352,7 @@
         });
     }
 
+    // Returns the selected countries by the user and returns them as an array.
     function getSelectedAnalysisCountries() {
       return Array.from(
         document.querySelectorAll(
@@ -358,6 +361,7 @@
       ).map(input => input.value);
     }
 
+    //Creates the regional count for the bar chart.
     function renderAnalysisRegions() {
       const bars =
         document.getElementById("region-chart-bars");
@@ -416,54 +420,189 @@
       });
     }
 
-    function renderAnalysisMap() {
-      const container =
-        document.getElementById("country-map-pins");
+    // World shapes are fetched once, then reused.
+    const WORLD_TOPOLOGY_URL =
+      "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json"; //Geographic data from Natural Earth.
+    let worldTopologyPromise = null;
 
-      if (!container || !analysisOverview) return;
+    function loadWorldTopology() {
+      if (!worldTopologyPromise) {
+        worldTopologyPromise = d3.json(WORLD_TOPOLOGY_URL).catch(error => {
+          worldTopologyPromise = null; // allow a retry next time
+          throw error;
+        });
+      }
+      return worldTopologyPromise;
+    }
 
-      const positions = {
-        "INDIA": { top: "45%", left: "40%" },
-        "TURKIYE": { top: "16%", left: "3%" },
-        "TÜRKIYE": { top: "16%", left: "3%" },
-        "TURKEY": { top: "16%", left: "3%" },
-        "PHILIPPINES": { top: "60%", left: "82%" },
-        "VIETNAM": { top: "60%", left: "69%" },
-        "JAPAN": { top: "20%", left: "96%" },
-        "CHINA": { top: "28%", left: "63%" },
-        "INDONESIA": { top: "82%", left: "72%" },
-        "THAILAND": { top: "55%", left: "62%" },
-        "SOUTH KOREA": { top: "21%", left: "86%" },
-        "SAUDI ARABIA": { top: "45%", left: "10%" },
-        "MALAYSIA": { top: "75%", left: "63%" },
-        "CAMBODIA": { top: "60%", left: "65%" },
-        "MYANMAR": { top: "50%", left: "57%" }
+    // Lets dataset names (e.g. "TURKIYE") match the map's names ("Turkey").
+    function normalizeMapCountryName(name) {
+      const key = String(name || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ");
+
+      const aliases = {
+        "turkiye": "turkey",
+        "republic of korea": "south korea",
+        "korea, republic of": "south korea",
+        "s. korea": "south korea",
+        "viet nam": "vietnam",
+        "burma": "myanmar",
+        "russian federation": "russia",
+        "united states": "united states of america"
       };
 
-      container.innerHTML = "";
+      return aliases[key] || key;
+    }
 
-      Object.entries(
-        analysisOverview.country_counts || {}
-      ).forEach(([country, count]) => {
-        const normalized = country.trim().toUpperCase();
-        const position = positions[normalized];
+    // Create the heatmap of countries, with color intensity based on recipe counts.
+    async function renderAnalysisMap() {
+      const svgEl = document.getElementById("country-heatmap");
+      const tipHost = document.getElementById("country-map-pins");
+      const legendMax = document.querySelector(".map-legend span:last-child");
 
-        if (!position) return;
+      if (!svgEl || !tipHost || !analysisOverview) return;
 
-        container.insertAdjacentHTML("beforeend", `
-          <div
-            class="country-hover-pin"
-            style="top: ${position.top}; left: ${position.left};"
-          >
-            <div class="hover-badge">
-              ${escapeAnalysisHtml(formatAnalysisCountry(country))}
-              <strong>${formatAnalysisNumber(count)}</strong>
-            </div>
-          </div>
-        `);
+      const placeholder = svgEl.closest(".map-placeholder");
+
+      // 1. Recipe counts come straight from the API (built from recipes.json).
+      const countsByMapName = new Map();
+
+      Object.entries(analysisOverview.country_counts || {}).forEach(
+        ([country, count]) => {
+          const key = normalizeMapCountryName(country);
+          const existing = countsByMapName.get(key);
+
+          countsByMapName.set(key, {
+            label: existing ? existing.label : formatAnalysisCountry(country),
+            count: (existing ? existing.count : 0) + Number(count || 0)
+          });
+        }
+      );
+
+      const maxCount = Math.max(
+        1,
+        ...Array.from(countsByMapName.values()).map(entry => entry.count)
+      );
+
+      if (legendMax) legendMax.textContent = formatAnalysisNumber(maxCount);
+
+      // 2. Load the world shapes.
+      let topology;
+
+      try {
+        topology = await loadWorldTopology();
+      } catch (error) {
+        console.error("Unable to load world map:", error);
+        return;
+      }
+
+      const features = topojson.feature(
+        topology,
+        topology.objects.countries
+      ).features;
+
+      // 3. Frame the map on Asia (same area the old image covered).
+      const width = 1000;
+      const height = 500;
+
+      // Fit the map to a rectangle that covers the approximate area of Asia.
+      const projection = d3.geoMercator().fitSize([width, height], {
+        type: "MultiPoint",
+        coordinates: [[22, -12], [150, 56]]
+      });
+
+      const path = d3.geoPath(projection);
+
+      // Same three colours as the legend bar: light -> mid -> dark. (From 0 to maxCount which is 192.)
+      const colorScale = d3.scaleLinear()
+        .domain([0, maxCount / 2, maxCount])
+        .range(["#ecd3bf", "#a32e32", "#800d12"])
+        .clamp(true);
+
+      // Hover label re-uses the page's existing .hover-badge look.
+      tipHost.innerHTML = "";
+      const tip = document.createElement("div");
+      tip.className = "hover-badge";
+      Object.assign(tip.style, {
+        bottom: "auto",
+        transform: "translate(-50%, -130%)",
+        opacity: "0",
+        visibility: "hidden",
+        zIndex: "20"
+      });
+      tipHost.appendChild(tip);
+
+      const moveTip = event => {
+        const rect = placeholder.getBoundingClientRect();
+        tip.style.left = `${event.clientX - rect.left}px`;
+        tip.style.top = `${event.clientY - rect.top}px`;
+      };
+
+      const matched = new Set();
+
+      d3.select(svgEl)
+        .selectAll("path")
+        .data(features)
+        .join("path")
+        .attr("d", path)
+        .attr("stroke", "#fbf6ec")
+        .attr("stroke-width", 0.5)
+        .attr("fill", d => {
+          const key = normalizeMapCountryName(d.properties.name);
+          const entry = countsByMapName.get(key);
+
+          if (!entry) return "#e4d9c6";
+
+          matched.add(key);
+          return colorScale(entry.count);
+        })
+        .style("cursor", d =>
+          countsByMapName.has(normalizeMapCountryName(d.properties.name))
+            ? "pointer"
+            : "default")
+        .on("pointerenter", function(event, d) {
+          const entry = countsByMapName.get(
+            normalizeMapCountryName(d.properties.name)
+          );
+
+          if (!entry) return;
+
+          d3.select(this)
+            .raise()
+            .attr("stroke", "#4a0808")
+            .attr("stroke-width", 1.6);
+
+          tip.innerHTML = `
+            ${escapeAnalysisHtml(entry.label)}
+            <strong>${formatAnalysisNumber(entry.count)}</strong>
+          `;
+          tip.style.opacity = "1";
+          tip.style.visibility = "visible";
+          moveTip(event);
+        })
+        .on("pointermove", moveTip)
+        .on("pointerleave", function() {
+          d3.select(this)
+            .attr("stroke", "#fbf6ec")
+            .attr("stroke-width", 0.5);
+
+          tip.style.opacity = "0";
+          tip.style.visibility = "hidden";
+        });
+
+      // Helps spot a dataset country the map can't match by name.
+      countsByMapName.forEach((entry, key) => {
+        if (!matched.has(key)) {
+          console.warn(`No map shape found for country: ${entry.label}`);
+        }
       });
     }
 
+    //Fetches the ingredient data from the API and renders it in the horizontal bar chart.
     async function loadAnalysisIngredients(countries) {
       const requestId = ++ingredientRequestId;
 
@@ -498,6 +637,7 @@
       }
     }
 
+    //Creates the return ingredient data for the horizontal bar chart.
     function renderAnalysisIngredients(data) {
       const container =
         document.getElementById("ingredient-results");
@@ -549,6 +689,7 @@
       });
     }
 
+    //Fetches the cooking instruction data from the API.
     async function loadAnalysisInstructions(countries, type) {
       const requestId = ++instructionRequestId;
 
@@ -585,6 +726,7 @@
       }
     }
 
+    //Renders the fetched cooking instruction data in the horizontal bar chart.
     function renderAnalysisInstructions(data) {
       const container =
         document.getElementById("instruction-results");

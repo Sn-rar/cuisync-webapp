@@ -1,9 +1,19 @@
-Flask>=3.0.0
-numpy>=1.24.0
+# Web app
+Flask>=3.0.0,<4.0.0
+
+# Math / image handling
+# numpy and OpenCV are pinned to what PaddleOCR (via PaddleX) requires.
+# OpenCV 5 and numpy 2.4+ are out, but PaddleX will not install with them.
+numpy>=1.24.0,<2.4
+opencv-contrib-python==4.10.0.84
 scikit-learn>=1.3.0
-opencv-contrib-python>=4.10.0.84
+
+# OCR
 paddlepaddle>=3.3.1,<4.0.0
-paddleocr>=3.7.0,<4.0.0
+paddleocr>=3.7.0,<3.8.0
+
+# Romanization (non-Latin menu text -> Latin letters)
 indic-transliteration>=2.3.82
 Unidecode>=1.3.8
 pykakasi>=2.3.0
+pythainlp>=5.0.0,<6.0.0   # Thai romanization

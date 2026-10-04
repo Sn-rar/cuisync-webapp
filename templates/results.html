@@ -224,7 +224,7 @@
         <div class="quote-card">
           <span class="quote-icon" aria-hidden="true">&ldquo;</span>
           <p class="quote-text">
-            <strong>Vietnamese pho</strong> and <strong>La Paz batchoy</strong> are similar because both center around a meat-based broth prepared by simmering bones with aromatics such as onions and garlic, and both incorporate noodles as a key component of the dish. They share common cooking techniques, including boiling and slow-cooking, and use similar utensils like pots and ladles throughout the process. While the specific herbs, garnishes, and types of protein may differ, the combination of broth preparation, noodle integration, and simmering techniques gives these dishes a comparable culinary structure.
+
           </p>
           <div class="quote-footer">
             <span class="badge-mini">AI-EXPLANATION</span>
@@ -252,23 +252,12 @@
     <!-- Map Pan Wrapper styled as the outer card -->
     <div class="map-pan-wrapper">
       <div class="map-placeholder">
-        <img src="{{ url_for('static', filename='assets/WorldMap-temp.png') }}" class="map-graphic" id="world-map-img" alt="World Map" usemap="#image-map">
-        
-        <map name="image-map" id="image-map">
-          <area target="" alt="china" title="china" href="#" coords="449,25,465,37,529,48,634,8,740,0,718,41,650,66,622,70,654,81,636,94,652,140,620,180,568,196,534,184,500,189,475,176,482,154,458,138,404,150,342,124,340,97,306,66,353,42,352,21,403,0,422,6,429,20,442,26,445,28" shape="poly">
-          <area target="" alt="vietnam" title="vietnam" href="#" coords="510,190,521,205,547,239,546,253,525,271,529,279,557,263,556,238,534,205,549,190,532,183" shape="poly">
-          <area target="" alt="indonesia" title="indonesia" href="#" coords="537,384,535,364,513,336,470,304,458,306,518,381,539,396,588,406,667,417,573,392,543,386,593,370,562,366,556,337,615,296,629,306,617,319,624,334,618,343,614,355,610,372,625,365,637,336,654,336,673,334,643,352,657,349,648,357,658,383,639,365,637,384,629,369,725,346,782,362,782,404,746,381,726,367,713,351" shape="poly">
-          <area target="" alt="philippines" title="philippines" href="#" coords="636,232,642,251,619,284,646,261,653,278,652,292,676,307,686,290,678,261,650,237,656,222,643,209" shape="poly">
-          <area target="" alt="cambodia" title="cambodia" href="#" coords="546,241,511,245,515,265,528,271,547,255" shape="poly">
-          <area target="" alt="thailand" title="thailand" href="#" coords="533,243,527,219,502,217,495,198,476,208,480,228,486,248,489,261,480,287,494,303,512,303,494,279,499,251,513,257,513,243" shape="poly">
-          <area target="" alt="malaysia" title="malaysia" href="#" coords="491,304,502,325,521,335,521,315,511,302" shape="poly">
-          <area target="" alt="myanmar" title="myanmar" href="#" coords="476,149,458,157,449,178,438,195,454,216,451,232,473,225,484,264,486,232,478,214,500,191,475,177,484,155" shape="poly">
-          <area target="" alt="turkiye" title="turkiye" href="#" coords="93,85,-1,51" shape="rect">
-          <area target="" alt="saudi arabia" title="saudi arabia" href="#" coords="43,120,65,116,97,135,120,138,153,181,177,186,176,201,121,215,117,225,87,221,56,190,52,174,46,169,26,143,39,135" shape="poly">
-          <area target="" alt="south korea" title="south korea" href="#" coords="704,71,682,101" shape="rect">
-          <area target="" alt="japan" title="japan" href="#" coords="817,25,796,19,780,39,782,52,769,78,705,109,712,121,743,102,763,99,787,88,792,59,795,44,812,41" shape="poly">
-          <area target="" alt="india" title="india" href="#" coords="336,94,318,99,304,96,315,119,288,147,275,151,286,170,267,172,278,195,298,192,312,248,332,286,355,272,353,230,403,195,416,184,412,165,430,164,436,175,441,187,459,155,475,148,457,138,439,143,439,154,415,150,408,148,410,157,380,152,350,141,357,132,342,124" shape="poly">
-        </map>
+        <!-- Drawn by drawWorldMap() from real country shapes (d3 + world-atlas), the same way as the
+             Analysis page, so there are no hard-coded country outlines. The map fills this box exactly:
+             JS sets the viewBox to the box's pixel size, so the pins layer below lines up with it.
+             Keep id/class: the pins use them. -->
+        <svg id="world-map-img" class="map-graphic" viewBox="0 0 1000 320" preserveAspectRatio="none"
+             role="img" aria-label="Map of Asia"></svg>
 
         <!-- Dynamic Pins Container -->
         <div id="map-pins-layer"></div>
@@ -445,6 +434,8 @@
   <app-footer></app-footer>
 
   <script src="{{ url_for('static', filename='scripts/components.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
 
   <!-- ==================================
        EXTRACTED ENTITIES FILTERING
@@ -689,25 +680,6 @@
         if (fill) fill.style.setProperty('--pct', pct === null ? 0 : pct);
         if (val) val.textContent = pct === null ? 'N/A' : `${pct}%`;
       });
-
-      const explElem = document.getElementById('modalExplanation');
-      const badge = document.getElementById('modalExplBadge');
-      const note = document.getElementById('modalExplNote');
-      if (!explElem) return;
-
-      if (dish === MAP_DATA.recommendedDish && MAIN_EXPLANATION_HTML) {
-        explElem.innerHTML = MAIN_EXPLANATION_HTML;
-        if (badge) badge.textContent = 'AI-EXPLANATION';
-        if (note) note.textContent = MAIN_EXPLANATION_NOTE;
-      } else if (typeof dish.explanation === 'string' && dish.explanation.trim()) {
-        explElem.textContent = dish.explanation;
-        if (badge) badge.textContent = 'AI-EXPLANATION';
-        if (note) note.textContent = 'Based on ingredients and cooking processes';
-      } else {
-        explElem.innerHTML = buildExplanation(dish, entities, score);
-        if (badge) badge.textContent = 'SUMMARY';
-        if (note) note.textContent = 'Built from the extracted ingredients, actions and tools';
-      }
     }
 
     // Helper: Update Left Sidebar with Active Dish Data
@@ -792,100 +764,188 @@
     // and top 5 international similarities, drop them on the map (randomized
     // within their country's shape), and wire up hover preview + click.
     // ==================================
-    const mapImg = document.getElementById('world-map-img');
+    const mapSvg = document.getElementById('world-map-img');
     const pinsLayer = document.getElementById('map-pins-layer');
 
-    // A couple of country-name aliases in case the dataset spells them
-    // differently than the <area alt="..."> values on the map.
-    const COUNTRY_ALIASES = {
-      'turkey': 'turkiye',
-      'korea': 'south korea',
-      'republic of korea': 'south korea',
-      'korea, south': 'south korea'
+    // ----------------------------------
+    // WORLD MAP: drawn from real country shapes, the same way as the Analysis page's map.
+    //
+    // The SVG's viewBox is always set to the map box's real pixel size and the projection is
+    // re-fitted to that size, so one SVG unit == one pixel. The pins layer is the very same box,
+    // so a pin at (x, y) sits exactly on the spot of the map drawn at (x, y). (Before, the SVG kept
+    // a fixed 2:1 shape while the pins layer followed the card's height, so the pins drifted off
+    // their countries.) Each pin remembers its longitude/latitude and is re-projected whenever the
+    // box changes size (small preview <-> full screen).
+    // ----------------------------------
+    const WORLD_TOPOLOGY_URL =
+      'https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json'; // Natural Earth
+
+    // The area the map is framed on: a box that covers Asia (same frame as the Analysis page).
+    const ASIA_FRAME = {
+      type: 'MultiPoint',
+      coordinates: [[22, -12], [150, 56]]
     };
 
-    function normalizeCountryKey(country) {
-      if (!country) return '';
-      const key = country.toString().trim().toLowerCase();
-      return COUNTRY_ALIASES[key] || key;
-    }
+    // Land colours. The origin, target and other matched countries are tinted.
+    const MAP_COLORS = {
+      land: '#e4d9c6',
+      border: '#fbf6ec',
+      origin: '#800d12',
+      target: '#a32e32',
+      other: '#d9a98f'
+    };
 
-    function findAreaForCountry(country) {
-      const key = normalizeCountryKey(country);
-      if (!key) return null;
-      return document.querySelector(`map[name="image-map"] area[alt="${key}"]`) ||
-             document.querySelector(`map[name="image-map"] area[title="${key}"]`);
-    }
+    let worldTopologyPromise = null;
+    let worldFeatures = null;            // all country shapes
+    let mapProjection = null;            // projection for the current box size
+    let mapWidth = 0;                    // current box size in pixels (== SVG viewBox)
+    let mapHeight = 0;
+    const countryFeatures = new Map();   // normalized country name -> map shape
+    const placedPins = [];               // { pin, lonlat } for every pin on the map
 
-    function isPointInPolygon(point, vs) {
-      let x = point.x, y = point.y;
-      let inside = false;
-      for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
-        let xi = vs[i].x, yi = vs[i].y;
-        let xj = vs[j].x, yj = vs[j].y;
-
-        let intersect = ((yi > y) !== (yj > y)) &&
-            (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-        if (intersect) inside = !inside;
+    // World shapes are fetched once, then reused.
+    function loadWorldTopology() {
+      if (!worldTopologyPromise) {
+        worldTopologyPromise = d3.json(WORLD_TOPOLOGY_URL).catch(error => {
+          worldTopologyPromise = null;   // allow a retry next time
+          throw error;
+        });
       }
-      return inside;
+      return worldTopologyPromise;
     }
 
-    function getRandomPointInPolygon(polygon) {
-      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    // Lets dataset names (e.g. "Turkiye") match the map's names ("Turkey").
+    function normalizeMapCountryName(name) {
+      const key = String(name || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
 
-      polygon.forEach((p) => {
-        if (p.x < minX) minX = p.x;
-        if (p.x > maxX) maxX = p.x;
-        if (p.y < minY) minY = p.y;
-        if (p.y > maxY) maxY = p.y;
+      const aliases = {
+        'turkiye': 'turkey',
+        'korea': 'south korea',
+        'korea, south': 'south korea',
+        'republic of korea': 'south korea',
+        'korea, republic of': 'south korea',
+        's. korea': 'south korea',
+        'viet nam': 'vietnam',
+        'burma': 'myanmar',
+        'russian federation': 'russia',
+        'united states': 'united states of america'
+      };
+
+      return aliases[key] || key;
+    }
+
+    async function loadWorldMapData() {
+      const topology = await loadWorldTopology();
+      worldFeatures = topojson.feature(topology, topology.objects.countries).features;
+      worldFeatures.forEach(feature => {
+        countryFeatures.set(normalizeMapCountryName(feature.properties.name), feature);
       });
-
-      let point;
-      let attempts = 0;
-      const maxAttempts = 200;
-
-      do {
-        point = {
-          x: minX + Math.random() * (maxX - minX),
-          y: minY + Math.random() * (maxY - minY)
-        };
-        attempts++;
-      } while (!isPointInPolygon(point, polygon) && attempts < maxAttempts);
-
-      return point;
     }
 
-    // Picks a randomized (x, y) in image-pixel space somewhere inside the
-    // given country's area shape, or null if the country isn't on the map.
-    function getRandomPointForCountry(country) {
-      const area = findAreaForCountry(country);
-      if (!area) return null;
+    // Draws the countries to fill the map box. Returns false if the box has no size right now
+    // (e.g. it is hidden); it is drawn again as soon as it gets one.
+    function drawWorldMap() {
+      if (!mapSvg || !worldFeatures || !originalMapPlaceholder) return false;
 
-      const coords = area.getAttribute('coords').split(',').map(Number);
-      const shape = area.getAttribute('shape').toLowerCase();
+      const width = originalMapPlaceholder.clientWidth;
+      const height = originalMapPlaceholder.clientHeight;
+      if (width < 20 || height < 20) return false;
 
-      if (shape === 'poly') {
-        const polygon = [];
-        for (let i = 0; i < coords.length; i += 2) {
-          polygon.push({ x: coords[i], y: coords[i + 1] });
+      mapWidth = width;
+      mapHeight = height;
+      mapSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      mapProjection = d3.geoMercator().fitSize([width, height], ASIA_FRAME);
+      const path = d3.geoPath(mapProjection);
+
+      // Which countries are on this result page.
+      const originKey = normalizeMapCountryName(MAP_DATA.sourceDish && MAP_DATA.sourceDish.country);
+      const firstRegional = (MAP_DATA.regionalVariations || [])[0];
+      const targetKey = normalizeMapCountryName(
+        (MAP_DATA.recommendedDish && MAP_DATA.recommendedDish.country) ||
+        (firstRegional && firstRegional.country)
+      );
+      const otherKeys = new Set(
+        (MAP_DATA.internationalSimilarities || []).map(dish => normalizeMapCountryName(dish.country))
+      );
+
+      d3.select(mapSvg)
+        .selectAll('path')
+        .data(worldFeatures)
+        .join('path')
+        .attr('d', path)
+        .attr('stroke', MAP_COLORS.border)
+        .attr('stroke-width', 0.5)
+        .attr('fill', feature => {
+          const key = normalizeMapCountryName(feature.properties.name);
+          if (key === originKey) return MAP_COLORS.origin;
+          if (key === targetKey) return MAP_COLORS.target;
+          if (otherKeys.has(key)) return MAP_COLORS.other;
+          return MAP_COLORS.land;
+        });
+
+      return true;
+    }
+
+    // Puts one pin on its longitude/latitude, as a percentage of the map box.
+    function positionPin(entry) {
+      if (!mapProjection) return;
+      const point = mapProjection(entry.lonlat);
+      if (!point) return;
+      entry.pin.style.left = `${(point[0] / mapWidth) * 100}%`;
+      entry.pin.style.top = `${(point[1] / mapHeight) * 100}%`;
+    }
+
+    // Redraws the map for the box's current size and re-places every pin on it.
+    function refreshWorldMap() {
+      if (drawWorldMap()) placedPins.forEach(positionPin);
+    }
+
+    // A random [longitude, latitude] on land inside the country's real shape.
+    function randomLonLatInCountry(feature) {
+      const [[west, south], [east, north]] = d3.geoBounds(feature);
+      const lonSpan = east >= west ? east - west : east + 360 - west;   // shape crossing the date line
+
+      for (let attempt = 0; attempt < 300; attempt++) {
+        let lon = west + Math.random() * lonSpan;
+        if (lon > 180) lon -= 360;
+        const lat = south + Math.random() * (north - south);
+
+        if (d3.geoContains(feature, [lon, lat])) return [lon, lat];
+      }
+
+      // Very thin shape: fall back to its centre.
+      return d3.geoCentroid(feature);
+    }
+
+    // Where a dish's pin goes: inside its country, or null if the country is not on the map.
+    // Several pins can share a small country, so of a few random spots we take the one farthest
+    // from the pins already placed, which keeps them from sitting on top of each other.
+    function getLonLatForCountry(country) {
+      const feature = countryFeatures.get(normalizeMapCountryName(country));
+      if (!feature) return null;
+
+      const candidates = Array.from({ length: 12 }, () => randomLonLatInCountry(feature));
+      if (!mapProjection || !placedPins.length) return candidates[0];
+
+      let best = candidates[0];
+      let bestGap = -1;
+      candidates.forEach(lonlat => {
+        const here = mapProjection(lonlat);
+        const gap = Math.min(...placedPins.map(other => {
+          const there = mapProjection(other.lonlat);
+          return Math.hypot(here[0] - there[0], here[1] - there[1]);
+        }));
+        if (gap > bestGap) {
+          bestGap = gap;
+          best = lonlat;
         }
-        return getRandomPointInPolygon(polygon);
-      }
-
-      if (shape === 'rect') {
-        const [x1, y1, x2, y2] = coords;
-        const minX = Math.min(x1, x2);
-        const maxX = Math.max(x1, x2);
-        const minY = Math.min(y1, y2);
-        const maxY = Math.max(y1, y2);
-        return {
-          x: minX + Math.random() * (maxX - minX),
-          y: minY + Math.random() * (maxY - minY)
-        };
-      }
-
-      return null;
+      });
+      return best;
     }
 
     // Single floating hover/focus preview card, reused for every pin.
@@ -944,8 +1004,8 @@
     function createPin(dish, score, typeClass, extraClass) {
       if (!dish || !dish.country) return null;
 
-      const point = getRandomPointForCountry(dish.country);
-      if (!point) return null;
+      const lonlat = getLonLatForCountry(dish.country);
+      if (!lonlat) return null;
 
       const pin = document.createElement('button');
       pin.type = 'button';
@@ -970,27 +1030,19 @@
 
       pinsLayer.appendChild(pin);
 
-      // Position once the map's natural size is known (percent-based so it
-      // scales correctly whether the map is in the small preview or full modal).
-      const positionPin = () => {
-        const naturalWidth = mapImg.naturalWidth || 817;
-        const naturalHeight = mapImg.naturalHeight || 417;
-        pin.style.left = `${(point.x / naturalWidth) * 100}%`;
-        pin.style.top = `${(point.y / naturalHeight) * 100}%`;
-      };
-
-      if (mapImg.complete) {
-        positionPin();
-      } else {
-        mapImg.addEventListener('load', positionPin, { once: true });
-      }
+      // The pin remembers its longitude/latitude; it is placed (and re-placed after every resize)
+      // as a percentage of the map box, which is the same box the SVG map fills.
+      const entry = { pin, lonlat };
+      placedPins.push(entry);
+      positionPin(entry);
 
       return pin;
     }
 
     function buildAllPins() {
-      if (!pinsLayer || !mapImg) return;
+      if (!pinsLayer) return;
       pinsLayer.innerHTML = '';
+      placedPins.length = 0;
 
       // Original dish, in its home country (also a "main" pin, so the
       // MAIN DISH filter toggles both main dishes together).
@@ -1011,7 +1063,24 @@
       });
     }
 
-    buildAllPins();
+    // Load the shapes, draw the map, drop the pins on it, then keep it in step with the box size
+    // (the same box is shown small on the page and large in the full-screen map).
+    (async () => {
+      try {
+        await loadWorldMapData();
+      } catch (error) {
+        console.error('Unable to load world map:', error);
+        return;
+      }
+      drawWorldMap();
+      buildAllPins();
+      refreshWorldMap();
+
+      if (originalMapPlaceholder && 'ResizeObserver' in window) {
+        new ResizeObserver(refreshWorldMap).observe(originalMapPlaceholder);
+      }
+      window.addEventListener('resize', refreshWorldMap);
+    })();
 
     // ==================================
     // FULL-SCREEN MAP: PAN & ZOOM
@@ -1025,6 +1094,14 @@
 
     const MIN_SCALE = 1;
     const MAX_SCALE = 4;
+
+    // Pin size while zoomed. The whole map layer (pins included) is enlarged by the zoom, so the
+    // pins are scaled back down: their size ON SCREEN falls by PIN_SHRINK for every +1x of zoom,
+    // but never below PIN_MIN_SIZE of their normal size (so they stay visible and clickable).
+    // At 1x they are full size; they shrink normally until 2x, then stay at 80%.
+    const PIN_SHRINK = 0.10;     // Pins shrink 10% for each +1x zoom     // Normal shrink rate before the lock     // Rate at which pins shrink per 1x zoom increase
+    const PIN_MIN_SIZE = 0.80;   // Hard minimum: 80% of normal pin size // Pins never go below 80% of normal size
+    const PIN_LOCK_ZOOM = 3.0;   // At 3x zoom, the pin locks at 80%   // At 2x zoom, the 80% pin-size floor locks in
     let mapScale = 1;
     let mapTranslateX = 0;
     let mapTranslateY = 0;
@@ -1061,10 +1138,29 @@
       mapTranslateY = clamp(mapTranslateY, minY, maxY);
     }
 
+    
+
     function applyMapTransform() {
       if (!originalMapPlaceholder) return;
+
       originalMapPlaceholder.style.transform =
         `translate(${mapTranslateX}px, ${mapTranslateY}px) scale(${mapScale})`;
+
+      // Calculate the pin's visible size first, then divide by mapScale
+      // because the entire map (including pins) is being zoomed.
+      // Before 3x: 100% -> 90% -> 80% as zoom increases.
+      // At 3x and beyond: permanently lock the visible pin size at 80%.
+      const pinSizeOnScreen = mapScale >= PIN_LOCK_ZOOM
+        ? PIN_MIN_SIZE
+        : Math.max(
+            PIN_MIN_SIZE,
+            1 - PIN_SHRINK * (mapScale - 1)
+          );
+
+      originalMapPlaceholder.style.setProperty(
+        '--pin-scale',
+        (pinSizeOnScreen / mapScale).toFixed(6)
+      );
     }
 
     function resetMapTransform() {
@@ -1152,6 +1248,7 @@
         if (sidebar) sidebar.classList.remove('collapsed');
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
+        requestAnimationFrame(refreshWorldMap);
       });
     }
 
@@ -1167,6 +1264,7 @@
       if (mapPanWrapper && originalMapPlaceholder && !mapPanWrapper.contains(originalMapPlaceholder)) {
         mapPanWrapper.insertBefore(originalMapPlaceholder, mapPanWrapper.firstChild);
       }
+      requestAnimationFrame(refreshWorldMap);
     };
 
     if (closeBtn) {

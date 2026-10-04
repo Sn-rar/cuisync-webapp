@@ -156,6 +156,26 @@
               <img id="selected-dish-image" class="selected-dish-image" alt="" />
             </button>
 
+            <!-- Shown when the dish picker is closed without choosing a dish -->
+            <button type="button" id="select-dish-prompt" class="select-dish-prompt" style="display: none;" aria-label="Select dish from the image">
+              <span class="select-dish-prompt-icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12"></line>
+                  <line x1="8" y1="18" x2="21" y2="18"></line>
+                  <circle cx="3.5" cy="6" r="1"></circle>
+                  <circle cx="3.5" cy="12" r="1"></circle>
+                  <circle cx="3.5" cy="18" r="1"></circle>
+                </svg>
+              </span>
+              <span class="select-dish-prompt-info">
+                <span class="selected-dish-label">NO DISH SELECTED</span>
+                <strong>Select dish from the image</strong>
+                <span id="select-dish-prompt-count" class="select-dish-prompt-count"></span>
+              </span>
+              <span class="select-dish-prompt-arrow" aria-hidden="true">&rsaquo;</span>
+            </button>
+
             <div id="ocr-loading" class="ocr-loading" style="display: none;" role="status" aria-live="polite">
               <span>Scanning image…</span>
               <div class="ocr-loading-track" aria-hidden="true"><span></span></div>
@@ -167,9 +187,13 @@
 
         <div class="form-row">
           <div class="form-group half-width">
-            <label for="img-origin">COUNTRY OF ORIGIN</label>
-            <select id="img-origin" name="origin_country" required>
-              <option value="" disabled selected>Select country of origin...</option>
+            <label id="img-origin-label">COUNTRY OF ORIGIN</label>
+            <!-- Filled in automatically from the dish found in the photo, so it
+                 isn't a dropdown. The hidden select still sends the value. -->
+            <div id="img-origin-display" class="origin-display is-placeholder"
+                 role="status" aria-live="polite" aria-labelledby="img-origin-label">Country of Origin</div>
+            <select id="img-origin" name="origin_country" class="origin-select-hidden" tabindex="-1" aria-hidden="true">
+              <option value="" disabled selected>Country of Origin</option>
               <option value="cambodia">Cambodia</option>
               <option value="china">China</option>
               <option value="india">India</option>
