@@ -93,60 +93,6 @@ a {
 }
 
 /* ==========================================================================
-   MOBILE HAMBURGER MENU & RESPONSIVE STYLES
-   ========================================================================== */
-.hamburger-toggle {
-  display: none;
-  flex-direction: column;
-  justify-content: space-between;
-  width: 28px;
-  height: 20px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  z-index: 1002;
-  padding: 0;
-}
-
-.hamburger-toggle .bar {
-  width: 100%;
-  height: 2.5px;
-  background-color: var(--gold-accent);
-  border-radius: 2px;
-  transition: all 0.3s ease-in-out;
-}
-
-.hamburger-toggle.open .bar:nth-child(1) {
-  transform: translateY(8.5px) rotate(45deg);
-}
-
-.hamburger-toggle.open .bar:nth-child(2) {
-  opacity: 0;
-}
-
-.hamburger-toggle.open .bar:nth-child(3) {
-  transform: translateY(-8.5px) rotate(-45deg);
-}
-
-.nav-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(0, 0, 0, 0.6);
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.3s ease;
-  z-index: 999;
-}
-
-.nav-overlay.active {
-  opacity: 1;
-  visibility: visible;
-}
-
-/* ==========================================================================
    FOOTER SECTION
    ========================================================================== */
 .footer {
@@ -215,25 +161,17 @@ a {
   color: #e0d0cc;
 }
 
-.footer-links a:hover,
-.cuisine-grid li:hover {
+.footer-links a:hover {
   color: var(--gold-accent);
   text-decoration: underline;
 }
 
-.cuisine-grid {
-  display: flex;
-  gap: 20px;
-}
-
-.cuisine-grid ul {
-  list-style: none;
-}
-
-.cuisine-grid li {
-  font-size: 0.78rem;
+/* Dataset Description (Matches footer links typography) */
+.footer-dataset-desc {
+  font-size: 0.8rem;
   color: #e0d0cc;
-  margin-bottom: 6px;
+  line-height: 1.6;
+  margin: 0;
 }
 
 .footer-bottom {

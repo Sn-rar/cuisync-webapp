@@ -8,7 +8,7 @@
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="{{ url_for('static', filename='css/base-style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/results.css') }}">
@@ -17,36 +17,26 @@
 
   <app-nav></app-nav>
 
-  <!-- ==================================
-       RESULTS SUB-NAVIGATION BAR
-       ================================== -->
-  <nav class="results-subnav">
-    <div class="subnav-container">
-      <div class="subnav-links">
-        <a href="#">DISH COMPARISON</a>
-        <a href="#sim-summary">SIMILARITY SUMMARY</a>
-        <a href="#geo-distribution">GEOGRAPHICAL DISTRIBUTION</a>
-      </div>
-      <div class="subnav-actions">
-        <a href="{{ url_for('home') }}" class="btn-search-nav">SEARCH NEW DISH</a>
-      </div>
-    </div>
-  </nav>
+  {# ------------------------------------------------------------------
+     Overall similarity as a whole-number percent (0-100). The same value
+     drives the image badge, the donut and the modal, so they always agree.
+     ------------------------------------------------------------------ #}
+  {% set score = [ [ (similarity_score | default(0, true) | float | round | int), 0 ] | max, 100 ] | min %}
+
+  {# Share of entities two dishes have in common for one category:
+     shared / (shared + only-in-source + only-in-target), as a percent. #}
+  {% macro overlap_pct(cat) -%}
+    {%- if cat -%}
+      {%- set s = (cat.shared or []) | length -%}
+      {%- set t = s + (cat.source_unique or []) | length + (cat.target_unique or []) | length -%}
+      {{- ((s * 100 / t) | round | int) if t else 0 -}}
+    {%- else -%}0{%- endif -%}
+  {%- endmacro %}
 
   <!-- ==================================
        MAIN RESULTS CONTAINER
        ================================== -->
   <main class="results-container">
-    
-    <!-- Breadcrumb Header -->
-    <section class="results-header-section">
-      <div class="inner-content">
-        <div class="breadcrumb">
-          <a href="{{ url_for('home') }}">Home</a> / 
-          <a class="active-crumb" href="#">Results</a>
-        </div>
-      </div>
-    </section>
 
     <!-- ==================================
          SECTION 1: DISH COMPARISON
@@ -54,59 +44,78 @@
     <section class="section-dark dish-comparison-section">
       <div class="inner-content">
         <h2 class="section-heading">DISH COMPARISON</h2>
-        <div class="heading-line"></div>
+
+        <!-- Read-only summary of the search that produced this page -->
+        <div class="readonly-search-bar">
+          <div class="field-item cuisine-field">
+            <span class="field-label">CUISINE</span>
+            <span class="field-value">{{ source_dish.title }}</span>
+          </div>
+          <div class="field-divider"></div>
+          <div class="field-item">
+            <span class="field-label">ORIGIN COUNTRY</span>
+            <span class="field-value">{{ source_dish.country }}</span>
+          </div>
+          <span class="field-arrow">&rarr;</span>
+          <div class="field-item">
+            <span class="field-label">TARGET COUNTRY</span>
+            <span class="field-value">{{ target_country | upper }}</span>
+          </div>
+          <a href="{{ url_for('home') }}" class="btn-search-new">SEARCH NEW CUISINE</a>
+        </div>
 
         <div class="comparison-grid">
           <!-- Left Card: Original/Source Dish -->
           <div class="dish-card">
             <div class="dish-img-wrapper">
-              <img src="{{ source_dish.image_link if source_dish.image_link else '' }}" 
-                   alt="{{ source_dish.title }}" 
+              <img src="{{ source_dish.image_link if source_dish.image_link else '' }}"
+                   alt="{{ source_dish.title }}"
                    referrerpolicy="no-referrer">
               <span class="img-badge">{{ source_dish.country_region }}, {{ source_dish.country }}</span>
             </div>
             <div class="dish-card-body">
               <h3 class="dish-title">{{ source_dish.title }}</h3>
-              <p class="dish-alt"><i>{{source_dish.alternative_title}}</i></p>
-              <p class="dish-subtitle">{{ source_dish.region }} Region</p>
-              
-              <div class="ingredient-tags">
-                <!-- Limit ingredient tags to the first 5 items -->
-                {% if source_dish.ingredient_text %}
-                  {% for ingredient in source_dish.ingredient_text.split(', ')[:5] %}
-                    <span class="ing-tag">{{ ingredient.strip() }}</span>
-                  {% endfor %}
-                {% endif %}
-              </div>
+              {% if source_dish.alternative_title %}
+                <p class="dish-alt"><i>{{ source_dish.alternative_title }}</i></p>
+              {% endif %}
+              <p class="dish-subtitle">{{ (source_dish.region or 'No Specific') | upper }} REGION</p>
+              {% if source_dish and source_dish.recipe_link %}
+                <div class="btn-links">
+                  <a href="{{ source_dish.recipe_link }}" target="_blank" rel="noopener" class="btn-primary-action">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+                    LINK TO RECIPE
+                  </a>
+                </div>
+              {% endif %}
             </div>
+          </div>
+
+          <!-- Overall similarity badge, sits between the two photos -->
+          <div class="similarity-badge" role="img" aria-label="{{ score }} percent similar">
+            <span class="badge-score">{{ score }}<small>%</small></span>
+            <span class="badge-label">SIMILAR</span>
           </div>
 
           <!-- Right Card: Recommended/Target Country Dish -->
           <div class="dish-card">
             <div class="dish-img-wrapper">
-              <img src="{{ recommended_dish.image_link if (recommended_dish and recommended_dish.image_link) else '' }}" 
-                   alt="{% if recommended_dish %}{{ recommended_dish.title }}{% endif %}" 
+              <img src="{{ recommended_dish.image_link if (recommended_dish and recommended_dish.image_link) else '' }}"
+                   alt="{% if recommended_dish %}{{ recommended_dish.title }}{% endif %}"
                    referrerpolicy="no-referrer">
               <span class="img-badge">{% if recommended_dish %}{{ source_dish.country_region }}, {{ recommended_dish.country }}{% endif %}</span>
             </div>
             <div class="dish-card-body">
               <h3 class="dish-title">{% if recommended_dish %}{{ recommended_dish.title }}{% endif %}</h3>
-              <p class="dish-alt"><i>{% if recommended_dish %}{{recommended_dish.alternative_title}}{% endif %}</i></p>
-              <p class="dish-subtitle">{% if recommended_dish %}{{ recommended_dish.region }} Region{% endif %}</p>
-              
-              <div class="ingredient-tags">
-                <!-- Limit ingredient tags to the first 5 items -->
-                {% if recommended_dish and recommended_dish.ingredient_text %}
-                  {% for ingredient in recommended_dish.ingredient_text.split(', ')[:5] %}
-                    <span class="ing-tag">{{ ingredient.strip() }}</span>
-                  {% endfor %}
-                {% endif %}
-              </div>
+              {% if recommended_dish and recommended_dish.alternative_title %}
+                <p class="dish-alt"><i>{{ recommended_dish.alternative_title }}</i></p>
+              {% endif %}
+              <p class="dish-subtitle">{% if recommended_dish %}{{ (recommended_dish.region or 'No Specific') | upper }} REGION{% endif %}</p>
 
               {% if recommended_dish and recommended_dish.recipe_link %}
-                <div class="btn-links" id="sim-summary">
-                  <a href="https://{{ recommended_dish.recipe_link }}" target="_blank" class="btn-primary-action">
-                    <b>LINK TO RECIPE &rarr;</b>
+                <div class="btn-links">
+                  <a href="{{ recommended_dish.recipe_link }}" target="_blank" rel="noopener" class="btn-primary-action">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+                    LINK TO RECIPE
                   </a>
                 </div>
               {% endif %}
@@ -117,195 +126,109 @@
     </section>
 
     <!-- ==================================
-         SECTION 2: SIMILARITY SUMMARY & ENTITIES
+         SECTION 2: RECIPE BREAKDOWN (extracted entities)
          ================================== -->
-    <section class="section-light">
+    <section class="section-dark recipe-breakdown-section">
       <div class="inner-content">
-
-        <!-- Extracted Entities Component -->
-        <div class="extracted-entities-container">
-          <h2 class="section-heading dark-text">EXTRACTED ENTITIES</h2>
-
-          <div class="entities-card">
-            
-            <!-- Category Filter Radio Buttons -->
-            <div class="entity-group">
-              <label class="filter-pill pill-all">
-                <input type="radio" name="entity_filter" value="all" checked hidden>
-                <span>ALL</span>
-              </label>
-
-              <label class="filter-pill pill-shared">
-                <input type="radio" name="entity_filter" value="shared" hidden>
-                <span>SHARED</span>
-              </label>
-
-              <label class="filter-pill pill-pho">
-                <input type="radio" name="entity_filter" value="source" hidden>
-                <span>{{ source_dish.title | upper }}</span>
-              </label>
-
-              <label class="filter-pill pill-batchoy">
-                <input type="radio" name="entity_filter" value="target" hidden>
-                <span>{% if recommended_dish %}{{ recommended_dish.title | upper }}{% else %}{{ target_country | upper }} DISH{% endif %}</span>
-              </label>
-            </div>
-
-            <!-- Ingredients Tags -->
-            <div class="entity-group">
-              <span class="entity-category-label">INGREDIENTS</span>
-              <div class="chips-wrapper">
-                <!-- Shared Ingredients -->
-                {% for item in entities.ingredients.shared %}
-                  <span class="entity-chip chip-gold" data-type="shared">{{ item }}</span>
-                {% endfor %}
-
-                <!-- Unique to Source Dish -->
-                {% for item in entities.ingredients.source_unique %}
-                  <span class="entity-chip chip-maroon" data-type="source">{{ item }}</span>
-                {% endfor %}
-
-                <!-- Unique to Target Dish -->
-                {% for item in entities.ingredients.target_unique %}
-                  <span class="entity-chip chip-green" data-type="target">{{ item }}</span>
-                {% endfor %}
-              </div>
-            </div>
-
-            <!-- Cooking Actions Tags -->
-            <div class="entity-group">
-              <span class="entity-category-label">COOKING ACTIONS</span>
-              <div class="chips-wrapper">
-                <!-- Shared Actions -->
-                {% for item in entities.actions.shared %}
-                  <span class="entity-chip chip-gold" data-type="shared">{{ item }}</span>
-                {% endfor %}
-
-                <!-- Unique to Source Actions -->
-                {% for item in entities.actions.source_unique %}
-                  <span class="entity-chip chip-maroon" data-type="source">{{ item }}</span>
-                {% endfor %}
-
-                <!-- Unique to Target Actions -->
-                {% for item in entities.actions.target_unique %}
-                  <span class="entity-chip chip-green" data-type="target">{{ item }}</span>
-                {% endfor %}
-              </div>
-            </div>
-
-            <!-- Cookware Tags -->
-            <div class="entity-group">
-              <span class="entity-category-label">COOKWARE</span>
-              <div class="chips-wrapper">
-                <!-- Shared Cookware -->
-                {% for item in entities.cookware.shared %}
-                  <span class="entity-chip chip-gold" data-type="shared">{{ item }}</span>
-                {% endfor %}
-
-                <!-- Unique to Source Cookware -->
-                {% for item in entities.cookware.source_unique %}
-                  <span class="entity-chip chip-maroon" data-type="source">{{ item }}</span>
-                {% endfor %}
-
-                <!-- Unique to Target Cookware -->
-                {% for item in entities.cookware.target_unique %}
-                  <span class="entity-chip chip-green" data-type="target">{{ item }}</span>
-                {% endfor %}
-              </div>
-            </div>
-
-            <!-- Utensils Tags -->
-            <div class="entity-group">
-              <span class="entity-category-label">UTENSILS</span>
-              <div class="chips-wrapper">
-                <!-- Shared Utensils -->
-                {% for item in entities.utensils.shared %}
-                  <span class="entity-chip chip-gold" data-type="shared">{{ item }}</span>
-                {% endfor %}
-
-                <!-- Unique to Source Utensils -->
-                {% for item in entities.utensils.source_unique %}
-                  <span class="entity-chip chip-maroon" data-type="source">{{ item }}</span>
-                {% endfor %}
-
-                <!-- Unique to Target Utensils -->
-                {% for item in entities.utensils.target_unique %}
-                  <span class="entity-chip chip-green" data-type="target">{{ item }}</span>
-                {% endfor %}
-              </div>
-            </div>
-
-            <!-- Entities Legend -->
-            <div class="entities-legend">
-              <span class="legend-item"><span class="dot dot-gold"></span> Shared Profile</span>
-              <span class="legend-item"><span class="dot dot-maroon"></span> Unique to {{ source_dish.title }}</span>
-              <span class="legend-item">
-                <span class="dot dot-green"></span> Unique to {% if recommended_dish %}{{ recommended_dish.title }}{% else %}{{ target_country }}{% endif %}
-              </span>
-            </div>
-
-          </div>
+        <div class="section-head-split">
+          <h2 class="section-heading">RECIPE BREAKDOWN</h2>
+          <p class="section-subheading">
+            The ingredients, cooking actions and tools pulled from both recipes: what the two dishes share, and what sets each one apart.
+          </p>
         </div>
-        
-        <h2 class="section-heading dark-text">SIMILARITY SUMMARY</h2>
 
-        <!-- Similarity Metrics Breakdown -->
+        <div class="entities-card">
+
+          <!-- Category Filter Radio Buttons -->
+          <div class="entity-filters">
+            <label class="filter-pill pill-all">
+              <input type="radio" name="entity_filter" value="all" checked hidden>
+              <span>ALL</span>
+            </label>
+
+            <label class="filter-pill pill-shared">
+              <input type="radio" name="entity_filter" value="shared" hidden>
+              <span>SHARED</span>
+            </label>
+
+            <label class="filter-pill pill-pho">
+              <input type="radio" name="entity_filter" value="source" hidden>
+              <span>{{ source_dish.title | upper }}</span>
+            </label>
+
+            <label class="filter-pill pill-batchoy">
+              <input type="radio" name="entity_filter" value="target" hidden>
+              <span>{% if recommended_dish %}{{ recommended_dish.title | upper }}{% else %}{{ target_country | upper }} DISH{% endif %}</span>
+            </label>
+          </div>
+
+          <!-- Gold = shared, maroon = only in the source dish, green = only in the target dish -->
+          {% for key, label in [('ingredients', 'INGREDIENTS'), ('actions', 'COOKING ACTIONS'), ('cookware', 'COOKWARES'), ('utensils', 'UTENSILS')] %}
+            {% set cat = entities[key] %}
+            <div class="entity-group">
+              <span class="entity-category-label">{{ label }}</span>
+              <div class="chips-wrapper">
+                {% for item in cat.shared %}
+                  <span class="entity-chip chip-gold" data-type="shared">{{ item }}</span>
+                {% endfor %}
+                {% for item in cat.source_unique %}
+                  <span class="entity-chip chip-maroon" data-type="source">{{ item }}</span>
+                {% endfor %}
+                {% for item in cat.target_unique %}
+                  <span class="entity-chip chip-green" data-type="target">{{ item }}</span>
+                {% endfor %}
+              </div>
+            </div>
+          {% endfor %}
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================
+         SECTION 3: SIMILARITY SUMMARY
+         ================================== -->
+    <section class="section-light similarity-section" id="sim-summary">
+      <div class="inner-content">
+        <h2 class="section-heading dark-text">SIMILARITY SUMMARY</h2>
+        <div class="heading-rule"></div>
+
         <div class="similarity-metrics-grid">
-          <!-- Donut Score Display -->
+          <!-- Donut: overall similarity score -->
           <div class="donut-box">
-            <div class="donut-chart" style="--percent: 60;">
+            <div class="donut-chart" style="--percent: {{ score }};">
               <div class="donut-center">
-                <span class="donut-percentage">60%</span>
+                <span class="donut-percentage">{{ score }}%</span>
               </div>
             </div>
             <span class="donut-label">OVERALL SIMILARITY SCORE</span>
           </div>
 
-          <!-- Progress Bar Indicators -->
-          <div class="progress-bars-box">
-            <div class="progress-item">
-              <div class="progress-info">
-                <span>INGREDIENT SIMILARITY</span>
-                <span>80%</span>
+          <!-- Per-category overlap, computed from the extracted entities above -->
+          <div class="sim-bars">
+            {% for label, key in [('INGREDIENT SIMILARITY', 'ingredients'), ('COOKING ACTION SIMILARITY', 'actions'), ('UTENSIL SIMILARITY', 'utensils'), ('COOKWARE SIMILARITY', 'cookware')] %}
+              {% set pct = overlap_pct(entities[key]) | trim | int %}
+              <div class="sim-bar">
+                <div class="sim-bar-info">
+                  <span>{{ label }}</span>
+                  <span>{{ pct }}%</span>
+                </div>
+                <div class="sim-bar-track"><div class="sim-bar-fill" style="--pct: {{ pct }};"></div></div>
               </div>
-              <div class="progress-track"><div class="progress-fill" style="width: 80%;"></div></div>
-            </div>
-
-            <div class="progress-item">
-              <div class="progress-info">
-                <span>COOKING ACTION SIMILARITY</span>
-                <span>60%</span>
-              </div>
-              <div class="progress-track"><div class="progress-fill" style="width: 60%;"></div></div>
-            </div>
-
-            <div class="progress-item">
-              <div class="progress-info">
-                <span>UTENSIL SIMILARITY</span>
-                <span>72%</span>
-              </div>
-              <div class="progress-track"><div class="progress-fill" style="width: 72%;"></div></div>
-            </div>
-
-            <div class="progress-item">
-              <div class="progress-info">
-                <span>COOKWARE SIMILARITY</span>
-                <span>50%</span>
-              </div>
-              <div class="progress-track"><div class="progress-fill" style="width: 50%;"></div></div>
-            </div>
+            {% endfor %}
           </div>
         </div>
 
         <!-- AI Explanation Card -->
+        {# NOTE: this explanation text is static. Swap in a per-comparison variable when the backend provides one. #}
         <div class="quote-card">
-          <span class="quote-icon">&ldquo;&rdquo;</span>
+          <span class="quote-icon" aria-hidden="true">&ldquo;</span>
           <p class="quote-text">
-            Vietnamese Pho and La Paz Batchoy are similar because both revolve around a rich, meat-based broth seasoned by slow-cooking bones with aromatics like onion and garlic, and both incorporate noodles as a key component of the dish. They share key preparation steps including boiling bone broth for long hours, cooking and assembling noodles and ladle broth throughout the process. While specific herbs, garnishes, and types of protein may differ, the essence of broth preparation, noodle integration, and simmering techniques gives these dishes a comparable culinary structure.
+            <strong>Vietnamese pho</strong> and <strong>La Paz batchoy</strong> are similar because both center around a meat-based broth prepared by simmering bones with aromatics such as onions and garlic, and both incorporate noodles as a key component of the dish. They share common cooking techniques, including boiling and slow-cooking, and use similar utensils like pots and ladles throughout the process. While the specific herbs, garnishes, and types of protein may differ, the combination of broth preparation, noodle integration, and simmering techniques gives these dishes a comparable culinary structure.
           </p>
           <div class="quote-footer">
-            <span class="badge-mini">AI EXPLANATION</span>
-            <span class="footer-note">Generated using GPT-4o. Based on ingredients and cooking processes.</span>
+            <span class="badge-mini">AI-EXPLANATION</span>
+            <span class="footer-note">Generated by GPT-4o. Based on ingredients and cooking processes</span>
           </div>
         </div>
 
@@ -317,20 +240,13 @@
      ================================== -->
 <section class="section-dark geo-map-section" id="geo-distribution">
   <div class="inner-content">
-    <!-- Header aligned with new mockup layout -->
     <div class="geo-map-header">
       <div class="header-text-group">
         <h2 class="section-heading">OTHER SIMILAR CUISINES</h2>
         <p class="section-subheading">
-          An editorial deconstruction of how Rome's shepherds and Tokyo's noodle masters discovered the identical thermodynamic laws of fat-suspension comfort food.
+         Mapping regional recipe variations and international counterparts based on ingredient and cooking similarity.
         </p>
       </div>
-      <button type="button" class="btn-full-view" id="openMapModal">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
-        </svg>
-        <span>FULL VIEW MAP</span>
-      </button>
     </div>
 
     <!-- Map Pan Wrapper styled as the outer card -->
@@ -358,20 +274,20 @@
         <div id="map-pins-layer"></div>
       </div>
 
-      <!-- Floating Route Summary Bar -->
-      <div type="button" class="route-info-bar" id="openMapModal">
+      <!-- Bottom bar: opens the full-screen map -->
+      <button type="button" class="route-info-bar" id="openMapModal">
         <div class="route-details">
           <div class="route-text-group">
-            <span class="route-value">GEOGRAPHICAL MAP</span>
+            <span class="route-value">GEOGRAPHICAL DISTRIBUTION</span>
           </div>
         </div>
         <div class="route-hint">
-          <span>Click to browse full map view & similarity summaries</span>
-          <svg class="icon-arrow" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
-            <path d="M7 17L17 7M17 7H7M17 7V17" />
+          <span>Click to browse full map view &amp; similarity summaries</span>
+          <svg class="icon-arrow" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" aria-hidden="true">
+            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
           </svg>
         </div>
-      </div>
+      </button>
     </div>
   </div>
 </section>
@@ -418,61 +334,70 @@
 
         <!-- TAB CONTENT 1: RECIPE BREAKDOWN -->
         <div class="tab-content active" id="tab-recipe">
-          <div class="panel-legend">
-            <span class="legend-chip gold-dot"><span class="shared-entity">Shared Entities</span></span>
-            <span class="legend-chip maroon-dot"><span id="modalSourceDishLabel"></span></span>
-            <span class="legend-chip green-dot"><span class="active-dish-name"></span></span>
-          </div>
+          <div class="panel-card">
+            <div class="panel-legend">
+              <span class="legend-chip gold-dot"><span class="shared-entity">Shared Entities</span></span>
+              <span class="legend-chip maroon-dot"><span id="modalSourceDishLabel"></span></span>
+              <span class="legend-chip green-dot"><span class="active-dish-name"></span></span>
+            </div>
 
-          <div class="panel-entity-section">
-            <span class="entity-title">INGREDIENTS</span>
-            <div class="chips-wrapper" id="modalIngredients"></div>
-          </div>
+            <div class="panel-entity-section">
+              <span class="entity-title">INGREDIENTS</span>
+              <div class="chips-wrapper" id="modalIngredients"></div>
+            </div>
 
-          <div class="panel-entity-section">
-            <span class="entity-title">COOKING ACTIONS</span>
-            <div class="chips-wrapper" id="modalActions"></div>
-          </div>
+            <div class="panel-entity-section">
+              <span class="entity-title">COOKING ACTIONS</span>
+              <div class="chips-wrapper" id="modalActions"></div>
+            </div>
 
-          <div class="panel-entity-section">
-            <span class="entity-title">COOKWARE</span>
-            <div class="chips-wrapper" id="modalCookware"></div>
-          </div>
+            <div class="panel-entity-section">
+              <span class="entity-title">COOKWARES</span>
+              <div class="chips-wrapper" id="modalCookware"></div>
+            </div>
 
-          <div class="panel-entity-section">
-            <span class="entity-title">UTENSILS</span>
-            <div class="chips-wrapper" id="modalUtensils"></div>
+            <div class="panel-entity-section">
+              <span class="entity-title">UTENSILS</span>
+              <div class="chips-wrapper" id="modalUtensils"></div>
+            </div>
           </div>
         </div>
 
-        <!-- TAB CONTENT 2: SIMILARITY SUMMARY -->
+        <!-- TAB CONTENT 2: SIMILARITY SUMMARY (same layout as the results page; refreshed per dish by JS) -->
         <div class="tab-content" id="tab-similarity">
-          <div class="modal-metric-box">
-            <span class="metric-label">OVERALL SIMILARITY SCORE</span>
-            <div class="metric-score" id="modalOverallScore">{{ similarity_score }}%</div>
+          <div class="panel-card">
+            <div class="donut-box">
+              <div class="donut-chart" id="modalDonut" style="--percent: {{ score }};">
+                <div class="donut-center">
+                  <span class="donut-percentage" id="modalOverallScore">{{ score }}%</span>
+                </div>
+              </div>
+              <span class="donut-label">OVERALL SIMILARITY SCORE</span>
+            </div>
+
+            <div class="sim-bars" id="modalSimBars">
+              {% for label, key in [('INGREDIENT SIMILARITY', 'ingredients'), ('COOKING ACTION SIMILARITY', 'actions'), ('UTENSIL SIMILARITY', 'utensils'), ('COOKWARE SIMILARITY', 'cookware')] %}
+                {% set pct = overlap_pct(entities[key]) | trim | int %}
+                <div class="sim-bar" data-key="{{ key }}">
+                  <div class="sim-bar-info">
+                    <span>{{ label }}</span>
+                    <span class="sim-bar-value">{{ pct }}%</span>
+                  </div>
+                  <div class="sim-bar-track"><div class="sim-bar-fill" style="--pct: {{ pct }};"></div></div>
+                </div>
+              {% endfor %}
+            </div>
           </div>
 
-          <div class="modal-progress-list">
-            <div class="progress-item">
-              <div class="progress-info"><span>INGREDIENT WEIGHT</span><span>93%</span></div>
-              <div class="progress-track"><div class="progress-fill" style="width: 93%;"></div></div>
-            </div>
-            <div class="progress-item">
-              <div class="progress-info"><span>ACTION WEIGHT</span><span>4%</span></div>
-              <div class="progress-track"><div class="progress-fill" style="width: 4%;"></div></div>
-            </div>
-            <div class="progress-item">
-              <div class="progress-info"><span>COOKWARE WEIGHT</span><span>2%</span></div>
-              <div class="progress-track"><div class="progress-fill" style="width: 2%;"></div></div>
-            </div>
-            <div class="progress-item">
-              <div class="progress-info"><span>UTENSIL WEIGHT</span><span>1%</span></div>
-              <div class="progress-track"><div class="progress-fill" style="width: 1%;"></div></div>
-            </div>
-          </div>
+          <div class="origin-note" id="modalOriginNote"></div>
 
-          <div class="modal-ai-quote">
-            <p id="modalDirections">{{ recommended_dish.directions if recommended_dish else source_dish.directions }}</p>
+          <div class="quote-card modal-quote">
+            <span class="quote-icon" aria-hidden="true">&ldquo;</span>
+            <p class="quote-text" id="modalExplanation"></p>
+            <div class="quote-footer">
+              <span class="badge-mini" id="modalExplBadge">AI-EXPLANATION</span>
+              <span class="footer-note" id="modalExplNote"></span>
+            </div>
           </div>
         </div>
 
@@ -481,10 +406,19 @@
 
     <!-- RIGHT MAIN CANVAS: MAP VIEW -->
     <main class="map-canvas-right">
-      <div class="map-filter-bar">
-        <button type="button" class="map-filter-pill active" data-layer="main">MAIN DISH</button>
-        <button type="button" class="map-filter-pill active" data-layer="regional">REGIONAL VARIATIONS</button>
-        <button type="button" class="map-filter-pill active" data-layer="international">INTERNATIONAL SIMILARITIES</button>
+      <div class="map-filter-bar" role="group" aria-label="Map layers">
+        <button type="button" class="map-filter-pill map-filter-pill--main active" data-layer="main" role="switch" aria-checked="true">
+          <span class="pill-switch" aria-hidden="true"></span>
+          <span class="pill-label">MAIN DISH</span>
+        </button>
+        <button type="button" class="map-filter-pill map-filter-pill--regional active" data-layer="regional" role="switch" aria-checked="true">
+          <span class="pill-switch" aria-hidden="true"></span>
+          <span class="pill-label">REGIONAL VARIATIONS</span>
+        </button>
+        <button type="button" class="map-filter-pill map-filter-pill--international active" data-layer="international" role="switch" aria-checked="true">
+          <span class="pill-switch" aria-hidden="true"></span>
+          <span class="pill-label">INTERNATIONAL SIMILARITIES</span>
+        </button>
       </div>
 
       <button type="button" class="btn-exit-map" id="closeMapModal">
@@ -511,46 +445,6 @@
   <app-footer></app-footer>
 
   <script src="{{ url_for('static', filename='scripts/components.js') }}"></script>
-
-  <!-- ==================================
-       STICKY SUBNAV BEHAVIOR
-       ================================== -->
-  <script>
-    (function initScrollUpStickyNav() {
-      const subnav = document.querySelector('.results-subnav');
-      if (!subnav) return;
-
-      let lastScrollY = window.scrollY;
-
-      function handleScroll() {
-        if (window.innerWidth <= 600) {
-          subnav.classList.remove('is-sticky', 'nav-hidden');
-          return;
-        }
-
-        const initialOffsetTop = subnav.offsetTop;
-        const currentScrollY = window.scrollY;
-
-        if (currentScrollY > initialOffsetTop) {
-          subnav.classList.add('is-sticky');
-
-          if (currentScrollY > lastScrollY) {
-            subnav.classList.add('nav-hidden');
-          } else if (currentScrollY < lastScrollY) {
-            subnav.classList.remove('nav-hidden'); 
-          }
-        } else {
-          subnav.classList.remove('is-sticky', 'nav-hidden');
-        }
-
-        lastScrollY = currentScrollY;
-      }
-
-      window.addEventListener('scroll', handleScroll);
-      window.addEventListener('resize', handleScroll);
-      handleScroll();
-    })();
-  </script>
 
   <!-- ==================================
        EXTRACTED ENTITIES FILTERING
@@ -609,9 +503,211 @@
     const activeDish = MAP_DATA.recommendedDish || MAP_DATA.sourceDish || {};
 
     // Helper: Safely generate chip HTML for entity lists
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, ch => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]
+      ));
+    }
+
     function createChips(items, chipClass) {
       if (!Array.isArray(items) || !items.length) return '';
-      return items.map(item => `<span class="entity-chip ${chipClass}">${item}</span>`).join('');
+      return items.map(item => `<span class="entity-chip ${chipClass}">${escapeHtml(item)}</span>`).join('');
+    }
+
+    // ----------------------------------------------------------------
+    // PER-DISH COMPARISON DATA
+    // The main (recommended) dish uses the server-computed entities. For any
+    // other pin we need that dish's own comparison against the source dish:
+    //   1) dish.entities, if the backend sends it (same shape as the main
+    //      `entities`: {ingredients: {shared, source_unique, target_unique}, ...})
+    //   2) otherwise it is computed here from the dish's own entity lists,
+    //      using any of the field names below.
+    // ----------------------------------------------------------------
+    const ENTITY_FIELDS = {
+      ingredients: ['ingredients', 'ingredient_text', 'ingredient_list'],
+      actions: ['actions', 'action_text', 'actions_text', 'cooking_actions', 'cooking_action_text'],
+      cookware: ['cookware', 'cookware_text'],
+      utensils: ['utensils', 'utensil_text', 'utensils_text']
+    };
+
+    function toEntityList(value) {
+      if (Array.isArray(value)) {
+        return value.map(v => String(v).trim()).filter(Boolean);
+      }
+      if (typeof value === 'string') {
+        return value.split(/[,;|\n]/).map(v => v.trim()).filter(Boolean);
+      }
+      return [];
+    }
+
+    function readDishList(dish, key) {
+      if (!dish) return null;
+      for (const field of ENTITY_FIELDS[key]) {
+        if (dish[field] !== undefined && dish[field] !== null) {
+          const list = toEntityList(dish[field]);
+          if (list.length) return list;
+        }
+      }
+      return null;
+    }
+
+    function compareLists(sourceList, targetList) {
+      const norm = s => s.trim().toLowerCase();
+      const targetByKey = new Map(targetList.map(x => [norm(x), x]));
+      const sourceKeys = new Set(sourceList.map(norm));
+      const result = { shared: [], source_unique: [], target_unique: [] };
+      const seen = new Set();
+
+      sourceList.forEach(item => {
+        const k = norm(item);
+        if (seen.has(k)) return;
+        seen.add(k);
+        (targetByKey.has(k) ? result.shared : result.source_unique).push(item);
+      });
+      targetByKey.forEach((item, k) => {
+        if (!sourceKeys.has(k)) result.target_unique.push(item);
+      });
+      return result;
+    }
+
+    // Returns {ingredients, actions, cookware, utensils} (each a category
+    // object or null when that dish has no data for it), or null if none.
+    function getEntitiesFor(dish) {
+      if (!dish) return null;
+
+      // Original dish: list everything it has (shared + source-only) in the
+      // source color, since there is nothing to compare it against.
+      if (dish === MAP_DATA.sourceDish) {
+        if (!MAP_DATA.entities) return null;
+        const own = {};
+        Object.keys(ENTITY_FIELDS).forEach(key => {
+          const cat = MAP_DATA.entities[key];
+          own[key] = cat
+            ? { shared: [], source_unique: [...(cat.shared || []), ...(cat.source_unique || [])], target_unique: [] }
+            : null;
+        });
+        return own;
+      }
+      if (dish === MAP_DATA.recommendedDish && MAP_DATA.entities) return MAP_DATA.entities;
+      if (dish.entities && typeof dish.entities === 'object') return dish.entities;
+
+      const out = {};
+      let found = false;
+      Object.keys(ENTITY_FIELDS).forEach(key => {
+        const a = readDishList(MAP_DATA.sourceDish, key);
+        const b = readDishList(dish, key);
+        if (a && b) {
+          out[key] = compareLists(a, b);
+          found = true;
+        } else {
+          out[key] = null;
+        }
+      });
+      return found ? out : null;
+    }
+
+    // shared / (shared + only-in-source + only-in-target), as a whole percent.
+    function overlapPercent(cat) {
+      if (!cat) return null;
+      const shared = (cat.shared || []).length;
+      const total = shared + (cat.source_unique || []).length + (cat.target_unique || []).length;
+      return total ? Math.round((shared * 100) / total) : 0;
+    }
+
+    function getDishScore(dish) {
+      const raw = (dish === MAP_DATA.recommendedDish) ? MAP_DATA.similarityScore : dish && dish.score;
+      const n = Number(raw);
+      if (raw === null || raw === undefined || raw === '' || Number.isNaN(n)) return null;
+      return Math.min(Math.max(Math.round(n), 0), 100);
+    }
+
+    function joinNatural(list) {
+      const items = list.map(escapeHtml);
+      if (items.length <= 1) return items.join('');
+      return items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
+    }
+
+    // Same AI text the results page shows, used for the main comparison.
+    const pageQuote = document.querySelector('.similarity-section .quote-text');
+    const pageQuoteNote = document.querySelector('.similarity-section .footer-note');
+    const MAIN_EXPLANATION_HTML = pageQuote ? pageQuote.innerHTML : '';
+    const MAIN_EXPLANATION_NOTE = pageQuoteNote ? pageQuoteNote.textContent : '';
+
+    function buildExplanation(dish, entities, score) {
+      const src = escapeHtml((MAP_DATA.sourceDish && MAP_DATA.sourceDish.title) || 'The source dish');
+      const tgt = escapeHtml(dish.title || 'this dish');
+      if (!entities) {
+        return `A detailed comparison between <strong>${src}</strong> and <strong>${tgt}</strong> isn't available yet.`;
+      }
+      const parts = [];
+      const sharedIng = (entities.ingredients && entities.ingredients.shared) || [];
+      const sharedAct = (entities.actions && entities.actions.shared) || [];
+      const sharedTools = [
+        ...((entities.cookware && entities.cookware.shared) || []),
+        ...((entities.utensils && entities.utensils.shared) || [])
+      ];
+      if (sharedIng.length) {
+        parts.push(`Both use ${joinNatural(sharedIng.slice(0, 5))}.`);
+      }
+      if (sharedAct.length) {
+        parts.push(`They share the cooking steps ${joinNatural(sharedAct.slice(0, 4).map(s => s.toLowerCase()))}.`);
+      }
+      if (sharedTools.length) {
+        parts.push(`Common tools include ${joinNatural(sharedTools.slice(0, 4).map(s => s.toLowerCase()))}.`);
+      }
+      if (!parts.length) {
+        parts.push('They have very little in common in their extracted ingredients, steps and tools.');
+      }
+      const lead = score === null ? '' : ` are ${score}% similar overall.`;
+      return `<strong>${src}</strong> and <strong>${tgt}</strong>${lead || ' compared.'} ${parts.join(' ')}`;
+    }
+
+    function renderSimilarity(dish, entities) {
+      const isOrigin = dish === MAP_DATA.sourceDish;
+      const simTab = document.getElementById('tab-similarity');
+      if (simTab) simTab.classList.toggle('is-origin', isOrigin);
+      const originNote = document.getElementById('modalOriginNote');
+      if (originNote) {
+        const srcTitle = (MAP_DATA.sourceDish && MAP_DATA.sourceDish.title) || 'This dish';
+        const tgtTitle = (MAP_DATA.recommendedDish && MAP_DATA.recommendedDish.title) || 'the other dishes';
+        originNote.textContent = `${srcTitle} is the original dish, so there is nothing to compare it against. Select ${tgtTitle} or another pin to see how it compares.`;
+      }
+      if (isOrigin) return;
+
+      const score = getDishScore(dish);
+
+      const donut = document.getElementById('modalDonut');
+      const scoreElem = document.getElementById('modalOverallScore');
+      if (donut) donut.style.setProperty('--percent', score === null ? 0 : score);
+      if (scoreElem) scoreElem.textContent = score === null ? 'N/A' : `${score}%`;
+
+      document.querySelectorAll('#modalSimBars .sim-bar').forEach(bar => {
+        const key = bar.getAttribute('data-key');
+        const pct = overlapPercent(entities && entities[key]);
+        const fill = bar.querySelector('.sim-bar-fill');
+        const val = bar.querySelector('.sim-bar-value');
+        if (fill) fill.style.setProperty('--pct', pct === null ? 0 : pct);
+        if (val) val.textContent = pct === null ? 'N/A' : `${pct}%`;
+      });
+
+      const explElem = document.getElementById('modalExplanation');
+      const badge = document.getElementById('modalExplBadge');
+      const note = document.getElementById('modalExplNote');
+      if (!explElem) return;
+
+      if (dish === MAP_DATA.recommendedDish && MAIN_EXPLANATION_HTML) {
+        explElem.innerHTML = MAIN_EXPLANATION_HTML;
+        if (badge) badge.textContent = 'AI-EXPLANATION';
+        if (note) note.textContent = MAIN_EXPLANATION_NOTE;
+      } else if (typeof dish.explanation === 'string' && dish.explanation.trim()) {
+        explElem.textContent = dish.explanation;
+        if (badge) badge.textContent = 'AI-EXPLANATION';
+        if (note) note.textContent = 'Based on ingredients and cooking processes';
+      } else {
+        explElem.innerHTML = buildExplanation(dish, entities, score);
+        if (badge) badge.textContent = 'SUMMARY';
+        if (note) note.textContent = 'Built from the extracted ingredients, actions and tools';
+      }
     }
 
     // Helper: Update Left Sidebar with Active Dish Data
@@ -669,25 +765,26 @@
       // green = unique to the active/target dish) -- never the entity category itself.
       function renderEntityGroup(elementId, categoryData) {
         const wrapper = document.getElementById(elementId);
-        if (!wrapper || !categoryData) return;
+        if (!wrapper) return;
+        if (!categoryData) {
+          wrapper.innerHTML = '<span class="entity-empty">Not available for this dish.</span>';
+          return;
+        }
         wrapper.innerHTML =
           createChips(categoryData.shared, 'chip-gold') +
           createChips(categoryData.source_unique, 'chip-maroon') +
           createChips(categoryData.target_unique, 'chip-green');
       }
 
-      if (MAP_DATA.entities) {
-        renderEntityGroup('modalIngredients', MAP_DATA.entities.ingredients);
-        renderEntityGroup('modalActions', MAP_DATA.entities.actions);
-        renderEntityGroup('modalCookware', MAP_DATA.entities.cookware);
-        renderEntityGroup('modalUtensils', MAP_DATA.entities.utensils);
-      }
-
-      // Render Directions / AI Summary
-      const directionsElem = document.getElementById('modalDirections');
-      if (directionsElem) {
-        directionsElem.textContent = dish.directions || 'No directions available for this entry.';
-      }
+      // Recipe breakdown + similarity summary for THIS dish (not always the main one)
+      const entities = getEntitiesFor(dish);
+      const recipeTab = document.getElementById('tab-recipe');
+      if (recipeTab) recipeTab.classList.toggle('is-origin', dish === MAP_DATA.sourceDish);
+      renderEntityGroup('modalIngredients', entities && entities.ingredients);
+      renderEntityGroup('modalActions', entities && entities.actions);
+      renderEntityGroup('modalCookware', entities && entities.cookware);
+      renderEntityGroup('modalUtensils', entities && entities.utensils);
+      renderSimilarity(dish, entities);
     }
 
     // ==================================
@@ -812,9 +909,13 @@
       tooltipImg.src = dish.image_link || '';
       tooltipTitle.textContent = dish.title || 'Unknown Dish';
       tooltipMeta.textContent = `${dish.region || 'No Specific'} \u2022 ${dish.country || ''}`;
-      tooltipScore.textContent = (score !== null && score !== undefined && score !== '')
-        ? `${score}% similarity`
-        : '';
+      if (dish === MAP_DATA.sourceDish) {
+        tooltipScore.textContent = 'Original dish';
+      } else {
+        tooltipScore.textContent = (score !== null && score !== undefined && score !== '')
+          ? `${score}% similarity`
+          : '';
+      }
 
       tooltip.classList.add('visible');
 
@@ -840,7 +941,7 @@
     }
 
     // Builds one pin <button> for a dish and drops it on the map.
-    function createPin(dish, score, typeClass) {
+    function createPin(dish, score, typeClass, extraClass) {
       if (!dish || !dish.country) return null;
 
       const point = getRandomPointForCountry(dish.country);
@@ -848,7 +949,7 @@
 
       const pin = document.createElement('button');
       pin.type = 'button';
-      pin.className = `map-pin map-pin--${typeClass}`;
+      pin.className = `map-pin map-pin--${typeClass}${extraClass ? ' ' + extraClass : ''}`;
       pin.setAttribute('aria-label', `${dish.title || 'Dish'} (${dish.country || ''})`);
 
       const img = document.createElement('img');
@@ -891,6 +992,12 @@
       if (!pinsLayer || !mapImg) return;
       pinsLayer.innerHTML = '';
 
+      // Original dish, in its home country (also a "main" pin, so the
+      // MAIN DISH filter toggles both main dishes together).
+      if (MAP_DATA.sourceDish) {
+        createPin(MAP_DATA.sourceDish, null, 'main', 'map-pin--origin');
+      }
+
       if (MAP_DATA.recommendedDish) {
         createPin(MAP_DATA.recommendedDish, MAP_DATA.similarityScore, 'main');
       }
@@ -931,20 +1038,27 @@
       return Math.min(Math.max(value, min), max);
     }
 
-    // Keeps the (scaled) map covering the full viewport -- no empty gaps
-    // creeping in at the edges while panning or zooming.
+    // Pan limits. The map may be dragged past its own edges into empty space:
+    // a wide gutter on the left (the sidebar's width plus breathing room) so
+    // the part of the map hidden under the panel can be pulled into view, and
+    // a smaller gutter on the other sides.
+    const PAN_GUTTER = 160;
+
     function clampMapTranslate() {
       if (!modalMapBody) return;
       const viewportWidth = modalMapBody.clientWidth;
       const viewportHeight = modalMapBody.clientHeight;
       const scaledWidth = viewportWidth * mapScale;
       const scaledHeight = viewportHeight * mapScale;
+      const sidebarWidth = sidebar ? sidebar.offsetWidth : 0;
 
-      const minX = Math.min(0, viewportWidth - scaledWidth);
-      const minY = Math.min(0, viewportHeight - scaledHeight);
+      const minX = Math.min(0, viewportWidth - scaledWidth) - PAN_GUTTER;
+      const maxX = sidebarWidth + PAN_GUTTER;
+      const minY = Math.min(0, viewportHeight - scaledHeight) - PAN_GUTTER;
+      const maxY = PAN_GUTTER;
 
-      mapTranslateX = clamp(mapTranslateX, minX, 0);
-      mapTranslateY = clamp(mapTranslateY, minY, 0);
+      mapTranslateX = clamp(mapTranslateX, minX, maxX);
+      mapTranslateY = clamp(mapTranslateY, minY, maxY);
     }
 
     function applyMapTransform() {
@@ -991,7 +1105,6 @@
       }, { passive: false });
 
       modalMapBody.addEventListener('pointerdown', (e) => {
-        if (mapScale <= MIN_SCALE) return;
         if (e.target.closest('.map-pin')) return;
 
         isPanning = true;
@@ -1036,6 +1149,7 @@
 
         resetMapTransform();
         updateSidebarDish(activeDish);
+        if (sidebar) sidebar.classList.remove('collapsed');
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
       });
@@ -1099,10 +1213,12 @@
     const filterPills = document.querySelectorAll('.map-filter-pill');
     filterPills.forEach(pill => {
       pill.classList.add('active');
+      pill.setAttribute('aria-checked', 'true');
 
       pill.addEventListener('click', () => {
         pill.classList.toggle('active');
         const isActive = pill.classList.contains('active');
+        pill.setAttribute('aria-checked', String(isActive));
         const layer = pill.getAttribute('data-layer');
 
         document.querySelectorAll(`.map-pin--${layer}`).forEach(pinEl => {

@@ -89,29 +89,14 @@ class AppFooter extends HTMLElement {
           </div>
 
           <div class="footer-col">
-            <h4 class="footer-heading">ASIAN CUISINES</h4>
-            <div class="cuisine-grid">
-              <ul>
-                <li><a href="analysis.html?country=cambodia">Cambodia</a></li>
-                <li><a href="analysis.html?country=china">China</a></li>
-                <li><a href="analysis.html?country=india">India</a></li>
-                <li><a href="analysis.html?country=indonesia">Indonesia</a></li>
-                <li><a href="analysis.html?country=japan">Japan</a></li>
-              </ul>
-              <ul>
-                <li><a href="analysis.html?country=malaysia">Malaysia</a></li>
-                <li><a href="analysis.html?country=myanmar">Myanmar</a></li>
-                <li><a href="analysis.html?country=philippines">Philippines</a></li>
-                <li><a href="analysis.html?country=saudi-arabia">Saudi Arabia</a></li>
-                <li><a href="analysis.html?country=south-korea">South Korea</a></li>
-              </ul>
-              <ul>
-                <li><a href="analysis.html?country=turkey">Turkey</a></li>
-                <li><a href="analysis.html?country=thailand">Thailand</a></li>
-                <li><a href="analysis.html?country=vietnam">Vietnam</a></li>
-              </ul>
-            </div>
+            <h4 class="footer-heading">DATASET COVERAGE</h4>
+            <p class="footer-dataset-desc">
+              Our research dataset analyzes recipes across Asian cuisines, incorporating culinary data from 
+              Cambodia, China, India, Indonesia, Japan, Malaysia, Myanmar, Philippines, Saudi Arabia, 
+              South Korea, Thailand, Turkey, and Vietnam.
+            </p>
           </div>
+
         </div>
 
         <div class="footer-bottom">

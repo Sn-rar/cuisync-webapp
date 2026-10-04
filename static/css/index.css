@@ -254,16 +254,6 @@ hr {
   z-index: 2;
 }
 
-.banner-image {
-  width: 100%;
-  height: 280px;
-  background-image: url('https://i.pinimg.com/736x/80/39/d5/8039d5bf62f5b76a99834c5c8a5668c1.jpg');
-  background-size: cover;
-  background-repeat: no-repeat;
-  opacity: 0.45;
-  background-position: center bottom;
-}
-
 /* ==========================================================================
    IMAGE SEARCH DASHED DROPZONE
    ========================================================================== */

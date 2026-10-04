@@ -262,7 +262,7 @@
        ================================== -->
   <div id="error-modal-overlay" class="modal-overlay hidden">
     <div class="modal-box">
-      <button type="button" class="modal-close-btn" onclick="closeErrorModal()" aria-label="Close">&times;</button>
+      <button type="button" class="modal-close-btn" onclick="closeErrorModal()" aria-label="Close">×</button>
       <div class="modal-icon">!</div>
       <h3 id="modal-title-text" class="modal-title">We Can't Find Your Dish</h3>
       <p id="modal-desc-text" class="modal-desc"></p>
@@ -508,278 +508,312 @@
     }); */
   </script>
 
-  <script>
-    let DISH_DATABASE = [];
-    let DISH_RECORDS = [];
+<script>
+  let DISH_DATABASE = [];   // kept: other scripts (e.g. ocr.js) may read it
+  let DISH_RECORDS = [];
 
-    async function loadRecipeDatabase() {
-      try {
-        const response = await fetch('/recipes.json'); 
-        if (response.ok) {
-          const data = await response.json();
-          const recipesArray = Array.isArray(data) ? data : data.recipes || [];
+  // Title + every alternative title of a record, lower-cased.
+  function recordNames(record) {
+    return [record.title, ...record.alternatives].map((n) => n.toLowerCase());
+  }
 
-          DISH_RECORDS = recipesArray
-            .map((recipe) => ({
-              title: recipe.title || recipe.Title || recipe.name,
-              country: recipe.country || recipe.Country || ""
-            }))
-            .filter((r) => r.title && typeof r.title === "string");
+  // All records whose title OR alternative title equals `name`.
+  function recordsForName(name) {
+    const key = (name || "").trim().toLowerCase();
+    if (!key) return [];
+    return DISH_RECORDS.filter((r) => recordNames(r).includes(key));
+  }
 
-          DISH_DATABASE = DISH_RECORDS.map((r) => r.title);
-        }
-      } catch (err) {
-        console.error("Error fetching /recipes.json:", err);
+  function readAlternatives(recipe) {
+    const raw = recipe.alternative_title ?? recipe.alternative_titles ?? recipe.alternativeTitle ?? [];
+    const list = Array.isArray(raw) ? raw : String(raw || "").split(/[;|\n]+/);
+    return list.map((x) => (typeof x === "string" ? x.trim() : "")).filter(Boolean);
+  }
+
+  async function loadRecipeDatabase() {
+    try {
+      // Bypasses browser cache to guarantee loading the updated JSON file
+      const response = await fetch('/recipes.json?v=' + new Date().getTime());
+      if (response.ok) {
+        const data = await response.json();
+        const recipesArray = Array.isArray(data) ? data : data.recipes || [];
+
+        DISH_RECORDS = recipesArray
+          .map((recipe) => {
+            const rawTitle = recipe.title || recipe.Title || recipe.name || "";
+            const rawCountry = recipe.country || recipe.Country || "";
+            return {
+              title: typeof rawTitle === "string" ? rawTitle.trim() : "",
+              country: typeof rawCountry === "string" ? rawCountry.trim() : "",
+              alternatives: readAlternatives(recipe)
+            };
+          })
+          .filter((r) => r.title.length > 0);
+
+        DISH_DATABASE = DISH_RECORDS.map((r) => r.title);
+      }
+    } catch (err) {
+      console.error("Error fetching /recipes.json:", err);
+    }
+  }
+
+  loadRecipeDatabase();
+</script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const dishInput = document.getElementById("dish-name-input");
+    const dropdownList = document.getElementById("dish-dropdown-list");
+    const originSelect = document.getElementById("text-origin");
+    if (!dishInput || !dropdownList) return;
+
+    let activeIndex = -1;
+    let currentLabels = [];
+
+    // Keep a copy of every origin option so the list can be restored after narrowing.
+    const allOriginOptions = originSelect
+      ? [...originSelect.options].map((opt) => opt.cloneNode(true))
+      : [];
+
+    function setOriginOptions(allowed) {
+      if (!originSelect) return;
+      const previous = originSelect.value;
+      const options = allOriginOptions.filter(
+        (opt) => opt.value === "" || !allowed || allowed.has(opt.value.trim().toLowerCase())
+      );
+      originSelect.replaceChildren(...options.map((opt) => opt.cloneNode(true)));
+
+      const real = [...originSelect.options].filter((opt) => opt.value !== "");
+      if (allowed && real.length === 1) {
+        originSelect.value = real[0].value;          // origin is settled
+      } else if (real.some((opt) => opt.value === previous)) {
+        originSelect.value = previous;               // keep a still-valid choice
+      } else {
+        originSelect.value = "";                     // back to the placeholder
       }
     }
 
-    loadRecipeDatabase();
-  </script>
+    // Once the dish name is settled, only its country/countries are offered.
+    function autoFillOriginCountry(dishName) {
+      if (!originSelect || !dishName) return setOriginOptions(null);
+      const matches = recordsForName(dishName);
+      if (matches.length === 0) return setOriginOptions(null);
+      setOriginOptions(new Set(matches.map((r) => r.country.toLowerCase())));
+    }
 
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const dishInput = document.getElementById("dish-name-input");
-      const dropdownList = document.getElementById("dish-dropdown-list");
-      const originSelect = document.getElementById("text-origin");
-      if (!dishInput || !dropdownList) return;
+    function getTopMatches(query, limit = 5) {
+      const q = query.trim().toLowerCase();
+      if (!q) return [];
+      const seen = new Set();
+      const startsWith = [];
+      const contains = [];
 
-      let activeIndex = -1;
-
-      function autoFillOriginCountry(dishTitle) {
-        if (!originSelect || typeof DISH_RECORDS === "undefined" || !dishTitle) return;
-
-        const titleLower = dishTitle.trim().toLowerCase();
-        const matches = DISH_RECORDS.filter((r) => r.title.toLowerCase() === titleLower);
-        const uniqueCountries = [...new Set(matches.map((r) => r.country.toLowerCase()))];
-
-        if (uniqueCountries.length === 1) {
-          const option = [...originSelect.options].find(
-            (opt) => opt.value.toLowerCase() === uniqueCountries[0]
-          );
-          if (option) {
-            originSelect.value = option.value;
-          }
-        }
-      }
-
-      function getTopMatches(query, limit = 5) {
-        const q = query.trim().toLowerCase();
-        if (!q) return [];
-        const unique = [...new Set(DISH_DATABASE)];
-        const startsWith = [];
-        const contains = [];
-
-        for (const title of unique) {
-          const lower = title.toLowerCase();
+      // Search the title AND every alternative title of each dish.
+      for (const record of DISH_RECORDS) {
+        for (const label of [record.title, ...record.alternatives]) {
+          const lower = label.toLowerCase();
+          if (seen.has(lower)) continue;
           if (lower.startsWith(q)) {
-            startsWith.push(title);
+            seen.add(lower);
+            startsWith.push(label);
           } else if (lower.includes(q)) {
-            contains.push(title);
+            seen.add(lower);
+            contains.push(label);
           }
         }
-        return [...startsWith, ...contains].slice(0, limit);
       }
+      return [...startsWith, ...contains].slice(0, limit);
+    }
 
-      function renderDropdown(matches) {
-        dropdownList.innerHTML = "";
-        activeIndex = -1;
-        if (matches.length === 0) {
-          dropdownList.classList.add("hidden");
-          return;
-        }
-
-        matches.forEach((title) => {
-          const li = document.createElement("li");
-          li.className = "dropdown-item";
-          li.textContent = title;
-          li.addEventListener("mousedown", (e) => {
-            e.preventDefault();
-            dishInput.value = title;
-            autoFillOriginCountry(title);
-            hideDropdown();
-            dishInput.focus();
-          });
-          dropdownList.appendChild(li);
-        });
-        dropdownList.classList.remove("hidden");
-      }
-
-      function hideDropdown() {
+    function renderDropdown(matches) {
+      dropdownList.innerHTML = "";
+      activeIndex = -1;
+      currentLabels = matches;
+      if (matches.length === 0) {
         dropdownList.classList.add("hidden");
-        dropdownList.innerHTML = "";
-        activeIndex = -1;
+        return;
       }
 
-      function highlightItem(index) {
-        const items = dropdownList.querySelectorAll(".dropdown-item");
-        items.forEach((item, i) => {
-          item.classList.toggle("highlighted", i === index);
-        });
-        if (items[index]) {
-          items[index].scrollIntoView({ block: "nearest" });
-        }
-      }
-
-      dishInput.addEventListener("input", () => {
-        const matches = getTopMatches(dishInput.value);
-        renderDropdown(matches);
-        autoFillOriginCountry(dishInput.value);
-      });
-
-      dishInput.addEventListener("keydown", (e) => {
-        const items = dropdownList.querySelectorAll(".dropdown-item");
-        if (dropdownList.classList.contains("hidden") || items.length === 0) return;
-
-        if (e.key === "ArrowDown") {
+      matches.forEach((label) => {
+        const li = document.createElement("li");
+        li.className = "dropdown-item";
+        li.textContent = label.trim();
+        li.addEventListener("mousedown", (e) => {
           e.preventDefault();
-          activeIndex = (activeIndex + 1) % items.length;
-          highlightItem(activeIndex);
-        } else if (e.key === "ArrowUp") {
-          e.preventDefault();
-          activeIndex = (activeIndex - 1 + items.length) % items.length;
-          highlightItem(activeIndex);
-        } else if (e.key === "Enter") {
-          if (activeIndex >= 0 && items[activeIndex]) {
-            e.preventDefault();
-            dishInput.value = items[activeIndex].textContent;
-            autoFillOriginCountry(dishInput.value);
-            hideDropdown();
-          }
-        } else if (e.key === "Escape") {
-          hideDropdown();
-        }
-      });
-
-      dishInput.addEventListener("focus", () => {
-        if (dishInput.value.trim()) {
-          renderDropdown(getTopMatches(dishInput.value));
-        }
-      });
-
-      dishInput.addEventListener("blur", () => {
-        autoFillOriginCountry(dishInput.value);
-      });
-
-      document.addEventListener("click", (e) => {
-        if (e.target !== dishInput && !dropdownList.contains(e.target)) {
-          hideDropdown();
-        }
-      });
-    });
-  </script>
-
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const textForm = document.getElementById("text-search-form");
-      const dishInput = document.getElementById("dish-name-input");
-
-      if (textForm) {
-        textForm.addEventListener("submit", (e) => {
-          const typedDish = dishInput ? dishInput.value.trim() : "";
-          const originCountry = document.getElementById("text-origin").value;
-          const targetCountry = document.getElementById("text-target").value;
-
-          if (!typedDish || !originCountry || !targetCountry) {
-            e.preventDefault();
-            showErrorModal(
-              "Incomplete Search Fields",
-              "Please select both the Origin Country and Target Country, and enter a dish name."
-            );
-            return;
-          }
-
-          if (typeof DISH_RECORDS === "undefined" || DISH_RECORDS.length === 0) return;
-
-          const dishLower = typedDish.toLowerCase();
-          const originLower = originCountry.toLowerCase();
-          const targetLower = targetCountry.toLowerCase();
-
-          const matchesByTitle = DISH_RECORDS.filter(
-            (r) => r.title.toLowerCase() === dishLower
-          );
-
-          if (matchesByTitle.length === 0) {
-            e.preventDefault();
-            showErrorModal(
-              "We Can't Find Your Dish",
-              `"${typedDish}" isn't in our recipe database yet. Please check the spelling or try a more general dish name.`
-            );
-            return;
-          }
-
-          const exactMatch = matchesByTitle.find(
-            (r) => r.country.toLowerCase() === originLower
-          );
-
-          if (!exactMatch) {
-            const availableCountries = [...new Set(matchesByTitle.map((r) => r.country))].join(", ");
-            e.preventDefault();
-            showErrorModal(
-              "We Can't Find Your Dish",
-              `We have "${typedDish}", but not listed under that country of origin. Try selecting: ${availableCountries}.`
-            );
-            return;
-          }
-
-          const targetHasDishes = DISH_RECORDS.some(
-            (r) => r.country.toLowerCase() === targetLower
-          );
-
-          if (!targetHasDishes) {
-            e.preventDefault();
-            showErrorModal(
-              "We Can't Find Your Dish",
-              "We don't have any recipes yet for the selected target country, so there's nothing to compare it to. Please choose a different target country."
-            );
-          }
+          chooseLabel(label);
         });
-      }
-    });
-
-    function showErrorModal(title, description) {
-      const modalOverlay = document.getElementById("error-modal-overlay");
-      const modalTitle = document.getElementById("modal-title-text");
-      const modalDesc = document.getElementById("modal-desc-text");
-
-      if (modalTitle) modalTitle.textContent = title;
-      if (modalDesc) modalDesc.textContent = description;
-      if (modalOverlay) modalOverlay.classList.remove("hidden");
+        dropdownList.appendChild(li);
+      });
+      dropdownList.classList.remove("hidden");
     }
 
-    function closeErrorModal() {
-      const modalOverlay = document.getElementById("error-modal-overlay");
-      if (modalOverlay) {
-        modalOverlay.classList.add("hidden");
-      }
-      
-      const dishInput = document.getElementById("dish-name-input");
-      if (dishInput && !dishInput.closest('form').classList.contains('hidden')) {
-        dishInput.focus();
+    function chooseLabel(label) {
+      const clean = label.trim();
+      dishInput.value = clean;
+      autoFillOriginCountry(clean);
+      hideDropdown();
+      dishInput.focus();
+    }
+
+    function hideDropdown() {
+      dropdownList.classList.add("hidden");
+      dropdownList.innerHTML = "";
+      activeIndex = -1;
+    }
+
+    function highlightItem(index) {
+      const items = dropdownList.querySelectorAll(".dropdown-item");
+      items.forEach((item, i) => {
+        item.classList.toggle("highlighted", i === index);
+      });
+      if (items[index]) {
+        items[index].scrollIntoView({ block: "nearest" });
       }
     }
 
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeErrorModal();
+    dishInput.addEventListener("input", () => {
+      renderDropdown(getTopMatches(dishInput.value));
+      autoFillOriginCountry(dishInput.value);
+    });
+
+    dishInput.addEventListener("keydown", (e) => {
+      const items = dropdownList.querySelectorAll(".dropdown-item");
+      if (dropdownList.classList.contains("hidden") || items.length === 0) return;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        activeIndex = (activeIndex + 1) % items.length;
+        highlightItem(activeIndex);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        activeIndex = (activeIndex - 1 + items.length) % items.length;
+        highlightItem(activeIndex);
+      } else if (e.key === "Enter") {
+        if (activeIndex >= 0 && items[activeIndex]) {
+          e.preventDefault();
+          chooseLabel(currentLabels[activeIndex]);
+        }
+      } else if (e.key === "Escape") {
+        hideDropdown();
+      }
+    });
+
+    dishInput.addEventListener("focus", () => {
+      if (dishInput.value.trim()) {
+        renderDropdown(getTopMatches(dishInput.value));
+      }
+    });
+
+    dishInput.addEventListener("blur", () => {
+      autoFillOriginCountry(dishInput.value);
     });
 
     document.addEventListener("click", (e) => {
-      const modalOverlay = document.getElementById("error-modal-overlay");
-      if (e.target === modalOverlay) {
-        closeErrorModal();
+      if (e.target !== dishInput && !dropdownList.contains(e.target)) {
+        hideDropdown();
       }
     });
-  </script>
+  });
+</script>
 
-  <!-- ==================================
-       BACKEND ERROR HANDLER SCRIPT
-       ================================== -->
-  {% if error_title and error_desc %}
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      showErrorModal({{ error_title|tojson }}, {{ error_desc|tojson }});
-      switchTab('image');
-    });
-  </script>
-  {% endif %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const textForm = document.getElementById("text-search-form");
+    const dishInput = document.getElementById("dish-name-input");
+
+    if (textForm) {
+      textForm.addEventListener("submit", (e) => {
+        const typedDish = dishInput ? dishInput.value.trim() : "";
+        const originCountry = document.getElementById("text-origin").value.trim();
+        const targetCountry = document.getElementById("text-target").value.trim();
+
+        if (!typedDish || !originCountry || !targetCountry) {
+          e.preventDefault();
+          showErrorModal(
+            "Incomplete Search Fields",
+            "Please select both the Origin Country and Target Country, and enter a dish name."
+          );
+          return;
+        }
+
+        if (typeof DISH_RECORDS === "undefined" || DISH_RECORDS.length === 0) return;
+
+        const dishLower = typedDish.toLowerCase();
+        const originLower = originCountry.toLowerCase();
+        const targetLower = targetCountry.toLowerCase();
+
+        const matchesByTitle = recordsForName(typedDish);
+
+        if (matchesByTitle.length === 0) {
+          e.preventDefault();
+          showErrorModal(
+            "We Can't Find Your Dish",
+            `"${typedDish}" isn't in our recipe database yet. Please check the spelling or try a more general dish name.`
+          );
+          return;
+        }
+
+        const exactMatch = matchesByTitle.find(
+          (r) => r.country.toLowerCase() === originLower
+        );
+
+        if (!exactMatch) {
+          const availableCountries = [...new Set(matchesByTitle.map((r) => r.country))].join(", ");
+          e.preventDefault();
+          showErrorModal(
+            "We Can't Find Your Dish",
+            `We have "${typedDish}", but not listed under that country of origin. Try selecting: ${availableCountries}.`
+          );
+          return;
+        }
+
+        const targetHasDishes = DISH_RECORDS.some(
+          (r) => r.country.toLowerCase() === targetLower
+        );
+
+        if (!targetHasDishes) {
+          e.preventDefault();
+          showErrorModal(
+            "We Can't Find Your Dish",
+            "We don't have any recipes yet for the selected target country, so there's nothing to compare it to. Please choose a different target country."
+          );
+        }
+      });
+    }
+  });
+
+  function showErrorModal(title, description) {
+    const modalOverlay = document.getElementById("error-modal-overlay");
+    const modalTitle = document.getElementById("modal-title-text");
+    const modalDesc = document.getElementById("modal-desc-text");
+
+    if (modalTitle) modalTitle.textContent = title;
+    if (modalDesc) modalDesc.textContent = description;
+    if (modalOverlay) modalOverlay.classList.remove("hidden");
+  }
+
+  function closeErrorModal() {
+    const modalOverlay = document.getElementById("error-modal-overlay");
+    if (modalOverlay) {
+      modalOverlay.classList.add("hidden");
+    }
+    
+    const dishInput = document.getElementById("dish-name-input");
+    if (dishInput && !dishInput.closest('form').classList.contains('hidden')) {
+      dishInput.focus();
+    }
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeErrorModal();
+  });
+
+  document.addEventListener("click", (e) => {
+    const modalOverlay = document.getElementById("error-modal-overlay");
+    if (e.target === modalOverlay) {
+      closeErrorModal();
+    }
+  });
+</script>
 </body>
 </html>

@@ -8,6 +8,9 @@ from functools import lru_cache
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from difflib import SequenceMatcher
 
+os.environ.setdefault("FLAGS_use_mkldnn", "0")
+os.environ.setdefault("FLAGS_enable_pir_api", "0")
+
 import cv2
 import numpy as np
 from flask import has_app_context
@@ -87,6 +90,12 @@ AUTO_OCR_LANGUAGES = (
     "en",
 )
 
+OCR_VERSION_BY_LANG = {"th": "PP-OCRv5"}
+UNSUPPORTED_LANGS = {"km", "my"}
+AUTO_OCR_LANGUAGES = tuple(
+    lang for lang in AUTO_OCR_LANGUAGES if lang not in UNSUPPORTED_LANGS
+)
+
 # Caps how many language engines run at once. Running all of them
 # concurrently (rather than one after another) is the main speed win here:
 # total wall-clock time becomes roughly "the slowest single engine" instead
@@ -127,13 +136,14 @@ def get_ocr_for_language(lang):
             if engine is None:
                 engine = PaddleOCR(
                     lang=lang,
-                    ocr_version="PP-OCRv3",
+                    ocr_version=OCR_VERSION_BY_LANG.get(lang, "PP-OCRv3"),
                     use_doc_orientation_classify=False,
                     use_doc_unwarping=False,
                     use_textline_orientation=False,
                     text_det_limit_side_len=640,
                     text_det_limit_type="max",
                     text_recognition_batch_size=1,
+                    enable_mkldnn=False, 
                 )
                 OCR_ENGINES[lang] = engine
     return engine

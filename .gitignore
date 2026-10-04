@@ -6,3 +6,21 @@ env/
 # Data files & vector matrices
 *.npy
 *.json
+search_debug.log
+
+# Python Bytecode & Cache Files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local Vendor/Dependencies
+.vendor/
+
+# Operating System & IDE Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Environment Variables / Keys
+.env
