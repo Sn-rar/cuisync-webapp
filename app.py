@@ -5,6 +5,9 @@ import cv2
 import numpy as np
 from flask import Flask, jsonify, render_template, request
 import ocr
+from softmatch import SoftMatcher
+from shapley import compute_shapley, influence_shares
+import explainer
 
 
 app = Flask(__name__)
@@ -15,12 +18,13 @@ json_path = os.path.join(app.root_path, 'recipes.json')
 with open(json_path, 'r', encoding='utf-8') as f:
     RECIPES = json.load(f)
 
+MATCHER = SoftMatcher(app.root_path, RECIPES)
 # 2. Load 4 separate .npy feature embedding matrices
 EMBEDDINGS = {
-    "ingredients": np.load(os.path.join(app.root_path, 'ingredients.npy')),
-    "actions":     np.load(os.path.join(app.root_path, 'actions.npy')),
-    "cookware":    np.load(os.path.join(app.root_path, 'cookware.npy')),
-    "utensils":    np.load(os.path.join(app.root_path, 'utensils.npy'))
+    "ingredients": np.load(os.path.join(app.root_path, 'ingredients_item_vecs.npy')),
+    "actions":     np.load(os.path.join(app.root_path, 'actions_item_vecs.npy')),
+    "cookware":    np.load(os.path.join(app.root_path, 'cookware_item_vecs.npy')),
+    "utensils":    np.load(os.path.join(app.root_path, 'utensils_item_vecs.npy'))
 }
 
 # 3. Define feature weights (Adjust ratios as needed to equal 1.0)
@@ -45,6 +49,13 @@ def parse_items(text_field):
     if not text_field:
         return []
     return [item.strip().title() for item in text_field.split(",") if item.strip()]
+
+def _split_items(text_field):
+    return [i.strip() for i in (text_field or "").split(",") if i.strip()]
+
+
+explainer.init(RECIPES, _split_items)
+
 
 def format_recipe_url(link):
     """Formats recipe link to ensure absolute HTTP/HTTPS URL standard."""
@@ -98,14 +109,18 @@ def get_search_results(dish_name, origin_country, target_country):
     similarity_score = 0.0
     regional_variations = []
     international_similarities = []
+    feature_scores = {}
 
     if source_idx is not None:
         total_scores = np.zeros(len(RECIPES))
-        for feature_name, matrix in EMBEDDINGS.items():
-            if len(matrix) > source_idx:
-                total_scores += WEIGHTS[feature_name] * compute_cosine_similarity(
-                    matrix[source_idx], matrix
-                )
+        feature_sims = {}
+
+    for feature_name in WEIGHTS:
+        feature_sim = MATCHER.scores(feature_name, source_idx)
+
+        feature_sims[feature_name] = feature_sim
+
+        total_scores += WEIGHTS[feature_name] * feature_sim
 
         target_indices = [
             index
@@ -124,6 +139,10 @@ def get_search_results(dish_name, origin_country, target_country):
             recommended_dish["recipe_link"] = format_recipe_url(
                 recommended_dish.get("recipe_link", "")
             )
+            feature_scores = {
+                name: round(float(scores[best_index]), 4)
+                for name, scores in feature_sims.items()
+            }
 
             for idx in ordered_targets[1:4]:
                 dish = RECIPES[idx].copy()
@@ -201,8 +220,19 @@ def get_search_results(dish_name, origin_country, target_country):
         key: round(value * 100) for key, value in WEIGHTS.items()
     }
 
+    # --- SHAPLEY + GPT EXPLANATION ---
+    explanation, explanation_source = "", "template"
+    if recommended_dish and feature_scores:
+        influence = influence_shares(compute_shapley(feature_scores, WEIGHTS))
+        evidence = explainer.build_evidence(
+            source_dish, recommended_dish, similarity_score, influence
+        )
+        explanation, explanation_source = explainer.get_explanation(evidence)
+
     return render_template(
         "results.html",
+        explanation=explanation,
+        explanation_source=explanation_source,
         source_dish=source_dish,
         recommended_dish=recommended_dish,
         target_country=target_country,
@@ -211,6 +241,7 @@ def get_search_results(dish_name, origin_country, target_country):
         feature_weights=feature_weights,
         regional_variations=regional_variations,
         international_similarities=international_similarities,
+        feature_scores=feature_scores,
     )
 
 
