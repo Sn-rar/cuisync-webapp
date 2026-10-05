@@ -3,6 +3,7 @@ import json
 import os
 import re
 import threading
+import unicodedata
 
 import cv2
 import numpy as np
@@ -55,17 +56,43 @@ def no_result_page(error_desc, error_title="We Can't Find Your Dish"):
     return render_template("index.html", error_title=error_title, error_desc=error_desc)
 
 
+def split_names(text):
+    """Split "A, B; C (x, y) / D" into ["A", "B", "C (x, y)", "D"].
+    The separators  , ; | /  and new lines only count outside brackets, so
+    "Mie Goreng (fried noodles, spicy)" stays one name.
+    Keep this in step with splitNames() in templates/index.html."""
+    names, current, depth = [], [], 0
+    for ch in str(text):
+        if ch in "([":
+            depth += 1
+        elif ch in ")]" and depth > 0:
+            depth -= 1
+        if depth == 0 and ch in ",;|/\n\r":
+            names.append("".join(current))
+            current = []
+        else:
+            current.append(ch)
+    names.append("".join(current))
+    return [n.strip() for n in names if n.strip()]
+
+
+def normalize_name(text):
+    """Comparison form of a dish name: Unicode-normalised, lower-cased, single spaces."""
+    return " ".join(unicodedata.normalize("NFKC", str(text)).casefold().split())
+
+
 def recipe_names(recipe):
-    """Lower-cased title plus every alternative title of a recipe."""
-    names = {str(recipe.get("title", "")).strip().lower()}
+    """Normalised title plus every alternative title of a recipe.
+    An alternative_title that lists several names is accepted BOTH as the separate names
+    and as the whole text, so the search works however the page sends it."""
+    names = {normalize_name(recipe.get("title", ""))}
     raw = recipe.get("alternative_title") or recipe.get("alternative_titles") or []
-    if isinstance(raw, str):
-        raw = re.split(r"[;|\n]+", raw)
-    elif not isinstance(raw, (list, tuple, set)):
-        raw = []
-    for alt in raw:
-        if isinstance(alt, str) and alt.strip():
-            names.add(alt.strip().lower())
+    if not isinstance(raw, (list, tuple, set)):
+        raw = [raw]
+    for item in raw:
+        if isinstance(item, str):
+            names.add(normalize_name(item))
+            names.update(normalize_name(name) for name in split_names(item))
     names.discard("")
     return names
 
@@ -90,7 +117,20 @@ def home():
 
 
 # Finds the closest matching dish in the target country and compares ingredients, actions, and similar dishes.
-def get_search_results(dish_name, origin_country, target_country):
+def low_similarity_page(message, score, dish_title, origin_country, target_country):
+    """Back to the search page with the low-similarity popup (View results anyway / No).
+    The popup's 'View results anyway' button posts the same search again with force=1."""
+    return render_template(
+        "index.html",
+        similarity_warning=message,
+        similarity_score=round(score),
+        warn_dish=dish_title,
+        warn_origin=origin_country,
+        warn_target=target_country,
+    )
+
+
+def get_search_results(dish_name, origin_country, target_country, force=False):
 
 
     # ---- 2. find the source dish (exact title + origin country, ignoring capitals) ----
@@ -98,16 +138,21 @@ def get_search_results(dish_name, origin_country, target_country):
     source_idx = None
     for index, recipe in enumerate(RECIPES):
         if (
-            dish_name.lower() in recipe_names(recipe)
-            and recipe["country"].lower() == origin_country.lower()
+            normalize_name(dish_name) in recipe_names(recipe)
+            and normalize_name(recipe["country"]) == normalize_name(origin_country)
         ):
             source_dish = recipe.copy()
             source_idx = index
             break
 
     if source_dish is None:
-        same_title = sorted({r["country"] for r in RECIPES if dish_name.lower() in recipe_names(r)})
+        same_title = sorted({r["country"] for r in RECIPES if normalize_name(dish_name) in recipe_names(r)})
         close = difflib.get_close_matches(dish_name.lower(), [r["title"].lower() for r in RECIPES], n=5, cutoff=0.6)
+        if same_title:
+            return no_result_page(
+                f'"{dish_name}" is in our dataset, but under {", ".join(c.title() for c in same_title)} '
+                f"rather than {origin_country.title()}."
+            )
         return no_result_page(
             f'"{dish_name}" from {origin_country.title()} is not in our dataset, '
             "so there is nothing to compare."
@@ -125,9 +170,18 @@ def get_search_results(dish_name, origin_country, target_country):
 
     # ---- 3. score every recipe against the source dish ----
     per_feature = {name: MATCHER.scores(name, source_idx) for name in WEIGHTS}
-    total_scores = np.zeros(len(RECIPES))
+    # A category that is empty in BOTH dishes scores NaN: it is skipped and the weights of the
+    # remaining categories are re-normalised, so identical dishes score exactly 100%.
+    weighted_sum = np.zeros(len(RECIPES))
+    weight_used = np.zeros(len(RECIPES))
     for feature_name, weight in WEIGHTS.items():
-        total_scores += weight * per_feature[feature_name]
+        feature_scores = per_feature[feature_name]
+        counted = ~np.isnan(feature_scores)
+        weighted_sum += weight * np.where(counted, feature_scores, 0.0)
+        weight_used += weight * counted
+    total_scores = np.divide(
+        weighted_sum, weight_used, out=np.zeros(len(RECIPES)), where=weight_used > 0
+    )
 
     target_indices = [
         index
@@ -146,12 +200,17 @@ def get_search_results(dish_name, origin_country, target_country):
 
 
 
-    passed = total_scores[best_index] >= SIMILARITY_THRESHOLD
-    if not passed:
-        return no_result_page(
+    # Below the threshold: do NOT load the results yet. Go back to the search page and let the
+    # user choose (popup: "View results anyway" re-posts with force=1, "No" stays on the page).
+    if total_scores[best_index] < SIMILARITY_THRESHOLD and not force:
+        return low_similarity_page(
             f'No dish from {target_country.title()} in our dataset is similar enough to '
             f'"{source_dish["title"]}" to recommend (closest match is only '
-            f"{total_scores[best_index] * 100:.0f}% similar)."
+            f"{total_scores[best_index] * 100:.0f}% similar).",
+            float(total_scores[best_index]) * 100,
+            source_dish["title"],
+            source_dish["country"],
+            target_country,
         )
 
     similarity_score = round(float(total_scores[best_index]) * 100, 2)
@@ -263,6 +322,7 @@ def search_text():
         request.form.get("dish_name", "").strip(),
         request.form.get("origin_country", "").strip(),
         request.form.get("target_country", "").strip(),
+        force=request.form.get("force") == "1",
     )
 
 

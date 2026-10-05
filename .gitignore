@@ -6,7 +6,10 @@ env/
 # Data files & vector matrices
 *.npy
 *.json
-search_debug.log
+debug_report.txt
+debug.py
+eval_softmatch.py
+
 
 # Python Bytecode & Cache Files
 __pycache__/
