@@ -1,0 +1,41 @@
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Data files & vector matrices
+*.npy
+*.json
+debug_report.txt
+debug.py
+eval_softmatch.py
+
+
+# Python Bytecode & Cache Files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local Vendor/Dependencies
+.vendor/
+
+# Operating System & IDE Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Environment Variables / Keys
+.env
+# GPT explanation cache (created automatically)
+explanations_cache.db
+
+# Backup of main from before the tine merge
+_premerge_backup/
+_premerge_backup_cath/
+
+# Old broken virtual environment
+venv_old/
+
+# Old copy of results.html from the GPT/Shapley branch (superseded by templates/)
+cuisync-gpt-shapley-integrated/
