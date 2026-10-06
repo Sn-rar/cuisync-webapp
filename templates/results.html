@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="no-referrer">
+  <title>CUISYNC - Results</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base-style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/results.css') }}">
+</head>
+<body class="results-page">
+
+  <app-nav></app-nav>
+
+  {# ------------------------------------------------------------------
+     Overall similarity as a whole-number percent (0-100). The same value
+     drives the image badge, the donut and the modal, so they always agree.
+     ------------------------------------------------------------------ #}
+  {% set score = [ [ (similarity_score | default(0, true) | float | round | int), 0 ] | max, 100 ] | min %}
+
+  {# Share of entities two dishes have in common for one category:
+     shared / (shared + only-in-source + only-in-target), as a percent. #}
+  {% macro overlap_pct(cat) -%}
+    {%- if cat -%}
+      {%- set s = (cat.shared or []) | length -%}
+      {%- set t = s + (cat.source_unique or []) | length + (cat.target_unique or []) | length -%}
+      {{- ((s * 100 / t) | round | int) if t else 0 -}}
+    {%- else -%}0{%- endif -%}
+  {%- endmacro %}
+
+  <!-- ==================================
+       MAIN RESULTS CONTAINER
+       ================================== -->
+  <main class="results-container">
+
+    <!-- ==================================
+         SECTION 1: DISH COMPARISON
+         ================================== -->
+    <section class="section-dark dish-comparison-section">
+      <div class="inner-content">
+        <h2 class="section-heading">DISH COMPARISON</h2>
+
+        <!-- Read-only summary of the search that produced this page -->
+        <div class="readonly-search-bar">
+          <div class="field-item cuisine-field">
+            <span class="field-label">CUISINE</span>
+            <span class="field-value">{{ source_dish.title }}</span>
+          </div>
+          <div class="field-divider"></div>
+          <div class="field-item">
+            <span class="field-label">ORIGIN COUNTRY</span>
+            <span class="field-value">{{ source_dish.country }}</span>
+          </div>
+          <span class="field-arrow">&rarr;</span>
+          <div class="field-item">
+            <span class="field-label">TARGET COUNTRY</span>
+            <span class="field-value">{{ target_country | upper }}</span>
+          </div>
+          <a href="{{ url_for('home') }}" class="btn-search-new">SEARCH NEW CUISINE</a>
+        </div>
+
+        <div class="comparison-grid">
+          <!-- Left Card: Original/Source Dish -->
+          <div class="dish-card">
+            <div class="dish-img-wrapper">
+              <img src="{{ source_dish.image_link if source_dish.image_link else '' }}"
+                   alt="{{ source_dish.title }}"
+                   referrerpolicy="no-referrer">
+              <span class="img-badge">{{ source_dish.country_region }}, {{ source_dish.country }}</span>
+            </div>
+            <div class="dish-card-body">
+              <h3 class="dish-title">{{ source_dish.title }}</h3>
+              {% if source_dish.alternative_title %}
+                <p class="dish-alt"><i>{{ source_dish.alternative_title }}</i></p>
+              {% endif %}
+              <p class="dish-subtitle">{{ (source_dish.region or 'No Specific') | upper }} REGION</p>
+              {% if source_dish and source_dish.recipe_link %}
+                <div class="btn-links">
+                  <a href="{{ source_dish.recipe_link }}" target="_blank" rel="noopener" class="btn-primary-action">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+                    LINK TO RECIPE
+                  </a>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Overall similarity badge, sits between the two photos -->
+          <div class="similarity-badge" role="img" aria-label="{{ score }} percent similar">
+            <span class="badge-score">{{ score }}<small>%</small></span>
+            <span class="badge-label">SIMILAR</span>
+          </div>
+
+          <!-- Right Card: Recommended/Target Country Dish -->
+          <div class="dish-card">
+            <div class="dish-img-wrapper">
+              <img src="{{ recommended_dish.image_link if (recommended_dish and recommended_dish.image_link) else '' }}"
+                   alt="{% if recommended_dish %}{{ recommended_dish.title }}{% endif %}"
+                   referrerpolicy="no-referrer">
+              <span class="img-badge">{% if recommended_dish %}{{ source_dish.country_region }}, {{ recommended_dish.country }}{% endif %}</span>
+            </div>
+            <div class="dish-card-body">
+              <h3 class="dish-title">{% if recommended_dish %}{{ recommended_dish.title }}{% endif %}</h3>
+              {% if recommended_dish and recommended_dish.alternative_title %}
+                <p class="dish-alt"><i>{{ recommended_dish.alternative_title }}</i></p>
+              {% endif %}
+              <p class="dish-subtitle">{% if recommended_dish %}{{ (recommended_dish.region or 'No Specific') | upper }} REGION{% endif %}</p>
+
+              {% if recommended_dish and recommended_dish.recipe_link %}
+                <div class="btn-links">
+                  <a href="{{ recommended_dish.recipe_link }}" target="_blank" rel="noopener" class="btn-primary-action">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+                    LINK TO RECIPE
+                  </a>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================
+         SECTION 2: RECIPE BREAKDOWN (extracted entities)
+         ================================== -->
+    <section class="section-dark recipe-breakdown-section">
+      <div class="inner-content">
+        <div class="section-head-split">
+          <h2 class="section-heading">RECIPE BREAKDOWN</h2>
+          <p class="section-subheading">
+            The ingredients, cooking actions and tools pulled from both recipes: what the two dishes share, and what sets each one apart.
+          </p>
+        </div>
+
+        <div class="entities-card">
+
+          <!-- Category Filter Radio Buttons -->
+          <div class="entity-filters">
+            <label class="filter-pill pill-all">
+              <input type="radio" name="entity_filter" value="all" checked hidden>
+              <span>ALL</span>
+            </label>
+
+            <label class="filter-pill pill-shared">
+              <input type="radio" name="entity_filter" value="shared" hidden>
+              <span>SHARED</span>
+            </label>
+
+            <label class="filter-pill pill-pho">
+              <input type="radio" name="entity_filter" value="source" hidden>
+              <span>{{ source_dish.title | upper }}</span>
+            </label>
+
+            <label class="filter-pill pill-batchoy">
+              <input type="radio" name="entity_filter" value="target" hidden>
+              <span>{% if recommended_dish %}{{ recommended_dish.title | upper }}{% else %}{{ target_country | upper }} DISH{% endif %}</span>
+            </label>
+          </div>
+
+          <!-- Gold = shared, maroon = only in the source dish, green = only in the target dish -->
+          {% for key, label in [('ingredients', 'INGREDIENTS'), ('actions', 'COOKING ACTIONS'), ('cookware', 'COOKWARES'), ('utensils', 'UTENSILS')] %}
+            {% set cat = entities[key] %}
+            <div class="entity-group">
+              <span class="entity-category-label">{{ label }}</span>
+              <div class="chips-wrapper">
+                {% for item in cat.shared %}
+                  <span class="entity-chip chip-gold" data-type="shared">{{ item }}</span>
+                {% endfor %}
+                {% for item in cat.source_unique %}
+                  <span class="entity-chip chip-maroon" data-type="source">{{ item }}</span>
+                {% endfor %}
+                {% for item in cat.target_unique %}
+                  <span class="entity-chip chip-green" data-type="target">{{ item }}</span>
+                {% endfor %}
+              </div>
+            </div>
+          {% endfor %}
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================
+         SECTION 3: SIMILARITY SUMMARY
+         ================================== -->
+    <section class="section-light similarity-section" id="sim-summary">
+      <div class="inner-content">
+        <h2 class="section-heading dark-text">SIMILARITY SUMMARY</h2>
+        <div class="heading-rule"></div>
+
+        <div class="similarity-metrics-grid">
+          <!-- Donut: overall similarity score -->
+          <div class="donut-box">
+            <div class="donut-chart" style="--percent: {{ score }};">
+              <div class="donut-center">
+                <span class="donut-percentage">{{ score }}%</span>
+              </div>
+            </div>
+            <span class="donut-label">OVERALL SIMILARITY SCORE</span>
+          </div>
+
+          <!-- Per-category similarity from the model (softmatch.py) for the recommended dish.
+               These are the same scores that are blended into the overall score above. -->
+          <div class="sim-bars">
+            {% for label, key in [('INGREDIENT SIMILARITY', 'ingredients'), ('COOKING ACTION SIMILARITY', 'actions'), ('UTENSIL SIMILARITY', 'utensils'), ('COOKWARE SIMILARITY', 'cookware')] %}
+              {% if feature_scores is defined and key in feature_scores %}
+                {% set pct = [ [ (feature_scores[key] * 100) | round | int, 0 ] | max, 100 ] | min %}
+              {% else %}
+                {% set pct = overlap_pct(entities[key]) | trim | int %}
+              {% endif %}
+              <div class="sim-bar">
+                <div class="sim-bar-info">
+                  <span>{{ label }}</span>
+                  <span>{{ pct }}%</span>
+                </div>
+                <div class="sim-bar-track"><div class="sim-bar-fill" style="--pct: {{ pct }};"></div></div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- AI Explanation Card (GPT-4o via explainer.py, grounded in the Shapley contributions) -->
+        <div class="quote-card">
+          <span class="quote-icon" aria-hidden="true">&ldquo;&rdquo;</span>
+          <p class="quote-text">
+            {% if explanation %}{{ explanation }}{% else %}No similarity explanation is available because no matching dish was found for this search.{% endif %}
+          </p>
+          <div class="quote-footer">
+            {% if explanation_source == 'ai' %}
+            <span class="badge-mini">AI EXPLANATION</span>
+            <span class="footer-note">Generated by GPT-4o</span>
+            {% else %}
+            <span class="badge-mini">SUMMARY</span>
+            <span class="footer-note">GPT unavailable. Showing a grounded template explanation.</span>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+
+<!-- ==================================
+     SECTION 3: GEOGRAPHICAL DISTRIBUTION
+     ================================== -->
+<section class="section-dark geo-map-section" id="geo-distribution">
+  <div class="inner-content">
+    <div class="geo-map-header">
+      <div class="header-text-group">
+        <h2 class="section-heading">OTHER SIMILAR CUISINES</h2>
+        <p class="section-subheading">
+         Mapping regional recipe variations and international counterparts based on ingredient and cooking similarity.
+        </p>
+      </div>
+    </div>
+
+    <!-- Map Pan Wrapper styled as the outer card -->
+    <div class="map-pan-wrapper">
+      <div class="map-placeholder">
+        <!-- Drawn by drawWorldMap() from real country shapes (d3 + world-atlas), the same way as the
+             Analysis page, so there are no hard-coded country outlines. The map fills this box exactly:
+             JS sets the viewBox to the box's pixel size, so the pins layer below lines up with it.
+             Keep id/class: the pins use them. -->
+        <svg id="world-map-img" class="map-graphic" viewBox="0 0 1000 320" preserveAspectRatio="none"
+             role="img" aria-label="Map of Asia"></svg>
+
+        <!-- Dynamic Pins Container -->
+        <div id="map-pins-layer"></div>
+      </div>
+
+      <!-- Bottom bar: opens the full-screen map -->
+      <button type="button" class="route-info-bar" id="openMapModal">
+        <div class="route-details">
+          <div class="route-text-group">
+            <span class="route-value">GEOGRAPHICAL DISTRIBUTION</span>
+          </div>
+        </div>
+        <div class="route-hint">
+          <span>Click to browse full map view &amp; similarity summaries</span>
+          <svg class="icon-arrow" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" aria-hidden="true">
+            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+          </svg>
+        </div>
+      </button>
+    </div>
+  </div>
+</section>
+<!-- ==================================
+     FULL-SCREEN MAP MODAL OVERLAY
+     ================================== -->
+<div class="map-modal-overlay" id="mapModal">
+  <div class="map-modal-container">
+    
+    <!-- COLLAPSIBLE LEFT SIDEBAR PANEL -->
+    <aside class="map-panel-left" id="mapSidebar">
+      <button type="button" class="btn-toggle-sidebar" id="toggleSidebar" aria-label="Toggle Panel">
+        <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+
+      <div class="panel-inner-scroll">
+        <!-- Dish Card -->
+        <div class="panel-dish-card">
+          <div class="panel-img-wrapper">
+            <img id="modalDishImg" src="" alt="Selected Dish">
+            <span class="panel-img-badge" id="modalDishLocation"></span>
+          </div>
+
+          <div class="panel-dish-header">
+            <div class="title-row">
+              <h3 id="modalDishTitle"></h3>
+              <a href="#" target="_blank" class="btn-mini-link" id="modalRecipeLink" style="display: none;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+                LINK
+              </a>
+            </div>
+            <i><b><p class="panel-region-sub" id="modalDishAlt"></p></b></i>
+            <p class="panel-region-sub" id="modalDishRegion"></p>
+          </div>
+        </div>
+
+        <!-- Tab Controls -->
+        <div class="panel-tabs">
+          <button type="button" class="tab-btn active" data-tab="recipe">RECIPE BREAKDOWN</button>
+          <button type="button" class="tab-btn" data-tab="similarity">SIMILARITY SUMMARY</button>
+        </div>
+
+        <!-- TAB CONTENT 1: RECIPE BREAKDOWN -->
+        <div class="tab-content active" id="tab-recipe">
+          <div class="panel-card">
+            <div class="panel-legend">
+              <span class="legend-chip gold-dot"><span class="shared-entity">Shared Entities</span></span>
+              <span class="legend-chip maroon-dot"><span id="modalSourceDishLabel"></span></span>
+              <span class="legend-chip green-dot"><span class="active-dish-name"></span></span>
+            </div>
+
+            <div class="panel-entity-section">
+              <span class="entity-title">INGREDIENTS</span>
+              <div class="chips-wrapper" id="modalIngredients"></div>
+            </div>
+
+            <div class="panel-entity-section">
+              <span class="entity-title">COOKING ACTIONS</span>
+              <div class="chips-wrapper" id="modalActions"></div>
+            </div>
+
+            <div class="panel-entity-section">
+              <span class="entity-title">COOKWARES</span>
+              <div class="chips-wrapper" id="modalCookware"></div>
+            </div>
+
+            <div class="panel-entity-section">
+              <span class="entity-title">UTENSILS</span>
+              <div class="chips-wrapper" id="modalUtensils"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB CONTENT 2: SIMILARITY SUMMARY (same layout as the results page; refreshed per dish by JS) -->
+        <div class="tab-content" id="tab-similarity">
+          <div class="origin-note" id="modalOriginNote"></div>
+
+          <div class="panel-card">
+            <div class="donut-box">
+              <div class="donut-chart" id="modalDonut" style="--percent: {{ score }};">
+                <div class="donut-center">
+                  <span class="donut-percentage" id="modalOverallScore">{{ score }}%</span>
+                </div>
+              </div>
+              <span class="donut-label">OVERALL SIMILARITY SCORE</span>
+            </div>
+
+            <div class="sim-bars" id="modalSimBars">
+              {% for label, key in [('INGREDIENT SIMILARITY', 'ingredients'), ('COOKING ACTION SIMILARITY', 'actions'), ('UTENSIL SIMILARITY', 'utensils'), ('COOKWARE SIMILARITY', 'cookware')] %}
+                {% set pct = overlap_pct(entities[key]) | trim | int %}
+                <div class="sim-bar" data-key="{{ key }}">
+                  <div class="sim-bar-info">
+                    <span>{{ label }}</span>
+                    <span class="sim-bar-value">{{ pct }}%</span>
+                  </div>
+                  <div class="sim-bar-track"><div class="sim-bar-fill" style="--pct: {{ pct }};"></div></div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="quote-card modal-quote">
+            <span class="quote-icon" aria-hidden="true">&ldquo;</span>
+            <p class="quote-text" id="modalExplanation"></p>
+            <div class="quote-footer">
+              <span class="badge-mini" id="modalExplBadge">AI EXPLANATION</span>
+              <span class="footer-note" id="modalExplNote"></span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+
+    <!-- RIGHT MAIN CANVAS: MAP VIEW -->
+    <main class="map-canvas-right">
+      <div class="map-filter-bar" role="group" aria-label="Map layers">
+        <button type="button" class="map-filter-pill map-filter-pill--main active" data-layer="main" role="switch" aria-checked="true">
+          <span class="pill-switch" aria-hidden="true"></span>
+          <span class="pill-label">MAIN DISH</span>
+        </button>
+        <button type="button" class="map-filter-pill map-filter-pill--regional active" data-layer="regional" role="switch" aria-checked="true">
+          <span class="pill-switch" aria-hidden="true"></span>
+          <span class="pill-label">REGIONAL VARIATIONS</span>
+        </button>
+        <button type="button" class="map-filter-pill map-filter-pill--international active" data-layer="international" role="switch" aria-checked="true">
+          <span class="pill-switch" aria-hidden="true"></span>
+          <span class="pill-label">INTERNATIONAL SIMILARITIES</span>
+        </button>
+      </div>
+
+      <button type="button" class="btn-exit-map" id="closeMapModal">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+        </svg>
+        <span>EXIT FULL SCREEN MAP</span>
+      </button>
+
+      <div class="modal-map-viewport" id="modalMapBody"></div>
+
+      <div class="map-zoom-controls">
+        <button type="button" class="map-zoom-btn" id="mapZoomIn" aria-label="Zoom in">+</button>
+        <button type="button" class="map-zoom-btn" id="mapZoomOut" aria-label="Zoom out">&minus;</button>
+        <button type="button" class="map-zoom-btn map-zoom-reset" id="mapZoomReset" aria-label="Reset zoom">RESET</button>
+      </div>
+    </main>
+
+  </div>
+</div>
+
+  </main>
+
+  <app-footer></app-footer>
+
+  <script src="{{ url_for('static', filename='scripts/components.js') }}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+
+  <!-- ==================================
+       EXTRACTED ENTITIES FILTERING
+       ================================== -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const filterInputs = document.querySelectorAll('input[name="entity_filter"]');
+      const chips = document.querySelectorAll('.entity-chip');
+
+      filterInputs.forEach(input => {
+        input.addEventListener('change', (e) => {
+          const selectedFilter = e.target.value;
+
+          chips.forEach(chip => {
+            if (selectedFilter === 'all') {
+              chip.style.display = 'inline-block';
+            } else {
+              const chipType = chip.getAttribute('data-type');
+              if (chipType === selectedFilter) {
+                chip.style.display = 'inline-block';
+              } else {
+                chip.style.display = 'none';
+              }
+            }
+          });
+        });
+      });
+    });
+  </script>
+
+<script type="application/json" id="map-data">
+  {{ {
+    "sourceDish": source_dish,
+    "recommendedDish": recommended_dish,
+    "entities": entities,
+    "similarityScore": similarity_score,
+    "featureScores": feature_scores | default({}),
+    "regionalVariations": regional_variations,
+    "internationalSimilarities": international_similarities
+  } | tojson }}
+</script>
+
+<script>
+  const MAP_DATA = JSON.parse(document.getElementById('map-data').textContent);
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // UI Elements
+    const openBtn = document.getElementById('openMapModal');
+    const closeBtn = document.getElementById('closeMapModal');
+    const modal = document.getElementById('mapModal');
+    const toggleSidebarBtn = document.getElementById('toggleSidebar');
+    const sidebar = document.getElementById('mapSidebar');
+    const modalMapBody = document.getElementById('modalMapBody');
+    const mapPanWrapper = document.querySelector('.map-pan-wrapper');
+    const originalMapPlaceholder = document.querySelector('.map-pan-wrapper .map-placeholder');
+    // Safe fallback for initial active dish
+    const activeDish = MAP_DATA.recommendedDish || MAP_DATA.sourceDish || {};
+
+    // Helper: Safely generate chip HTML for entity lists
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, ch => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]
+      ));
+    }
+
+    function createChips(items, chipClass) {
+      if (!Array.isArray(items) || !items.length) return '';
+      return items.map(item => `<span class="entity-chip ${chipClass}">${escapeHtml(item)}</span>`).join('');
+    }
+
+    // ----------------------------------------------------------------
+    // PER-DISH COMPARISON DATA
+    // The main (recommended) dish uses the server-computed entities. For any
+    // other pin we need that dish's own comparison against the source dish:
+    //   1) dish.entities, if the backend sends it (same shape as the main
+    //      `entities`: {ingredients: {shared, source_unique, target_unique}, ...})
+    //   2) otherwise it is computed here from the dish's own entity lists,
+    //      using any of the field names below.
+    // ----------------------------------------------------------------
+    const ENTITY_FIELDS = {
+      ingredients: ['ingredients', 'ingredient_text', 'ingredient_list'],
+      actions: ['actions', 'action_text', 'actions_text', 'cooking_actions', 'cooking_action_text'],
+      cookware: ['cookware', 'cookware_text'],
+      utensils: ['utensils', 'utensil_text', 'utensils_text']
+    };
+
+    function toEntityList(value) {
+      if (Array.isArray(value)) {
+        return value.map(v => String(v).trim()).filter(Boolean);
+      }
+      if (typeof value === 'string') {
+        return value.split(/[,;|\n]/).map(v => v.trim()).filter(Boolean);
+      }
+      return [];
+    }
+
+    function readDishList(dish, key) {
+      if (!dish) return null;
+      for (const field of ENTITY_FIELDS[key]) {
+        if (dish[field] !== undefined && dish[field] !== null) {
+          const list = toEntityList(dish[field]);
+          if (list.length) return list;
+        }
+      }
+      return null;
+    }
+
+    function compareLists(sourceList, targetList) {
+      const norm = s => s.trim().toLowerCase();
+      const targetByKey = new Map(targetList.map(x => [norm(x), x]));
+      const sourceKeys = new Set(sourceList.map(norm));
+      const result = { shared: [], source_unique: [], target_unique: [] };
+      const seen = new Set();
+
+      sourceList.forEach(item => {
+        const k = norm(item);
+        if (seen.has(k)) return;
+        seen.add(k);
+        (targetByKey.has(k) ? result.shared : result.source_unique).push(item);
+      });
+      targetByKey.forEach((item, k) => {
+        if (!sourceKeys.has(k)) result.target_unique.push(item);
+      });
+      return result;
+    }
+
+    // Returns {ingredients, actions, cookware, utensils} (each a category
+    // object or null when that dish has no data for it), or null if none.
+    function getEntitiesFor(dish) {
+      if (!dish) return null;
+
+      // Original dish: list everything it has (shared + source-only) in the
+      // source color, since there is nothing to compare it against.
+      if (dish === MAP_DATA.sourceDish) {
+        if (!MAP_DATA.entities) return null;
+        const own = {};
+        Object.keys(ENTITY_FIELDS).forEach(key => {
+          const cat = MAP_DATA.entities[key];
+          own[key] = cat
+            ? { shared: [], source_unique: [...(cat.shared || []), ...(cat.source_unique || [])], target_unique: [] }
+            : null;
+        });
+        return own;
+      }
+      if (dish === MAP_DATA.recommendedDish && MAP_DATA.entities) return MAP_DATA.entities;
+      if (dish.entities && typeof dish.entities === 'object') return dish.entities;
+
+      const out = {};
+      let found = false;
+      Object.keys(ENTITY_FIELDS).forEach(key => {
+        const a = readDishList(MAP_DATA.sourceDish, key);
+        const b = readDishList(dish, key);
+        if (a && b) {
+          out[key] = compareLists(a, b);
+          found = true;
+        } else {
+          out[key] = null;
+        }
+      });
+      return found ? out : null;
+    }
+
+    // shared / (shared + only-in-source + only-in-target), as a whole percent.
+    function overlapPercent(cat) {
+      if (!cat) return null;
+      const shared = (cat.shared || []).length;
+      const total = shared + (cat.source_unique || []).length + (cat.target_unique || []).length;
+      return total ? Math.round((shared * 100) / total) : 0;
+    }
+
+    function getDishScore(dish) {
+      const raw = (dish === MAP_DATA.recommendedDish) ? MAP_DATA.similarityScore : dish && dish.score;
+      const n = Number(raw);
+      if (raw === null || raw === undefined || raw === '' || Number.isNaN(n)) return null;
+      return Math.min(Math.max(Math.round(n), 0), 100);
+    }
+
+    function joinNatural(list) {
+      const items = list.map(escapeHtml);
+      if (items.length <= 1) return items.join('');
+      return items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
+    }
+
+    // Same AI text the results page shows, used for the main comparison.
+    const pageQuote = document.querySelector('.similarity-section .quote-text');
+    const pageQuoteNote = document.querySelector('.similarity-section .footer-note');
+    const MAIN_EXPLANATION_HTML = pageQuote ? pageQuote.innerHTML : '';
+    const MAIN_EXPLANATION_NOTE = pageQuoteNote ? pageQuoteNote.textContent : '';
+    const pageQuoteBadge = document.querySelector('.similarity-section .badge-mini');
+    const MAIN_EXPLANATION_BADGE = pageQuoteBadge ? pageQuoteBadge.textContent : 'AI EXPLANATION';
+
+    function buildExplanation(dish, entities, score) {
+      const src = escapeHtml((MAP_DATA.sourceDish && MAP_DATA.sourceDish.title) || 'The source dish');
+      const tgt = escapeHtml(dish.title || 'this dish');
+      if (!entities) {
+        return `A detailed comparison between <strong>${src}</strong> and <strong>${tgt}</strong> isn't available yet.`;
+      }
+      const parts = [];
+      const sharedIng = (entities.ingredients && entities.ingredients.shared) || [];
+      const sharedAct = (entities.actions && entities.actions.shared) || [];
+      const sharedTools = [
+        ...((entities.cookware && entities.cookware.shared) || []),
+        ...((entities.utensils && entities.utensils.shared) || [])
+      ];
+      if (sharedIng.length) {
+        parts.push(`Both use ${joinNatural(sharedIng.slice(0, 5))}.`);
+      }
+      if (sharedAct.length) {
+        parts.push(`They share the cooking steps ${joinNatural(sharedAct.slice(0, 4).map(s => s.toLowerCase()))}.`);
+      }
+      if (sharedTools.length) {
+        parts.push(`Common tools include ${joinNatural(sharedTools.slice(0, 4).map(s => s.toLowerCase()))}.`);
+      }
+      if (!parts.length) {
+        parts.push('They have very little in common in their extracted ingredients, steps and tools.');
+      }
+      const lead = score === null ? '' : ` are ${score}% similar overall.`;
+      return `<strong>${src}</strong> and <strong>${tgt}</strong>${lead || ' compared.'} ${parts.join(' ')}`;
+    }
+
+    function renderSimilarity(dish, entities) {
+      const isOrigin = dish === MAP_DATA.sourceDish;
+      const simTab = document.getElementById('tab-similarity');
+      if (simTab) simTab.classList.toggle('is-origin', isOrigin);
+      const originNote = document.getElementById('modalOriginNote');
+      if (originNote) {
+        const srcTitle = (MAP_DATA.sourceDish && MAP_DATA.sourceDish.title) || 'This dish';
+        const tgtTitle = (MAP_DATA.recommendedDish && MAP_DATA.recommendedDish.title) || 'the other dishes';
+        originNote.textContent = `${srcTitle} is the original dish, so there is nothing to compare it against. Select ${tgtTitle} or another pin to see how it compares.`;
+      }
+      if (isOrigin) return;
+
+      const score = getDishScore(dish);
+
+      const donut = document.getElementById('modalDonut');
+      const scoreElem = document.getElementById('modalOverallScore');
+      if (donut) donut.style.setProperty('--percent', score === null ? 0 : score);
+      if (scoreElem) scoreElem.textContent = score === null ? 'N/A' : `${score}%`;
+
+      // The main (recommended) dish shows the model's per-category scores, like the results page.
+      // Other pins only have their entity lists, so they show the overlap of those lists.
+      const isMain = dish === MAP_DATA.recommendedDish;
+      const featureScores = MAP_DATA.featureScores || {};
+      document.querySelectorAll('#modalSimBars .sim-bar').forEach(bar => {
+        const key = bar.getAttribute('data-key');
+        const pct = (isMain && typeof featureScores[key] === 'number')
+          ? Math.min(Math.max(Math.round(featureScores[key] * 100), 0), 100)
+          : overlapPercent(entities && entities[key]);
+        const fill = bar.querySelector('.sim-bar-fill');
+        const val = bar.querySelector('.sim-bar-value');
+        if (fill) fill.style.setProperty('--pct', pct === null ? 0 : pct);
+        if (val) val.textContent = pct === null ? 'N/A' : `${pct}%`;
+      });
+
+      // Explanation: the GPT/template text from the results page for the main dish,
+      // a short summary built from the shared entities for every other pin.
+      const explElem = document.getElementById('modalExplanation');
+      const explBadge = document.getElementById('modalExplBadge');
+      const explNote = document.getElementById('modalExplNote');
+      if (explElem) {
+        explElem.innerHTML = (isMain && MAIN_EXPLANATION_HTML.trim())
+          ? MAIN_EXPLANATION_HTML
+          : buildExplanation(dish, entities, score);
+      }
+      if (explBadge) explBadge.textContent = isMain ? MAIN_EXPLANATION_BADGE : 'SUMMARY';
+      if (explNote) {
+        explNote.textContent = isMain
+          ? MAIN_EXPLANATION_NOTE
+          : 'Summary of the shared ingredients, cooking steps and tools.';
+      }
+    }
+
+    // Helper: Update Left Sidebar with Active Dish Data
+    function updateSidebarDish(dish) {
+      if (!dish || typeof dish !== 'object') return;
+
+      // Header details
+      const titleElem = document.getElementById('modalDishTitle');
+      if (titleElem) titleElem.textContent = dish.title || 'Unknown Dish';
+
+      const locElem = document.getElementById('modalDishLocation');
+      if (locElem) locElem.textContent = `${dish.country_region || ''}, ${dish.country || ''}`;
+
+      const regSubElem = document.getElementById('modalDishAlt');
+      if (regSubElem) regSubElem.textContent = `${(dish.alternative_title || '')}`;
+
+      const regAltElem = document.getElementById('modalDishRegion');
+      if (regAltElem) regAltElem.textContent = `${(dish.region || 'UNKNOWN').toUpperCase()} REGION`;
+
+      // Dish Image
+      const imgElem = document.getElementById('modalDishImg');
+      if (imgElem) {
+        if (dish.image_link) {
+          imgElem.src = dish.image_link;
+          imgElem.style.display = 'block';
+        } else {
+          imgElem.style.display = 'none';
+        }
+      }
+
+      // External Recipe Link
+      const linkElem = document.getElementById('modalRecipeLink');
+      if (linkElem) {
+        if (dish.recipe_link) {
+          linkElem.href = dish.recipe_link;
+          linkElem.style.display = 'inline-flex';
+        } else {
+          linkElem.style.display = 'none';
+        }
+      }
+
+      // Dynamic dish names in entity legend
+      const activeNameElems = document.querySelectorAll('.active-dish-name');
+      activeNameElems.forEach(el => {
+        el.textContent = dish.title || '';
+      });
+
+      const sourceLabelElem = document.getElementById('modalSourceDishLabel');
+      if (sourceLabelElem) {
+        sourceLabelElem.textContent = (MAP_DATA.sourceDish && MAP_DATA.sourceDish.title) || '';
+      }
+
+      // Helper: render shared / source-unique / target-unique chips for one entity category.
+      // Color always reflects uniqueness (gold = shared, maroon = unique to source dish,
+      // green = unique to the active/target dish) -- never the entity category itself.
+      function renderEntityGroup(elementId, categoryData) {
+        const wrapper = document.getElementById(elementId);
+        if (!wrapper) return;
+        if (!categoryData) {
+          wrapper.innerHTML = '<span class="entity-empty">Not available for this dish.</span>';
+          return;
+        }
+        wrapper.innerHTML =
+          createChips(categoryData.shared, 'chip-gold') +
+          createChips(categoryData.source_unique, 'chip-maroon') +
+          createChips(categoryData.target_unique, 'chip-green');
+      }
+
+      // Recipe breakdown + similarity summary for THIS dish (not always the main one)
+      const entities = getEntitiesFor(dish);
+      const recipeTab = document.getElementById('tab-recipe');
+      if (recipeTab) recipeTab.classList.toggle('is-origin', dish === MAP_DATA.sourceDish);
+      renderEntityGroup('modalIngredients', entities && entities.ingredients);
+      renderEntityGroup('modalActions', entities && entities.actions);
+      renderEntityGroup('modalCookware', entities && entities.cookware);
+      renderEntityGroup('modalUtensils', entities && entities.utensils);
+      renderSimilarity(dish, entities);
+    }
+
+    // ==================================
+    // MAP PINS: build a pin for the main dish, top 3 regional variations,
+    // and top 5 international similarities, drop them on the map (randomized
+    // within their country's shape), and wire up hover preview + click.
+    // ==================================
+    const mapSvg = document.getElementById('world-map-img');
+    const pinsLayer = document.getElementById('map-pins-layer');
+
+    // ----------------------------------
+    // WORLD MAP: drawn from real country shapes, the same way as the Analysis page's map.
+    //
+    // The SVG's viewBox is always set to the map box's real pixel size and the projection is
+    // re-fitted to that size, so one SVG unit == one pixel. The pins layer is the very same box,
+    // so a pin at (x, y) sits exactly on the spot of the map drawn at (x, y). (Before, the SVG kept
+    // a fixed 2:1 shape while the pins layer followed the card's height, so the pins drifted off
+    // their countries.) Each pin remembers its longitude/latitude and is re-projected whenever the
+    // box changes size (small preview <-> full screen).
+    // ----------------------------------
+    const WORLD_TOPOLOGY_URL =
+      'https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json'; // Natural Earth
+
+    // The area the map is framed on: a box that covers Asia (same frame as the Analysis page).
+    const ASIA_FRAME = {
+      type: 'MultiPoint',
+      coordinates: [[22, -12], [150, 56]]
+    };
+
+    // Land colours. The origin, target and other matched countries are tinted.
+    const MAP_COLORS = {
+      land: '#e4d9c6',
+      border: '#fbf6ec',
+      origin: '#800d12',
+      target: '#a32e32',
+      other: '#d9a98f'
+    };
+
+    let worldTopologyPromise = null;
+    let worldFeatures = null;            // all country shapes
+    let mapProjection = null;            // projection for the current box size
+    let mapWidth = 0;                    // current box size in pixels (== SVG viewBox)
+    let mapHeight = 0;
+    const countryFeatures = new Map();   // normalized country name -> map shape
+    const placedPins = [];               // { pin, lonlat } for every pin on the map
+
+    // World shapes are fetched once, then reused.
+    function loadWorldTopology() {
+      if (!worldTopologyPromise) {
+        worldTopologyPromise = d3.json(WORLD_TOPOLOGY_URL).catch(error => {
+          worldTopologyPromise = null;   // allow a retry next time
+          throw error;
+        });
+      }
+      return worldTopologyPromise;
+    }
+
+    // Lets dataset names (e.g. "Turkiye") match the map's names ("Turkey").
+    function normalizeMapCountryName(name) {
+      const key = String(name || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+
+      const aliases = {
+        'turkiye': 'turkey',
+        'korea': 'south korea',
+        'korea, south': 'south korea',
+        'republic of korea': 'south korea',
+        'korea, republic of': 'south korea',
+        's. korea': 'south korea',
+        'viet nam': 'vietnam',
+        'burma': 'myanmar',
+        'russian federation': 'russia',
+        'united states': 'united states of america'
+      };
+
+      return aliases[key] || key;
+    }
+
+    async function loadWorldMapData() {
+      const topology = await loadWorldTopology();
+      worldFeatures = topojson.feature(topology, topology.objects.countries).features;
+      worldFeatures.forEach(feature => {
+        countryFeatures.set(normalizeMapCountryName(feature.properties.name), feature);
+      });
+    }
+
+    // Draws the countries to fill the map box. Returns false if the box has no size right now
+    // (e.g. it is hidden); it is drawn again as soon as it gets one.
+    function drawWorldMap() {
+      if (!mapSvg || !worldFeatures || !originalMapPlaceholder) return false;
+
+      const width = originalMapPlaceholder.clientWidth;
+      const height = originalMapPlaceholder.clientHeight;
+      if (width < 20 || height < 20) return false;
+
+      mapWidth = width;
+      mapHeight = height;
+      mapSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      mapProjection = d3.geoMercator().fitSize([width, height], ASIA_FRAME);
+      const path = d3.geoPath(mapProjection);
+
+      // Which countries are on this result page.
+      const originKey = normalizeMapCountryName(MAP_DATA.sourceDish && MAP_DATA.sourceDish.country);
+      const firstRegional = (MAP_DATA.regionalVariations || [])[0];
+      const targetKey = normalizeMapCountryName(
+        (MAP_DATA.recommendedDish && MAP_DATA.recommendedDish.country) ||
+        (firstRegional && firstRegional.country)
+      );
+      const otherKeys = new Set(
+        (MAP_DATA.internationalSimilarities || []).map(dish => normalizeMapCountryName(dish.country))
+      );
+
+      d3.select(mapSvg)
+        .selectAll('path')
+        .data(worldFeatures)
+        .join('path')
+        .attr('d', path)
+        .attr('stroke', MAP_COLORS.border)
+        .attr('stroke-width', 0.5)
+        .attr('fill', feature => {
+          const key = normalizeMapCountryName(feature.properties.name);
+          if (key === originKey) return MAP_COLORS.origin;
+          if (key === targetKey) return MAP_COLORS.target;
+          if (otherKeys.has(key)) return MAP_COLORS.other;
+          return MAP_COLORS.land;
+        });
+
+      return true;
+    }
+
+    // Puts one pin on its longitude/latitude, as a percentage of the map box.
+    function positionPin(entry) {
+      if (!mapProjection) return;
+      const point = mapProjection(entry.lonlat);
+      if (!point) return;
+      entry.pin.style.left = `${(point[0] / mapWidth) * 100}%`;
+      entry.pin.style.top = `${(point[1] / mapHeight) * 100}%`;
+    }
+
+    // Redraws the map for the box's current size and re-places every pin on it.
+    function refreshWorldMap() {
+      if (drawWorldMap()) placedPins.forEach(positionPin);
+    }
+
+    // A random [longitude, latitude] on land inside the country's real shape.
+    function randomLonLatInCountry(feature) {
+      const [[west, south], [east, north]] = d3.geoBounds(feature);
+      const lonSpan = east >= west ? east - west : east + 360 - west;   // shape crossing the date line
+
+      for (let attempt = 0; attempt < 300; attempt++) {
+        let lon = west + Math.random() * lonSpan;
+        if (lon > 180) lon -= 360;
+        const lat = south + Math.random() * (north - south);
+
+        if (d3.geoContains(feature, [lon, lat])) return [lon, lat];
+      }
+
+      // Very thin shape: fall back to its centre.
+      return d3.geoCentroid(feature);
+    }
+
+    // Where a dish's pin goes: inside its country, or null if the country is not on the map.
+    // Several pins can share a small country, so of a few random spots we take the one farthest
+    // from the pins already placed, which keeps them from sitting on top of each other.
+    function getLonLatForCountry(country) {
+      const feature = countryFeatures.get(normalizeMapCountryName(country));
+      if (!feature) return null;
+
+      const candidates = Array.from({ length: 12 }, () => randomLonLatInCountry(feature));
+      if (!mapProjection || !placedPins.length) return candidates[0];
+
+      let best = candidates[0];
+      let bestGap = -1;
+      candidates.forEach(lonlat => {
+        const here = mapProjection(lonlat);
+        const gap = Math.min(...placedPins.map(other => {
+          const there = mapProjection(other.lonlat);
+          return Math.hypot(here[0] - there[0], here[1] - there[1]);
+        }));
+        if (gap > bestGap) {
+          bestGap = gap;
+          best = lonlat;
+        }
+      });
+      return best;
+    }
+
+    // Single floating hover/focus preview card, reused for every pin.
+    const tooltip = document.createElement('div');
+    tooltip.className = 'map-pin-tooltip';
+    tooltip.innerHTML = `
+      <img class="map-pin-tooltip-img" alt="">
+      <div class="map-pin-tooltip-body">
+        <span class="map-pin-tooltip-title"></span>
+        <span class="map-pin-tooltip-meta"></span>
+        <span class="map-pin-tooltip-score"></span>
+      </div>
+    `;
+    document.body.appendChild(tooltip);
+    const tooltipImg = tooltip.querySelector('.map-pin-tooltip-img');
+    const tooltipTitle = tooltip.querySelector('.map-pin-tooltip-title');
+    const tooltipMeta = tooltip.querySelector('.map-pin-tooltip-meta');
+    const tooltipScore = tooltip.querySelector('.map-pin-tooltip-score');
+
+    function showTooltip(pinElem, dish, score) {
+      tooltipImg.src = dish.image_link || '';
+      tooltipTitle.textContent = dish.title || 'Unknown Dish';
+      tooltipMeta.textContent = `${dish.region || 'No Specific'} \u2022 ${dish.country || ''}`;
+      if (dish === MAP_DATA.sourceDish) {
+        tooltipScore.textContent = 'Original dish';
+      } else {
+        tooltipScore.textContent = (score !== null && score !== undefined && score !== '')
+          ? `${score}% similarity`
+          : '';
+      }
+
+      tooltip.classList.add('visible');
+
+      const pinRect = pinElem.getBoundingClientRect();
+      const tooltipRect = tooltip.getBoundingClientRect();
+
+      let left = pinRect.left + (pinRect.width / 2) - (tooltipRect.width / 2);
+      let top = pinRect.top - tooltipRect.height - 12;
+
+      // Keep the card on-screen: flip below the pin if it would run off the
+      // top, and clamp horizontally within the viewport.
+      if (top < 8) {
+        top = pinRect.bottom + 12;
+      }
+      left = Math.max(8, Math.min(left, window.innerWidth - tooltipRect.width - 8));
+
+      tooltip.style.left = `${left}px`;
+      tooltip.style.top = `${top}px`;
+    }
+
+    function hideTooltip() {
+      tooltip.classList.remove('visible');
+    }
+
+    // Builds one pin <button> for a dish and drops it on the map.
+    function createPin(dish, score, typeClass, extraClass) {
+      if (!dish || !dish.country) return null;
+
+      const lonlat = getLonLatForCountry(dish.country);
+      if (!lonlat) return null;
+
+      const pin = document.createElement('button');
+      pin.type = 'button';
+      pin.className = `map-pin map-pin--${typeClass}${extraClass ? ' ' + extraClass : ''}`;
+      pin.setAttribute('aria-label', `${dish.title || 'Dish'} (${dish.country || ''})`);
+
+      const img = document.createElement('img');
+      img.src = dish.image_link || '';
+      img.alt = dish.title || '';
+      img.referrerPolicy = 'no-referrer';
+      pin.appendChild(img);
+
+      pin.addEventListener('mouseenter', () => showTooltip(pin, dish, score));
+      pin.addEventListener('focus', () => showTooltip(pin, dish, score));
+      pin.addEventListener('mouseleave', hideTooltip);
+      pin.addEventListener('blur', hideTooltip);
+      pin.addEventListener('click', () => {
+        document.querySelectorAll('.map-pin.is-active').forEach(p => p.classList.remove('is-active'));
+        pin.classList.add('is-active');
+        updateSidebarDish(dish);
+      });
+
+      pinsLayer.appendChild(pin);
+
+      // The pin remembers its longitude/latitude; it is placed (and re-placed after every resize)
+      // as a percentage of the map box, which is the same box the SVG map fills.
+      const entry = { pin, lonlat };
+      placedPins.push(entry);
+      positionPin(entry);
+
+      return pin;
+    }
+
+    function buildAllPins() {
+      if (!pinsLayer) return;
+      pinsLayer.innerHTML = '';
+      placedPins.length = 0;
+
+      // Original dish, in its home country (also a "main" pin, so the
+      // MAIN DISH filter toggles both main dishes together).
+      if (MAP_DATA.sourceDish) {
+        createPin(MAP_DATA.sourceDish, null, 'main', 'map-pin--origin');
+      }
+
+      if (MAP_DATA.recommendedDish) {
+        createPin(MAP_DATA.recommendedDish, MAP_DATA.similarityScore, 'main');
+      }
+
+      (MAP_DATA.regionalVariations || []).slice(0, 3).forEach(dish => {
+        createPin(dish, dish.score, 'regional');
+      });
+
+      (MAP_DATA.internationalSimilarities || []).slice(0, 5).forEach(dish => {
+        createPin(dish, dish.score, 'international');
+      });
+    }
+
+    // Load the shapes, draw the map, drop the pins on it, then keep it in step with the box size
+    // (the same box is shown small on the page and large in the full-screen map).
+    (async () => {
+      try {
+        await loadWorldMapData();
+      } catch (error) {
+        console.error('Unable to load world map:', error);
+        return;
+      }
+      drawWorldMap();
+      buildAllPins();
+      refreshWorldMap();
+
+      if (originalMapPlaceholder && 'ResizeObserver' in window) {
+        new ResizeObserver(refreshWorldMap).observe(originalMapPlaceholder);
+      }
+      window.addEventListener('resize', refreshWorldMap);
+    })();
+
+    // ==================================
+    // FULL-SCREEN MAP: PAN & ZOOM
+    // Drag to pan, scroll wheel or the +/-/RESET buttons to zoom. Panning
+    // starts only when the pointer goes down on empty map space (not on a
+    // pin), so pins keep working normally for hover/click.
+    // ==================================
+    const zoomInBtn = document.getElementById('mapZoomIn');
+    const zoomOutBtn = document.getElementById('mapZoomOut');
+    const zoomResetBtn = document.getElementById('mapZoomReset');
+
+    const MIN_SCALE = 1;
+    const MAX_SCALE = 4;
+
+    // Pin size while zoomed. The whole map layer (pins included) is enlarged by the zoom, so the
+    // pins are scaled back down: their size ON SCREEN falls by PIN_SHRINK for every +1x of zoom,
+    // but never below PIN_MIN_SIZE of their normal size (so they stay visible and clickable).
+    // At 1x they are full size; they shrink normally until 2x, then stay at 80%.
+    const PIN_SHRINK = 0.10;     // Pins shrink 10% for each +1x zoom     // Normal shrink rate before the lock     // Rate at which pins shrink per 1x zoom increase
+    const PIN_MIN_SIZE = 0.80;   // Hard minimum: 80% of normal pin size // Pins never go below 80% of normal size
+    const PIN_LOCK_ZOOM = 3.0;   // At 3x zoom, the pin locks at 80%   // At 2x zoom, the 80% pin-size floor locks in
+    let mapScale = 1;
+    let mapTranslateX = 0;
+    let mapTranslateY = 0;
+    let isPanning = false;
+    let panStartX = 0;
+    let panStartY = 0;
+    let panStartTranslateX = 0;
+    let panStartTranslateY = 0;
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    // Pan limits. The map may be dragged past its own edges into empty space:
+    // a wide gutter on the left (the sidebar's width plus breathing room) so
+    // the part of the map hidden under the panel can be pulled into view, and
+    // a smaller gutter on the other sides.
+    const PAN_GUTTER = 160;
+
+    function clampMapTranslate() {
+      if (!modalMapBody) return;
+      const viewportWidth = modalMapBody.clientWidth;
+      const viewportHeight = modalMapBody.clientHeight;
+      const scaledWidth = viewportWidth * mapScale;
+      const scaledHeight = viewportHeight * mapScale;
+      const sidebarWidth = sidebar ? sidebar.offsetWidth : 0;
+
+      const minX = Math.min(0, viewportWidth - scaledWidth) - PAN_GUTTER;
+      const maxX = sidebarWidth + PAN_GUTTER;
+      const minY = Math.min(0, viewportHeight - scaledHeight) - PAN_GUTTER;
+      const maxY = PAN_GUTTER;
+
+      mapTranslateX = clamp(mapTranslateX, minX, maxX);
+      mapTranslateY = clamp(mapTranslateY, minY, maxY);
+    }
+
+    
+
+    function applyMapTransform() {
+      if (!originalMapPlaceholder) return;
+
+      originalMapPlaceholder.style.transform =
+        `translate(${mapTranslateX}px, ${mapTranslateY}px) scale(${mapScale})`;
+
+      // Calculate the pin's visible size first, then divide by mapScale
+      // because the entire map (including pins) is being zoomed.
+      // Before 3x: 100% -> 90% -> 80% as zoom increases.
+      // At 3x and beyond: permanently lock the visible pin size at 80%.
+      const pinSizeOnScreen = mapScale >= PIN_LOCK_ZOOM
+        ? PIN_MIN_SIZE
+        : Math.max(
+            PIN_MIN_SIZE,
+            1 - PIN_SHRINK * (mapScale - 1)
+          );
+
+      originalMapPlaceholder.style.setProperty(
+        '--pin-scale',
+        (pinSizeOnScreen / mapScale).toFixed(6)
+      );
+    }
+
+    function resetMapTransform() {
+      mapScale = 1;
+      mapTranslateX = 0;
+      mapTranslateY = 0;
+      applyMapTransform();
+    }
+
+    // Zooms toward a specific point (in viewport-local pixel coordinates),
+    // keeping that point visually fixed under the cursor/finger.
+    function zoomMapTo(newScale, pivotX, pivotY) {
+      const clampedScale = clamp(newScale, MIN_SCALE, MAX_SCALE);
+      const scaleRatio = clampedScale / mapScale;
+
+      mapTranslateX = pivotX - (pivotX - mapTranslateX) * scaleRatio;
+      mapTranslateY = pivotY - (pivotY - mapTranslateY) * scaleRatio;
+      mapScale = clampedScale;
+
+      clampMapTranslate();
+      applyMapTransform();
+    }
+
+    function zoomMapByFactor(factor) {
+      if (!modalMapBody) return;
+      const rect = modalMapBody.getBoundingClientRect();
+      zoomMapTo(mapScale * factor, rect.width / 2, rect.height / 2);
+    }
+
+    if (modalMapBody) {
+      modalMapBody.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const rect = modalMapBody.getBoundingClientRect();
+        const pivotX = e.clientX - rect.left;
+        const pivotY = e.clientY - rect.top;
+        const zoomFactor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+        zoomMapTo(mapScale * zoomFactor, pivotX, pivotY);
+      }, { passive: false });
+
+      modalMapBody.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('.map-pin')) return;
+
+        isPanning = true;
+        modalMapBody.setPointerCapture(e.pointerId);
+        modalMapBody.classList.add('is-panning');
+        panStartX = e.clientX;
+        panStartY = e.clientY;
+        panStartTranslateX = mapTranslateX;
+        panStartTranslateY = mapTranslateY;
+      });
+
+      modalMapBody.addEventListener('pointermove', (e) => {
+        if (!isPanning) return;
+        mapTranslateX = panStartTranslateX + (e.clientX - panStartX);
+        mapTranslateY = panStartTranslateY + (e.clientY - panStartY);
+        clampMapTranslate();
+        applyMapTransform();
+      });
+
+      const endMapPan = () => {
+        isPanning = false;
+        modalMapBody.classList.remove('is-panning');
+      };
+      modalMapBody.addEventListener('pointerup', endMapPan);
+      modalMapBody.addEventListener('pointercancel', endMapPan);
+      modalMapBody.addEventListener('pointerleave', endMapPan);
+    }
+
+    if (zoomInBtn) zoomInBtn.addEventListener('click', () => zoomMapByFactor(1.4));
+    if (zoomOutBtn) zoomOutBtn.addEventListener('click', () => zoomMapByFactor(1 / 1.4));
+    if (zoomResetBtn) zoomResetBtn.addEventListener('click', resetMapTransform);
+
+    // Modal Control Handlers
+    // NOTE: the map placeholder (image + area map + live pins) is *moved* into
+    // the modal rather than cloned, so the pins keep their hover/click
+    // behavior instead of losing their event listeners on a clone.
+    if (openBtn && modal) {
+      openBtn.addEventListener('click', () => {
+        if (modalMapBody && originalMapPlaceholder) {
+          modalMapBody.appendChild(originalMapPlaceholder);
+        }
+
+        resetMapTransform();
+        updateSidebarDish(activeDish);
+        if (sidebar) sidebar.classList.remove('collapsed');
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        requestAnimationFrame(refreshWorldMap);
+      });
+    }
+
+    const closeModal = () => {
+      if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+
+      resetMapTransform();
+
+      // Move the map back into the small dashboard preview.
+      if (mapPanWrapper && originalMapPlaceholder && !mapPanWrapper.contains(originalMapPlaceholder)) {
+        mapPanWrapper.insertBefore(originalMapPlaceholder, mapPanWrapper.firstChild);
+      }
+      requestAnimationFrame(refreshWorldMap);
+    };
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeModal);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal && modal.classList.contains('active')) {
+        closeModal();
+      }
+    });
+
+    // Sidebar Collapsible Toggle
+    if (toggleSidebarBtn && sidebar) {
+      toggleSidebarBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+      });
+    }
+
+    // Sidebar Tab Navigation
+    if (sidebar) {
+      const tabBtns = sidebar.querySelectorAll('.tab-btn');
+      const tabContents = sidebar.querySelectorAll('.tab-content');
+
+      tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          tabBtns.forEach(b => b.classList.remove('active'));
+          tabContents.forEach(c => c.classList.remove('active'));
+
+          btn.classList.add('active');
+          const targetTab = btn.getAttribute('data-tab');
+          const targetContent = sidebar.querySelector(`#tab-${targetTab}`);
+          if (targetContent) {
+            targetContent.classList.add('active');
+          }
+        });
+      });
+    }
+
+    // Map Filter Layer Toggles
+    // All three layers start ON (all pins visible). Clicking a pill toggles
+    // that category's pins on/off independently -- it does not affect the
+    // other two pills.
+    const filterPills = document.querySelectorAll('.map-filter-pill');
+    filterPills.forEach(pill => {
+      pill.classList.add('active');
+      pill.setAttribute('aria-checked', 'true');
+
+      pill.addEventListener('click', () => {
+        pill.classList.toggle('active');
+        const isActive = pill.classList.contains('active');
+        pill.setAttribute('aria-checked', String(isActive));
+        const layer = pill.getAttribute('data-layer');
+
+        document.querySelectorAll(`.map-pin--${layer}`).forEach(pinEl => {
+          pinEl.style.display = isActive ? '' : 'none';
+        });
+      });
+    });
+  });
+</script>
+</body>
+</html>
