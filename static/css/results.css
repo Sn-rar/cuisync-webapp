@@ -4,39 +4,40 @@
 .results-page {
   background-color: var(--maroon-main);
   color: #ffffff;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'DM Sans', 'Poppins', sans-serif;
 }
 
 .results-container {
   width: 100%;
   margin: 0 auto;
+  padding-top: 40px;
 }
 
 .inner-content {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 20px 0;
 }
 
 .section-dark {
   background-color: var(--maroon-main);
-  padding: 40px 0;
+  padding: 40px 0 0 0;
 }
 
 .section-light {
   background-color: var(--cream-bg);
   color: var(--text-dark);
-  padding: 60px 0;
+  padding: 40px 0 64px;
 }
 
 .section-heading {
-  font-family: 'Playfair Display', serif;
+  font-family: 'DM Sans', 'Poppins', sans-serif;
   font-size: 1.5rem;
-  letter-spacing: 1.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--gold-accent);
-  margin-top: 8px;
-  font-weight: 700;
+  margin: 0 0 20px;
 }
 
 .extracted-entities-container{
@@ -47,134 +48,122 @@
   color: var(--maroon-dark);
 }
 
-.heading-line {
-  height: 1px;
-  background-color: rgba(220, 179, 73, 0.4);
-  margin-bottom: 30px;
-  width: 100%;
+.section-subheading {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-sub, rgba(255, 255, 255, 0.85));
+  margin: 0;
+}
+
+/* Heading on the left, short description on the right */
+.section-head-split {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+  margin-bottom: 22px;
+}
+
+.section-head-split .section-heading {
+  margin: 0;
+}
+
+.section-head-split .section-subheading {
+  max-width: 500px;
 }
 
 /* ==========================================================================
-   SUB-NAV BAR & BREADCRUMBS
+   SEARCH SUMMARY BAR (cuisine / origin -> target / search again)
    ========================================================================== */
-.navbar {
-  position: relative;
-}
-
-.results-subnav {
-  position: relative;
-  z-index: 90;
-  background-color: var(--maroon-dark);
-  border-top: 1px solid rgba(0, 0, 0, 0.15);
-  width: 100%;
-  padding: 10px 0;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: transform 0.3s ease-in-out;
-  transform: translateY(0);
-}
-
-.results-subnav.is-sticky {
-  position: fixed;
-  top: 0;
-  left: 0;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-}
-
-.results-subnav.nav-hidden {
-  transform: translateY(-100%);
-}
-
-.results-subnav .subnav-container {
-  max-width: 1200px;
-  margin: 3px auto;
-  display: flex;
-  justify-content: space-evenly;
-  align-items: center;
-}
-
-.subnav-links {
+.readonly-search-bar {
   display: flex;
   align-items: center;
-  gap: 100px;
+  gap: 28px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(220, 179, 73, 0.4);
+  border-radius: 6px;
+  padding: 16px 26px;
+  margin-bottom: 32px;
 }
 
-.subnav-links a {
-  color: var(--text-white);
-  text-decoration: none;
-  font-size: 0.85rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  opacity: 0.85;
-  transition: opacity 0.2s ease, color 0.2s ease;
+.field-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.subnav-links a:hover,
-.subnav-links a.active {
+.cuisine-field {
+  min-width: 150px;
+}
+
+.field-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--gold-accent);
 }
 
-.btn-search-nav {
+.field-value {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.field-divider {
+  width: 1px;
+  align-self: stretch;
+  background-color: rgba(220, 179, 73, 0.35);
+}
+
+.field-arrow {
+  color: var(--gold-accent);
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.btn-search-new {
+  margin-left: auto;
   background-color: var(--gold-accent);
   color: #2b2008;
-  font-size: 0.75rem;
+  font-size: 0.66rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   text-decoration: none;
-  padding: 6px 18px;
+  padding: 8px 14px;
   border-radius: 4px;
-  display: inline-block;
+  white-space: nowrap;
   transition: background-color 0.2s ease, transform 0.1s ease;
 }
 
-.btn-search-nav:hover {
+.btn-search-new:hover {
   background-color: #9e813a;
   transform: translateY(-1px);
-}
-
-.results-header-section {
-  padding: 5px 0 5px;
-}
-
-.breadcrumb {
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.8);
-  font-family: inherit;
-}
-
-.breadcrumb a:hover {
-  text-decoration: underline;
-}
-
-.breadcrumb .active-crumb {
-  color: var(--gold-accent);
-}
-
-.inner-content .breadcrumb {
-  padding-top: 10px;
 }
 
 /* ==========================================================================
    DISH COMPARISON CARDS
    ========================================================================== */
 .comparison-grid {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 30px;
+  gap: 36px;
 }
 
 .dish-card {
   background-color: var(--cream-bg);
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
+  min-height: 300px;
 }
 
 .dish-img-wrapper {
   position: relative;
-  height: 220px;
+  height: 200px;
   width: 100%;
 }
 
@@ -182,21 +171,22 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
 }
 
 .img-badge {
   position: absolute;
-  bottom: 10px;
-  left: 15px;
-  background-color: rgba(0, 0, 0, 0.65);
+  bottom: 8px;
+  left: 14px;
+  background-color: rgba(0, 0, 0, 0.6);
   color: #ffffff;
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-size: 0.75rem;
+  padding: 3px 9px;
+  border-radius: 3px;
+  font-size: 0.7rem;
 }
 
 .dish-card-body {
-  padding: 0px 20px 20px;
+  padding: 16px 22px 22px;
   color: var(--text-dark);
   flex-grow: 1;
   display: flex;
@@ -205,9 +195,16 @@
 
 .dish-title {
   font-family: 'Playfair Display', serif;
-  font-size: 1.35rem;
-  margin-bottom: 2px;
-  color: var(--maroon-dark);
+  font-size: 1.45rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: var(--maroon-main);
+}
+
+.dish-alt {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0 0 4px;
 }
 
 .dish-alt{
@@ -220,37 +217,29 @@
 .dish-subtitle {
   font-size: 0.68rem;
   color: var(--text-muted);
-  letter-spacing: 1px;
-  margin-bottom: 15px;
+  letter-spacing: 0.04em;
+  margin: 0 0 14px;
 }
 
-.ingredient-tags {
+.btn-links {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 15px;
-}
-
-.ing-tag {
-  background-color: var(--input-bg);
-  border: 1px solid var(--gold-border);
-  color: var(--text-dark);
-  padding: 5px 12px;
-  border-radius: 15px;
-  font-size: 0.72rem;
+  margin-top: auto;
 }
 
 .btn-primary-action {
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background-color: var(--maroon-main);
   color: var(--gold-accent);
-  border: none;
-  padding: 10px 0;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  letter-spacing: 1px;
-  cursor: pointer;
-  margin-top: auto;
+  padding: 11px 0;
+  border-radius: 4px;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-decoration: none;
   transition: background-color 0.2s ease;
 }
 
@@ -258,207 +247,104 @@
   background-color: var(--maroon-dark);
 }
 
-.btn-links {
-  display: flex;
-  align-items: center;
-  flex-direction: row;
-  gap: 10px;
-  flex-wrap: nowrap;
-  text-align: center;
-}
-
-/* ==========================================================================
-   SIMILARITY SUMMARY & PROGRESS BARS
-   ========================================================================== */
-.similarity-metrics-grid {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 40px;
-  align-items: center;
-  margin-bottom: 35px;
-}
-
-.donut-box {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-/* --percent is set inline per element (0-100) to drive the fill amount */
-.donut-chart {
-  width: 150px;
-  height: 150px;
-  border-radius: 50%;
-  background: conic-gradient(
-    var(--maroon-main) calc(var(--percent) * 1%),
-    var(--gold-accent) 0
-  );
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 12px;
-}
-
-.donut-center {
-  width: 105px;
-  height: 105px;
-  background-color: var(--cream-bg);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.donut-percentage {
-  font-family: 'Playfair Display', serif;
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--maroon-dark);
-}
-
-.donut-label {
-  font-size: 0.68rem;
-  letter-spacing: 1px;
-  color: var(--text-muted);
-  text-align: center;
-}
-
-.progress-bars-box {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.progress-item {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.progress-info {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--maroon-dark);
-  letter-spacing: 0.5px;
-}
-
-.progress-track {
-  width: 100%;
-  height: 8px;
-  background-color: #dcd4c1;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--gold-accent), var(--maroon-main));
-  border-radius: 4px;
-}
-
-.quote-card {
-  background-color: #ede7d7;
-  border: 1px solid var(--gold-border);
-  border-radius: 8px;
-  padding: 25px 30px;
-  position: relative;
-  margin-bottom: 10px;
-}
-
-.quote-icon {
-  font-family: serif;
-  font-size: 3rem;
-  color: var(--gold-accent);
+/* Overall similarity badge, overlapping the gap between the two photos */
+.similarity-badge {
   position: absolute;
-  top: 10px;
-  left: 15px;
-  opacity: 0.5;
-  line-height: 1;
-}
-
-.quote-text {
-  font-size: 0.85rem;
-  line-height: 1.6;
-  color: var(--text-dark);
-  position: relative;
-  z-index: 1;
-  margin-left: 20px;
-  margin-bottom: 15px;
-}
-
-.quote-footer {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-left: 20px;
-}
-
-.badge-mini {
+  left: 50%;
+  top: 124px;
+  transform: translateX(-50%);
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
   background-color: var(--maroon-main);
+  box-shadow: 0 0 0 4px rgba(120, 12, 16, 0.55), 0 6px 18px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  z-index: 5;
+}
+
+.badge-score {
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1;
   color: #ffffff;
-  font-size: 0.6rem;
-  padding: 2px 6px;
-  border-radius: 3px;
+}
+
+.badge-score small {
+  font-size: 0.7em;
   font-weight: 600;
 }
 
-.footer-note {
-  font-size: 0.7rem;
-  color: var(--text-muted);
+.badge-label {
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--gold-accent);
 }
 
 /* ==========================================================================
-   EXTRACTED ENTITIES
+   RECIPE BREAKDOWN (extracted entities)
    ========================================================================== */
+.recipe-breakdown-section {
+  padding-top: 24px;
+  padding-bottom: 56px;
+}
+
 .entities-card {
   background-color: var(--cream-card);
-  border: 1px solid var(--gold-border);
-  border-radius: 8px;
-  padding: 25px 30px;
+  border: 1.5px solid var(--gold-accent);
+  border-radius: 14px;
+  padding: 26px 34px 32px;
   display: flex;
   flex-direction: column;
   gap: 22px;
+  color: var(--text-dark);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
 }
 
-.entity-group {
+.entity-filters {
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 12px;
+  justify-content: center;
   flex-wrap: wrap;
+  gap: 10px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--gold-accent);
 }
 
-.entity-category-block {
+.entities-card .entity-group {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 10px;
+  padding: 0 14px;
 }
 
 .entity-category-label {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--maroon-dark);
-  letter-spacing: 0.5px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--maroon-main);
+  letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 
-.chips-wrapper {
+.entities-card .chips-wrapper {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 9px;
 }
 
 .filter-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 18px;
+  padding: 3px 14px;
   border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
   cursor: pointer;
   user-select: none;
   background-color: transparent;
@@ -505,126 +391,240 @@
   color: #ffffff;
 }
 
-.entity-chip {
-  padding: 6px 16px;
-  border-radius: 20px;
-  font-size: 0.82rem;
+/* Scoped to the breakdown card so the map sidebar's smaller chips are untouched */
+.entities-card .entity-chip {
+  padding: 3px 14px;
+  border-radius: 999px;
+  font-size: 0.72rem;
   font-weight: 500;
   display: inline-block;
 }
 
-.chip-maroon {
-  background-color: #e2a8a8;
-  border: 1px solid var(--maroon-light);
-  color: #732121;
+.entities-card .chip-gold {
+  background-color: #efe4b8;
+  border: 1px solid #d9c36f;
+  color: #9a7f2f;
 }
 
-.chip-green {
-  background-color: #aed0bd;
+.entities-card .chip-maroon {
+  background-color: #e7b1b1;
+  border: 1px solid #c97a7a;
+  color: #8a1a1e;
+}
+
+.entities-card .chip-green {
+  background-color: #b3d1c0;
   border: 1px solid #7ea88f;
   color: #215438;
 }
 
-.entities-legend {
+/* ==========================================================================
+   SIMILARITY SUMMARY & PROGRESS BARS
+   ========================================================================== */
+.similarity-section .section-heading {
+  margin-bottom: 8px;
+}
+
+.heading-rule {
+  height: 1px;
+  background-color: var(--gold-accent);
+  max-width: 96%;
+  margin-bottom: 34px;
+}
+
+.similarity-metrics-grid {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 0;
+  align-items: center;
+  margin-bottom: 36px;
+}
+
+.donut-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* --percent is set inline (0-100) to drive the filled arc */
+.donut-chart {
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--maroon-main) calc(var(--percent) * 1%),
+    #e5dcc7 0
+  );
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 30px;
-  border-top: 1px solid var(--gold-border);
-  padding-top: 15px;
-  margin-top: 5px;
+  margin-bottom: 14px;
 }
 
-.legend-item {
+.donut-center {
+  width: 126px;
+  height: 126px;
+  background-color: var(--cream-bg);
+  border-radius: 50%;
   display: flex;
   align-items: center;
+  justify-content: center;
+}
+
+.donut-percentage {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: var(--maroon-main);
+}
+
+.donut-label {
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.sim-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  border-left: 1px solid var(--gold-accent);
+  padding: 8px 0 8px 48px;
+  max-width: 560px;
+}
+
+.sim-bar {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  font-size: 0.8rem;
+}
+
+.sim-bar-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.66rem;
+  font-weight: 500;
+  color: var(--maroon-dark);
+  letter-spacing: 0.02em;
+}
+
+.sim-bar-track {
+  width: 100%;
+  height: 8px;
+  background-color: #e5dcc7;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.sim-bar-fill {
+  width: calc(var(--pct, 0) * 1%);
+  height: 100%;
+  background: linear-gradient(90deg, var(--maroon-main), var(--gold-accent));
+  border-radius: 6px;
+}
+
+.quote-card {
+  background-color: #f1ece0;
+  border: 1px solid var(--gold-border);
+  border-radius: 10px;
+  padding: 30px 40px 24px;
+  position: relative;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+}
+
+.quote-icon {
+  font-family: 'Playfair Display', serif;
+  font-size: 4rem;
+  color: var(--maroon-main);
+  position: absolute;
+  top: 14px;
+  left: 22px;
+  opacity: 0.22;
+  line-height: 1;
+}
+
+.quote-text {
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--text-dark);
+  position: relative;
+  z-index: 1;
+  margin: 0 0 22px 24px;
+}
+
+.quote-text strong {
+  font-weight: 700;
+  color: #1d1d1d;
+}
+
+.quote-footer {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-top: 1px solid var(--gold-accent);
+  padding-top: 14px;
+  margin-left: 0;
+}
+
+.badge-mini {
+  background-color: var(--maroon-main);
+  color: var(--gold-accent);
+  font-size: 0.58rem;
+  padding: 3px 7px;
+  border-radius: 3px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.footer-note {
+  font-size: 0.66rem;
   color: var(--text-muted);
 }
 
-.dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-.dot-gold { background-color: var(--gold-accent); }
-.dot-maroon { background-color: var(--maroon-main); }
-.dot-green { background-color: #2d6b4f; }
-
 /* ==========================================================================
-   GEOGRAPHICAL DISTRIBUTION SPLIT LAYOUT
+   OTHER SIMILAR CUISINES (map preview)
    ========================================================================== */
-/* Header Action Button */
-/* Base Section Styling */
 .section-dark.geo-map-section {
   background-color: var(--bg-deep-red);
-  padding: 2.5rem;
-  border-radius: 16px;
+  padding: 56px 0 72px;
+  border-radius: 0;
   color: var(--text-gold);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.geo-map-section .section-heading {
+  color: #ffffff;
 }
 
 /* Header Area */
 .geo-map-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1.5rem;
+  align-items: center;
+  margin-bottom: 1.25rem;
   gap: 2rem;
 }
 
 .header-text-group {
-  max-width: 700px;
+  display: contents;
 }
 
-.section-heading {
-  font-size: 1.5rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  margin: 0 0 0.5rem 0;
-  color: #ffffff;
-  text-transform: uppercase;
-}
-
-.section-subheading {
-  font-size: 0.875rem;
-  line-height: 1.45;
-  color: var(--text-sub);
+.geo-map-header .section-heading {
   margin: 0;
 }
 
-/* Action Button */
-.btn-full-view {
-  background-color: var(--gold-accent);
-  color: var(--dark-text);
-  border: none;
-  padding: 0.65rem 1.25rem;
-  border-radius: 10px;
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s ease;
-}
-
-.btn-full-view:hover {
-  background-color: #b48139;
+.geo-map-header .section-subheading {
+  max-width: 500px;
 }
 
 /* Outer Card Container */
 .map-pan-wrapper {
   position: relative;
   width: 100%;
-  height: 300px;
+  height: 320px;
   background-color: rgba(0, 0, 0, 0.25);
-  border-radius: 16px;
+  border-radius: 10px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
@@ -643,11 +643,11 @@
   left: 0;
   width: 100%;
   height: 100%;
-  /* Gradient from dark red/transparent down to dark shadow at the bottom */
+  /* Rose tint at the top fading to deep red behind the info bar */
   background: linear-gradient(
-    180deg, 
-    rgba(110, 39, 39, 0.1) 40%, 
-    rgba(121, 29, 29, 0.75) 100%
+    180deg,
+    rgba(154, 15, 20, 0.35) 30%,
+    rgba(110, 10, 14, 0.85) 100%
   );
   pointer-events: none; /* Allows clicks to pass through to the map image underneath */
   z-index: 1;
@@ -671,10 +671,22 @@
   z-index: 2;
 }
 
-/* Individual Map Pin (circular dish thumbnail marker) */
+/* Hover grow of a pin. Registered so only THIS value animates; the zoom shrink below
+   (--pin-scale, set by JS) applies instantly and stays in step with the map while zooming.
+   Browsers without @property still work: the hover grow just isn't animated. */
+@property --pin-hover {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+
+/* Individual Map Pin (circular dish thumbnail marker).
+   --pin-scale is calculated by the map zoom JavaScript. The JS accounts
+   for the map's outer scale, so CSS only applies the resulting pin scale.
+   --pin-hover is added separately for the hover/focus grow effect. */
 .map-pin {
   position: absolute;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(calc(var(--pin-scale, 1) * var(--pin-hover, 1)));
   width: 32px;
   height: 32px;
   padding: 0;
@@ -686,7 +698,7 @@
   pointer-events: auto;
   overflow: hidden;
   z-index: 3;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, z-index 0s;
+  transition: --pin-hover 0.15s ease, box-shadow 0.15s ease, z-index 0s;
 }
 
 .map-pin img {
@@ -701,7 +713,7 @@
 .map-pin:hover,
 .map-pin:focus-visible,
 .map-pin.is-active {
-  transform: translate(-50%, -50%) scale(1.2);
+  --pin-hover: 1.2;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
   z-index: 5;
 }
@@ -723,6 +735,19 @@
 /* International similarity pins: maroon ring */
 .map-pin--international {
   border-color: var(--maroon-main);
+}
+
+/* Original dish pin: same size as the main dish, but a maroon ring inside a
+   gold halo so the two main pins are easy to tell apart. */
+.map-pin--origin {
+  border-color: var(--maroon-main);
+  box-shadow: 0 0 0 3px var(--gold-accent), 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.map-pin--origin:hover,
+.map-pin--origin:focus-visible,
+.map-pin--origin.is-active {
+  box-shadow: 0 0 0 3px var(--gold-accent), 0 4px 14px rgba(0, 0, 0, 0.55);
 }
 
 /* Hover / Focus Preview Card for a Pin */
@@ -789,21 +814,32 @@
   margin-top: 2px;
 }
 
-/* Bottom Floating Route Info Bar */
+/* Bottom bar: also the button that opens the full-screen map */
 .route-info-bar {
   position: absolute;
-  bottom: 1.25rem;
-  left: 1.25rem;
-  right: 1.25rem;
-  background-color: var(--pill-bg);
-  color: var(--dark-text);
-  border-radius: 14px;
-  padding: 0.85rem 1.25rem;
+  bottom: 1rem;
+  left: 1rem;
+  width: calc(100% - 2rem);
+  box-sizing: border-box;
+  background-color: var(--maroon-dark);
+  color: var(--gold-accent);
+  border: 1px solid rgba(220, 179, 73, 0.2);
+  border-radius: 10px;
+  padding: 0.95rem 1.4rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  gap: 1rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   z-index: 10;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: background-color 0.2s ease;
+}
+
+.route-info-bar:hover {
+  background-color: #4a080b;
 }
 
 .route-details {
@@ -818,19 +854,21 @@
 }
 
 .route-value {
-  font-size: 0.875rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  color: var(--dark-text);
+  letter-spacing: 0.06em;
+  color: var(--gold-accent);
 }
 
 .route-hint {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8rem;
+  gap: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  color: #726262;
+  color: #ffffff;
 }
+
 
 /* Modal Core Overlay */
 .map-modal-overlay {
@@ -838,8 +876,9 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
+  width: 100%;
   height: 100vh;
+  height: 100dvh;
   background-color: rgba(0, 0, 0, 0.85);
   z-index: 999999;
   backdrop-filter: blur(6px);
@@ -850,8 +889,9 @@
 }
 
 .map-modal-container {
-  width: 100vw;
+  width: 100%;
   height: 100vh;
+  height: 100dvh;
   position: relative;
   overflow: hidden;
   background-color: #e3d2bd;
@@ -1158,22 +1198,101 @@
   left: 20px;
 }
 
+/* Layer toggles. Each pill takes its pin's ring color:
+   main = gold, regional = green, international = maroon. */
 .map-filter-pill {
-  background-color: #7a1414;
-  color: #fff;
-  border: none;
-  padding: 8px 16px;
+  --pill-color: #7a1414;   /* fill when on / border + switch when off */
+  --pill-ink: #ffffff;     /* text color when on */
+  --pill-text: #7a1414;    /* text color when off */
+  --pill-track: rgba(255, 255, 255, 0.35);
+
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px 5px 7px;
+  border-radius: 999px;
+  border: 2px solid var(--pill-color);
+  background-color: #f7f1e5;
+  color: var(--pill-text);
+  font-family: inherit;
   font-size: 0.68rem;
-  font-weight: 600;
-  border-radius: 20px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   cursor: pointer;
-  opacity: 0.75;
-  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
+.map-filter-pill--main {
+  --pill-color: var(--gold-accent, #dcb349);
+  --pill-ink: #2b2008;
+  --pill-text: #8a6d1f;
+  --pill-track: rgba(43, 32, 8, 0.28);
+}
+
+.map-filter-pill--regional {
+  --pill-color: #2d6b4f;
+  --pill-text: #2d6b4f;
+}
+
+.map-filter-pill--international {
+  --pill-color: var(--maroon-main, #9a0f14);
+  --pill-text: var(--maroon-main, #9a0f14);
+}
+
+.map-filter-pill:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+/* Toggle switch */
+.pill-switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 16px;
+  border-radius: 999px;
+  background-color: rgba(0, 0, 0, 0.18);
+  transition: background-color 0.2s ease;
+}
+
+.pill-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  transition: transform 0.2s ease;
+}
+
+/* On */
 .map-filter-pill.active {
-  background-color: #2e7d32;
-  opacity: 1;
+  background-color: var(--pill-color);
+  color: var(--pill-ink);
+}
+
+.map-filter-pill.active .pill-switch {
+  background-color: var(--pill-track);
+}
+.gold-dot::before { background-color: #d4af37; }
+.maroon-dot::before { background-color: #732121; }
+.green-dot::before { background-color: #2e7d32; }
+
+.map-filter-pill.active .pill-switch::after {
+  transform: translateX(12px);
+}
+
+/* Off: cream pill, colored outline, switch knob on the left */
+.map-filter-pill:not(.active) .pill-switch {
+  background-color: rgba(0, 0, 0, 0.18);
+}
+
+.map-filter-pill:not(.active):hover {
+  background-color: #fffaf0;
 }
 
 .btn-exit-map {
@@ -1197,6 +1316,7 @@
 .modal-map-viewport {
   width: 100%;
   height: 100%;
+  background-color: #f1ede2; /* shows as the empty gutter when the map is panned past its edge */
   overflow: hidden;
   cursor: grab;
   touch-action: none;
@@ -1311,7 +1431,7 @@
   }
 
   .results-header-section {
-    padding: 16px 12px;
+    padding: 16px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px));
   }
 
   .breadcrumb {
@@ -1525,5 +1645,400 @@
     padding-left: 1rem !important;
     padding-right: 1rem !important;
     box-sizing: border-box !important;
+  }
+}
+
+/* ==========================================================================
+   MAP OVERLAY: sidebar slides in from the left when the map opens, so it is
+   obvious the panel sits on top of part of the map.
+   ========================================================================== */
+@keyframes panelSlideIn {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+
+@keyframes filterBarShift {
+  from { left: 20px; }
+  to   { left: 380px; }
+}
+
+.map-modal-overlay.active .map-panel-left:not(.collapsed) {
+  animation: panelSlideIn 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s backwards;
+}
+
+.map-modal-overlay.active .map-panel-left:not(.collapsed) ~ .map-canvas-right .map-filter-bar {
+  animation: filterBarShift 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.3s backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-modal-overlay.active .map-panel-left:not(.collapsed),
+  .map-modal-overlay.active .map-panel-left:not(.collapsed) ~ .map-canvas-right .map-filter-bar {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   MAP OVERLAY SIDEBAR: recipe breakdown + similarity summary containers
+   ========================================================================== */
+/* Restore chip colors globally (they were only defined inside the page card) */
+.chip-maroon {
+  background-color: #e7b1b1;
+  border: 1px solid #c97a7a;
+  color: #8a1a1e;
+}
+
+.chip-green {
+  background-color: #b3d1c0;
+  border: 1px solid #7ea88f;
+  color: #215438;
+}
+
+.panel-card {
+  background-color: #ece3cc;
+  border: 1.5px solid var(--gold-accent);
+  border-radius: 12px;
+  padding: 16px 16px 8px;
+  margin-bottom: 14px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+
+.panel-card .panel-legend {
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--gold-accent);
+}
+
+.panel-card .entity-title {
+  color: var(--maroon-main);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.panel-card .entity-chip {
+  padding: 3px 11px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.panel-card .chip-gold {
+  background-color: #efe4b8;
+  border: 1px solid #d9c36f;
+  color: #9a7f2f;
+}
+
+.entity-empty {
+  font-size: 0.7rem;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+/* Original dish selected: no comparison to show */
+.origin-note {
+  display: none;
+  background-color: #ece3cc;
+  border: 1.5px solid var(--gold-accent);
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-dark);
+}
+
+#tab-similarity.is-origin .origin-note {
+  display: block;
+}
+
+#tab-similarity.is-origin .panel-card,
+#tab-similarity.is-origin .modal-quote {
+  display: none;
+}
+
+#tab-recipe.is-origin .modal-quote,
+#tab-recipe.is-origin .legend-chip.gold-dot,
+#tab-recipe.is-origin .legend-chip.green-dot {
+  display: none;
+}
+
+/* Similarity tab: same donut + bars + quote card as the results page, scaled for the panel */
+.map-panel-left .donut-box {
+  margin-bottom: 18px;
+}
+
+.map-panel-left .donut-chart {
+  width: 130px;
+  height: 130px;
+  margin-bottom: 10px;
+}
+
+.map-panel-left .donut-center {
+  width: 96px;
+  height: 96px;
+}
+
+.map-panel-left .donut-percentage {
+  font-size: 1.8rem;
+}
+
+.map-panel-left .sim-bars {
+  border-left: none;
+  border-top: 1px solid var(--gold-accent);
+  padding: 16px 0 8px;
+  max-width: none;
+  gap: 14px;
+}
+
+.map-panel-left .sim-bar-info {
+  font-size: 0.62rem;
+}
+
+.modal-quote {
+  padding: 22px 18px 14px;
+  margin-bottom: 8px;
+}
+
+#tab-recipe .modal-quote {
+  margin-top: 14px;
+}
+
+.modal-quote .quote-icon {
+  font-size: 2.6rem;
+  top: 8px;
+  left: 12px;
+}
+
+.modal-quote .quote-text {
+  font-size: 0.74rem;
+  line-height: 1.55;
+  margin: 8px 0 14px 14px;
+}
+
+.modal-quote .quote-footer {
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+.modal-quote .footer-note {
+  font-size: 0.6rem;
+}
+
+/* ==========================================================================
+   RESPONSIVE: REDESIGNED RESULTS SECTIONS
+   ========================================================================== */
+@media (max-width: 850px) {
+  /* Stacked layout: cards sit in rows 1 and 3, the badge is pinned to the
+     thin middle row and centred on it, so it overlaps the bottom of the first
+     card and the top of the second regardless of how tall the cards are.
+     Explicit placement of the badge means DOM order doesn't matter. */
+  .comparison-grid {
+    grid-template-rows: auto 28px auto;
+    row-gap: 0;
+  }
+
+  .comparison-grid > .similarity-badge {
+    grid-row: 2;
+    grid-column: 1;
+    position: relative;
+    left: auto;
+    top: auto;
+    transform: none;
+    margin: 0;
+    justify-self: center;
+    align-self: center;
+    z-index: 5;
+  }
+
+  .dish-card {
+    min-height: 0;
+  }
+
+  .section-head-split,
+  .geo-map-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .section-head-split .section-subheading,
+  .geo-map-header .section-subheading {
+    max-width: none;
+  }
+
+  .entities-card {
+    padding: 22px 18px 26px;
+  }
+
+  .entities-card .entity-group {
+    padding: 0;
+  }
+
+  .similarity-metrics-grid {
+    gap: 28px;
+  }
+
+  .sim-bars {
+    border-left: none;
+    border-top: 1px solid var(--gold-accent);
+    padding: 24px 0 0;
+    max-width: none;
+  }
+
+  .quote-card {
+    padding: 28px 22px 20px;
+  }
+
+  .quote-text {
+    margin: 24px 0 22px;
+  }
+
+  .readonly-search-bar {
+    margin: 0 0 24px;
+  }
+
+  .readonly-search-bar .btn-search-new {
+    white-space: normal;
+    text-align: center;
+  }
+
+  .quote-footer {
+    flex-wrap: wrap;
+  }
+
+  .route-info-bar {
+    padding: 0.75rem 1rem;
+  }
+
+  .route-hint span {
+    display: none;
+  }
+}
+/* ==========================================================================
+   MOBILE SIDE PADDING FOR RESULTS CONTENT
+   Sections run edge to edge; keep their content off the screen edge
+   (and clear of the iPhone notch in landscape).
+   ========================================================================== */
+@media (max-width: 850px) {
+  .inner-content {
+    padding-left: max(16px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(16px, env(safe-area-inset-right, 0px)) !important;
+  }
+
+  #geo-distribution .inner-content {
+    padding-left: max(16px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(16px, env(safe-area-inset-right, 0px)) !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .subnav-container {
+    padding-left: max(14px, env(safe-area-inset-left, 0px));
+    padding-right: max(14px, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* ==========================================================================
+   MAP OVERLAY ON MOBILE (<= 768px): bottom sheet instead of side panel
+   The panel slides up from the bottom and covers half the screen. The toggle
+   button becomes a floating chevron above the sheet's top edge; collapsing
+   slides the sheet down and leaves just that button at the bottom.
+   (Placed last so it overrides the desktop sidebar + slide-in animation.)
+   ========================================================================== */
+@keyframes panelSlideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+  .map-panel-left {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    border-right: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.25);
+  }
+
+  .map-panel-left.collapsed {
+    transform: translateY(100%);
+  }
+
+  .map-modal-overlay.active .map-panel-left:not(.collapsed) {
+    animation: panelSlideUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.3s backwards;
+  }
+
+  /* Toggle: centred above the sheet's top edge */
+  .btn-toggle-sidebar {
+    top: -46px;
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 40px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  }
+
+  .map-panel-left.collapsed .btn-toggle-sidebar {
+    top: calc(-46px - env(safe-area-inset-bottom, 0px));
+  }
+
+  /* The chevron points left on desktop: turn it to point down (open) / up (collapsed) */
+  .btn-toggle-sidebar .chevron-icon {
+    transform: rotate(-90deg);
+  }
+
+  .map-panel-left.collapsed .btn-toggle-sidebar .chevron-icon {
+    transform: rotate(90deg);
+  }
+
+  .panel-inner-scroll {
+    padding: 14px max(14px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(14px, env(safe-area-inset-left, 0px));
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .panel-img-wrapper {
+    height: 130px;
+  }
+
+  /* Top bar: exit button in the first row, layer pills in a scrollable second row */
+  .btn-exit-map {
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    padding: 10px 14px;
+  }
+
+  .map-filter-bar,
+  .map-panel-left.collapsed ~ .map-canvas-right .map-filter-bar {
+    top: calc(60px + env(safe-area-inset-top, 0px));
+    left: max(12px, env(safe-area-inset-left, 0px));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 4px; /* keeps the pills' shadow from being clipped */
+  }
+
+  .map-filter-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .map-filter-pill {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .map-modal-overlay.active .map-panel-left:not(.collapsed) ~ .map-canvas-right .map-filter-bar {
+    animation: none;
+  }
+}
+
+@media (max-width: 768px) and (prefers-reduced-motion: reduce) {
+  .map-modal-overlay.active .map-panel-left:not(.collapsed) {
+    animation: none;
   }
 }

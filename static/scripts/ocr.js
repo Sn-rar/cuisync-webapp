@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const fileInput = document.getElementById('image-upload-input');
   const imageForm = document.getElementById('image-search-form');
   const originSelect = document.getElementById('img-origin');
+  const originDisplay = document.getElementById('img-origin-display');
   const targetSelect = document.getElementById('img-target');
   const imageSearchButton = imageForm.querySelector('button[type="submit"]');
   const hiddenDishInput = document.getElementById('hidden-dish-name');
@@ -20,26 +21,73 @@ document.addEventListener('DOMContentLoaded', () => {
   const picker = document.getElementById('dish-picker-overlay');
   const pickerList = document.getElementById('dish-picker-list');
   const pickerClose = document.getElementById('dish-picker-close');
+  const selectDishPrompt = document.getElementById('select-dish-prompt');
+  const selectDishPromptCount = document.getElementById('select-dish-prompt-count');
   let activeScanController = null;
   let detectedMatches = [];
 
+  // Card under the photo that reopens the picker when several dishes
+  // were found but the user closed the picker without choosing one.
+  function updateSelectDishPrompt() {
+    const pickerOpen = !picker.classList.contains('hidden');
+    const needsChoice = detectedMatches.length >= 2 && !hiddenDishInput.value;
+
+    if (needsChoice && !pickerOpen) {
+      selectDishPromptCount.textContent =
+        `${detectedMatches.length} dishes found · Click to choose`;
+      selectDishPrompt.style.display = 'flex';
+    } else {
+      selectDishPrompt.style.display = 'none';
+    }
+  }
+
   function closeDishPicker() {
     picker.classList.add('hidden');
+    // Closed (X, Escape, outside click) without choosing a dish:
+    // keep the origin empty until a dish is selected.
+    if (!hiddenDishInput.value) setOrigin('');
+    updateSelectDishPrompt();
+  }
+
+  // The origin box isn't a dropdown anymore. It just shows the country of
+  // the dish found in the photo, or a placeholder while there isn't one.
+  let isScanning = false;
+
+  function updateOriginDisplay() {
+    const option = originSelect.options[originSelect.selectedIndex];
+    const hasCountry = Boolean(originSelect.value && option);
+
+    if (isScanning) {
+      originDisplay.textContent = 'Finding Origin Country';
+    } else if (hasCountry) {
+      originDisplay.textContent = option.textContent;
+    } else {
+      originDisplay.textContent = 'Country of Origin';
+    }
+
+    originDisplay.classList.toggle('is-placeholder', isScanning || !hasCountry);
+    originDisplay.classList.toggle('is-scanning', isScanning);
+  }
+
+  function setOrigin(country) {
+    const option = [...originSelect.options].find(
+      (item) => item.value && item.value.toLowerCase() === (country || '').toLowerCase()
+    );
+    originSelect.value = option ? option.value : '';
+    updateOriginDisplay();
   }
 
   function setOcrLoading(isLoading) {
+    isScanning = isLoading;
+    updateOriginDisplay();
     ocrLoading.style.display = isLoading ? 'block' : 'none';
-    originSelect.disabled = isLoading;
     targetSelect.disabled = isLoading;
     imageSearchButton.disabled = isLoading;
     imageForm.classList.toggle('is-ocr-loading', isLoading);
   }
 
   function selectDish(match, showCard = true, canChange = true) {
-    const option = [...originSelect.options].find(
-      (item) => item.value.toLowerCase() === match.country.toLowerCase()
-    );
-    if (option) originSelect.value = option.value;
+    setOrigin(match.country);
     hiddenDishInput.value = match.title;
     selectedDishName.textContent = match.title;
     if (match.alternative_title) {
@@ -126,13 +174,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     picker.classList.remove('hidden');
+    updateSelectDishPrompt();
   }
 
   async function extractImageInfo(file) {
     hiddenDishInput.value = '';
+    detectedMatches = [];
     closeDishPicker();
     selectedDishCard.style.display = 'none';
-    detectedMatches = [];
     if (activeScanController) activeScanController.abort();
     const scanController = new AbortController();
     activeScanController = scanController;
@@ -151,16 +200,18 @@ document.addEventListener('DOMContentLoaded', () => {
       if (activeScanController !== scanController) return;
 
       if (data.matches && data.matches.length) {
-        const detectedCountries = [...new Set(
-          data.matches.map((match) => match.country.toLowerCase())
-        )];
-        if (detectedCountries.length === 1) {
-          const option = [...originSelect.options].find(
-            (item) => item.value.toLowerCase() === detectedCountries[0]
-          );
-          if (option) originSelect.value = option.value;
-        }
+        // The origin stays empty until the user picks a dish
+        // (a single match is picked automatically in showDishPicker).
         showDishPicker(data.matches);
+      } else if (data.error === 'unsupported_script') {
+        // Khmer, Burmese or unreadable text (see ocr.py)
+        showErrorModal('Language Not Supported or Blurry Image', data.message);
+      } else if (data.error === 'too_large') {
+        // Bigger than the upload limit in app.py (MAX_CONTENT_LENGTH)
+        showErrorModal('Image Too Large', data.message);
+      } else if (data.error === 'no_text') {
+        // No text found at all in the photo (see app.py)
+        showErrorModal('No Text Detected', data.message);
       } else {
         const dishName = data.raw_text
           ? data.raw_text
@@ -192,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showErrorModal('Unsupported File', 'Please upload an image file.');
       return;
     }
-    originSelect.value = '';
+    setOrigin('');
     const reader = new FileReader();
     reader.onload = (event) => {
       previewImg.src = event.target.result;
@@ -206,7 +257,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Prevent fileInput from opening when clicking removeBtn or selectedDishCard
   dropzone.addEventListener('click', (event) => {
-    if (event.target.closest('#remove-img-btn') || event.target.closest('#selected-dish-card')) {
+    if (
+      event.target.closest('#remove-img-btn') ||
+      event.target.closest('#selected-dish-card') ||
+      event.target.closest('#select-dish-prompt')
+    ) {
       return;
     }
     fileInput.click();
@@ -234,10 +289,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  originSelect.addEventListener('change', () => {
-    if (fileInput.files[0]) extractImageInfo(fileInput.files[0]);
-  });
-
   pickerClose.addEventListener('click', closeDishPicker);
 
   picker.addEventListener('click', (event) => {
@@ -252,6 +303,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Reopen the picker from the "Select dish from the image" card
+  selectDishPrompt.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (detectedMatches.length >= 2) {
+      showDishPicker(detectedMatches);
+    }
+  });
+
+  // Escape closes the picker (the prompt card then appears)
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !picker.classList.contains('hidden')) {
+      closeDishPicker();
+    }
+  });
+
   removeBtn.addEventListener('click', (event) => {
     event.stopPropagation();
     if (activeScanController) activeScanController.abort();
@@ -263,12 +329,20 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedDishCard.style.display = 'none';
     detectedMatches = [];
     closeDishPicker();
+    setOrigin('');
     previewState.style.display = 'none';
     defaultState.style.display = 'block';
   });
 
   imageForm.addEventListener('submit', (event) => {
-    if (fileInput.files[0] && !hiddenDishInput.value) {
+    // The origin select is hidden now, so the browser can't point at it.
+    // Check it here and show our own message instead.
+    if (!fileInput.files[0]) {
+      event.preventDefault();
+      showErrorModal('Upload a Photo', 'Upload a photo of a menu first so we can find the dish and its country.');
+      return;
+    }
+    if (!hiddenDishInput.value || !originSelect.value) {
       event.preventDefault();
       showErrorModal('Choose a Dish', 'Select one of the detected menu dishes before starting the comparison.');
     }

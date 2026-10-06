@@ -4,10 +4,10 @@ class AppNav extends HTMLElement {
       <header class="navbar" id="navbar">
         <a href="/home"><div class="logo">CUISYNC</div></a>
         
-        <button class="hamburger-toggle" id="hamburger-btn" aria-label="Toggle Navigation Menu">
-          <span class="bar"></span>
-          <span class="bar"></span>
-          <span class="bar"></span>
+        <button class="hamburger-toggle" id="hamburger-btn" aria-label="Toggle Navigation Menu" aria-controls="nav-menu" aria-expanded="false">
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
         </button>
 
         <nav class="nav-links" id="nav-menu">
@@ -29,35 +29,39 @@ class AppNav extends HTMLElement {
     const navMenu = this.querySelector('#nav-menu');
     const navOverlay = this.querySelector('#nav-overlay');
 
-    // Sticky Scroll Effect
-    window.addEventListener('scroll', () => {
-      if (navbar) {
-        if (window.scrollY > 40) {
-          navbar.classList.add('scrolled');
-        } else {
-          navbar.classList.remove('scrolled');
-        }
-      }
-    });
+    // Sticky Scroll Effect (also runs once on load in case the page starts scrolled)
+    const onScroll = () => {
+      navbar && navbar.classList.toggle('scrolled', window.scrollY > 40);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
 
     // Mobile Menu Drawer Toggle
     if (hamburgerBtn && navMenu && navOverlay) {
-      const toggleMenu = () => {
-        hamburgerBtn.classList.toggle('open');
-        navMenu.classList.toggle('active');
-        navOverlay.classList.toggle('active');
-        document.body.style.overflow = navMenu.classList.contains('active') ? 'hidden' : 'auto';
+      const setMenu = (open) => {
+        hamburgerBtn.classList.toggle('open', open);
+        navMenu.classList.toggle('active', open);
+        navOverlay.classList.toggle('active', open);
+        hamburgerBtn.setAttribute('aria-expanded', String(open));
+        // Class on <html> instead of inline body styles: works on iOS Safari too
+        document.documentElement.classList.toggle('menu-open', open);
       };
+      const toggleMenu = () => setMenu(!navMenu.classList.contains('active'));
 
       hamburgerBtn.addEventListener('click', toggleMenu);
-      navOverlay.addEventListener('click', toggleMenu);
+      navOverlay.addEventListener('click', () => setMenu(false));
 
       this.querySelectorAll('.nav-links a').forEach(link => {
-        link.addEventListener('click', () => {
-          if (navMenu.classList.contains('active')) {
-            toggleMenu();
-          }
-        });
+        link.addEventListener('click', () => setMenu(false));
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') setMenu(false);
+      });
+
+      // Close the drawer if the viewport grows past the mobile breakpoint
+      window.matchMedia('(min-width: 821px)').addEventListener('change', (e) => {
+        if (e.matches) setMenu(false);
       });
     }
   }
@@ -89,29 +93,14 @@ class AppFooter extends HTMLElement {
           </div>
 
           <div class="footer-col">
-            <h4 class="footer-heading">ASIAN CUISINES</h4>
-            <div class="cuisine-grid">
-              <ul>
-                <li><a href="analysis.html?country=cambodia">Cambodia</a></li>
-                <li><a href="analysis.html?country=china">China</a></li>
-                <li><a href="analysis.html?country=india">India</a></li>
-                <li><a href="analysis.html?country=indonesia">Indonesia</a></li>
-                <li><a href="analysis.html?country=japan">Japan</a></li>
-              </ul>
-              <ul>
-                <li><a href="analysis.html?country=malaysia">Malaysia</a></li>
-                <li><a href="analysis.html?country=myanmar">Myanmar</a></li>
-                <li><a href="analysis.html?country=philippines">Philippines</a></li>
-                <li><a href="analysis.html?country=saudi-arabia">Saudi Arabia</a></li>
-                <li><a href="analysis.html?country=south-korea">South Korea</a></li>
-              </ul>
-              <ul>
-                <li><a href="analysis.html?country=turkey">Turkey</a></li>
-                <li><a href="analysis.html?country=thailand">Thailand</a></li>
-                <li><a href="analysis.html?country=vietnam">Vietnam</a></li>
-              </ul>
-            </div>
+            <h4 class="footer-heading">DATASET COVERAGE</h4>
+            <p class="footer-dataset-desc">
+              Our research dataset analyzes recipes across Asian cuisines, incorporating culinary data from 
+              Cambodia, China, India, Indonesia, Japan, Malaysia, Myanmar, Philippines, Saudi Arabia, 
+              South Korea, Thailand, Turkey, and Vietnam.
+            </p>
           </div>
+
         </div>
 
         <div class="footer-bottom">
@@ -124,17 +113,3 @@ class AppFooter extends HTMLElement {
 
 customElements.define('app-nav', AppNav);
 customElements.define('app-footer', AppFooter);
-
-  //===========================================================================
-  // STICKY NAVBAR
-  //===========================================================================
-  window.addEventListener('scroll', function() {
-    const navbar = document.querySelector('.navbar');
-    if (navbar) {
-      if (window.scrollY > 50) {
-        navbar.classList.add('scrolled');
-      } else {
-        navbar.classList.remove('scrolled');
-      }
-    }
-  });

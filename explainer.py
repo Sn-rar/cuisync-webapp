@@ -33,7 +33,7 @@ try:                                   # optional: read OPENAI_API_KEY from a .e
 except ImportError:
     pass
 
-from cuisync_cache import explain_with_cache, MODEL_NAME
+from cuisync_cache import explain_with_cache, save_cached, MODEL_NAME
 from cuisync_prompts import build_messages, ungrounded_terms, HIGH_MIN, MODERATE_MIN
 
 try:
@@ -248,6 +248,8 @@ def build_evidence(source_dish, recommended_dish, similarity_pct, influence):
         parse(source_dish.get("ingredient_text", "")), parse(recommended_dish.get("ingredient_text", "")))
     s_act, act_s, act_t = _compare_actions(
         parse(source_dish.get("action_text", "")), parse(recommended_dish.get("action_text", "")))
+    ut_s = {u.lower() for u in parse(source_dish.get("utensil_text", ""))}
+    ut_t = {u.lower() for u in parse(recommended_dish.get("utensil_text", ""))}
 
     evidence = {
         "input_dish": source_dish["title"].strip(),
@@ -261,6 +263,9 @@ def build_evidence(source_dish, recommended_dish, similarity_pct, influence):
         "shared_actions": s_act,
         "unique_actions_input": act_s,
         "unique_actions_match": act_t,
+        "shared_utensils": sorted(ut_s & ut_t)[:4],
+        "unique_utensils_input": sorted(ut_s - ut_t)[:3],
+        "unique_utensils_match": sorted(ut_t - ut_s)[:3],
     }
     if influence:
         evidence["influence"] = influence
@@ -270,12 +275,20 @@ def build_evidence(source_dish, recommended_dish, similarity_pct, influence):
 # ---------------------------------------------------------------------------
 # GPT call, fallback, orchestration
 # ---------------------------------------------------------------------------
-def _call_gpt(evidence):
-    """Raises on API errors, so failures are never cached."""
+def _call_gpt(evidence, avoid=None):
+    """Raises on API errors, so failures are never cached.
+    avoid: items the previous draft mentioned that are not in the evidence (retry only)."""
     try:
+        messages = build_messages(evidence)
+        if avoid:
+            messages.append({"role": "user", "content": (
+                "Your previous draft mentioned items that are not in the evidence: "
+                + ", ".join(avoid)
+                + ". Write the paragraph again using ONLY the ingredients, cooking actions and utensils"
+                  "in the JSON above, and do not mention those items.")})
         resp = _client.chat.completions.create(
             model=MODEL_NAME,
-            messages=build_messages(evidence),
+            messages=messages,
             temperature=0.2,
             max_tokens=250,
         )
@@ -353,8 +366,15 @@ def get_explanation(evidence):
             print("[CuiSync] GPT ACCEPTED")
             return text, "ai"
 
-        print("[CuiSync] GPT REJECTED")
-        print("[CuiSync] Unsupported terms:", bad)
+        print("[CuiSync] GPT REJECTED -> retrying once without:", bad)
+
+        # One retry: tell GPT which items it must leave out. A passing answer is cached.
+        retry = _call_gpt(evidence, avoid=bad)
+        if not ungrounded_terms(retry, evidence, _VOCAB):
+            save_cached(evidence, retry)
+            print("[CuiSync] GPT ACCEPTED (retry)")
+            return retry, "ai"
+        print("[CuiSync] GPT REJECTED AGAIN:", ungrounded_terms(retry, evidence, _VOCAB))
 
     except Exception as exc:
         print("[CuiSync] GPT API FAILED:", type(exc).__name__, str(exc))

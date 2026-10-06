@@ -13,6 +13,7 @@ explain(), len()):
     RECALL_WEIGHT=2 the ranking score is asymmetric, so score(A->B) != score(B->A); showing
     that number as "the similarity between A and B" is inconsistent.
   * similarity_matrix() / csls(): optional full N x N matrix and hubness correction.
+  * BOTH_EMPTY_SCORE: a category that is empty in BOTH dishes returns NaN (skipped by app.py).
 """
 import json
 import os
@@ -32,24 +33,39 @@ FLOOR = 0.35
 POSITION_DECAY = 0.0
 
 # Items that appear in many recipes (salt, oil, water, garlic...) say little about a dish; rare,
-# defining items say a lot. IDF_POWER scales that effect: 0 = ignore, 1 = standard, 2 = stronger.
+# defining items (chicken, tilapia, lemongrass...) say a lot. IDF_POWER scales that effect:
+# 0 = ignore, 1 = standard, 2 = even stronger. This is what stops shared batter/seasoning
+# ingredients from outweighing a mismatched main ingredient.
 IDF_POWER = 1.0
 
 # How much more "is the source dish's makeup covered by the target?" (recall) counts than
 # "is everything in the target found in the source?" (precision). 1 = equal (plain F1).
+# With 2-3, extra ingredients in the target are forgiven more, which suits "find the closest
+# dish to X" - a dish with a few extra ingredients isn't penalised as hard as one that is
+# missing X's main ingredient.
 RECALL_WEIGHT = 2.0
 
 # An ingredient whose word also appears in the dish TITLE ("chicken" in "Fried Chicken") is the
 # dish's headline ingredient, so it counts this many times more. 1 = off. Ingredients only.
 TITLE_BOOST = 4.0
 
+# What a category (actions, cookware, utensils ...) scores when it is EMPTY IN BOTH dishes.
+#   None (default) = "no information": the category is left out of the blend and the remaining
+#                    category weights are re-normalised in app.py, so two identical dishes always
+#                    reach exactly 100% even if some categories are blank.
+#   a number 0..1  = give that fixed score instead (1.0 = counts as a perfect match).
+# A category that is empty in only ONE of the two dishes always scores 0.
+BOTH_EMPTY_SCORE = None
+
 _STOP = {"and", "with", "the", "of", "in", "a", "style", "or"}
 
 
 def _words(text):
     """Lower-case words with a crude plural strip: 'Eggs' -> 'egg'."""
+    if isinstance(text, (list, tuple, set)):
+        text = " ".join(str(t) for t in text)
     out = set()
-    for w in re.findall(r"[a-z]+", (text or "").lower()):
+    for w in re.findall(r"[a-z]+", str(text or "").lower()):
         if w in _STOP or len(w) < 3:
             continue
         out.add(w[:-1] if w.endswith("s") and len(w) > 3 else w)
@@ -128,12 +144,21 @@ class SoftMatcher:
 
     def scores(self, feature, source_idx, beta=None):
         """Similarity (0..1) of recipe `source_idx` to every recipe, for one feature.
-        Asymmetric when beta != 1 (source coverage counts beta^2 times more than target)."""
+        Asymmetric when beta != 1 (source coverage counts beta^2 times more than target).
+        NaN means "empty in both dishes, ignore this category" (see BOTH_EMPTY_SCORE)."""
         beta = RECALL_WEIGHT if beta is None else beta
         out = np.zeros(len(self.recipe_ids[feature]))
         src = self.recipe_ids[feature][source_idx]
         flat_ids, flat_w, starts, nonempty = self._flat[feature]
-        if len(src) == 0 or len(flat_ids) == 0:
+        if len(src) == 0:
+            # The source dish lists nothing here. A dish that ALSO lists nothing agrees with it
+            # (BOTH_EMPTY_SCORE); a dish that lists something does not (0).
+            fill = np.nan if BOTH_EMPTY_SCORE is None else BOTH_EMPTY_SCORE
+            for r, ids in enumerate(self.recipe_ids[feature]):
+                if len(ids) == 0:
+                    out[r] = fill                            # NaN = skip this category
+            return out
+        if len(flat_ids) == 0:
             return out
         vecs = self.vecs[feature]
         sim_v = np.clip((vecs[src] @ vecs.T - FLOOR) / (1.0 - FLOOR), 0.0, 1.0)   # source x distinct items
@@ -147,6 +172,8 @@ class SoftMatcher:
         """Score for one pair of recipes. beta=1 (default) is symmetric: A,B == B,A.
         Use this for the number you display as 'similarity between A and B'."""
         a, b = self.recipe_ids[feature][a_idx], self.recipe_ids[feature][b_idx]
+        if len(a) == 0 and len(b) == 0:
+            return float("nan") if BOTH_EMPTY_SCORE is None else float(BOTH_EMPTY_SCORE)
         if len(a) == 0 or len(b) == 0:
             return 0.0
         sim = self._sim(a, b, feature)

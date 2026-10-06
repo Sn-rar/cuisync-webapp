@@ -11,6 +11,7 @@
     
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base-style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/similarity-warning.css') }}">
 </head>
 <body>
 
@@ -132,8 +133,9 @@
           <div class="dropzone-default" id="dropzone-default">
             <div class="dropzone-icon">
               <svg width="48" height="42" viewBox="0 0 24 21" fill="none" stroke="#9e9488" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-                <circle cx="12" cy="13" r="4"></circle>
+                <rect x="1" y="1" width="22" height="19" rx="2" ry="2"></rect>
+                <circle cx="7.5" cy="6.5" r="1.75"></circle>
+                <polyline points="23 14 16.5 8 4 20"></polyline>
               </svg>
             </div>
             <p class="dropzone-title">Upload a photo of a menu or recipe page</p>
@@ -156,6 +158,26 @@
               <img id="selected-dish-image" class="selected-dish-image" alt="" />
             </button>
 
+            <!-- Shown when the dish picker is closed without choosing a dish -->
+            <button type="button" id="select-dish-prompt" class="select-dish-prompt" style="display: none;" aria-label="Select dish from the image">
+              <span class="select-dish-prompt-icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12"></line>
+                  <line x1="8" y1="18" x2="21" y2="18"></line>
+                  <circle cx="3.5" cy="6" r="1"></circle>
+                  <circle cx="3.5" cy="12" r="1"></circle>
+                  <circle cx="3.5" cy="18" r="1"></circle>
+                </svg>
+              </span>
+              <span class="select-dish-prompt-info">
+                <span class="selected-dish-label">NO DISH SELECTED</span>
+                <strong>Select dish from the image</strong>
+                <span id="select-dish-prompt-count" class="select-dish-prompt-count"></span>
+              </span>
+              <span class="select-dish-prompt-arrow" aria-hidden="true">&rsaquo;</span>
+            </button>
+
             <div id="ocr-loading" class="ocr-loading" style="display: none;" role="status" aria-live="polite">
               <span>Scanning image…</span>
               <div class="ocr-loading-track" aria-hidden="true"><span></span></div>
@@ -167,9 +189,13 @@
 
         <div class="form-row">
           <div class="form-group half-width">
-            <label for="img-origin">COUNTRY OF ORIGIN</label>
-            <select id="img-origin" name="origin_country" required>
-              <option value="" disabled selected>Select country of origin...</option>
+            <label id="img-origin-label">COUNTRY OF ORIGIN</label>
+            <!-- Filled in automatically from the dish found in the photo, so it
+                 isn't a dropdown. The hidden select still sends the value. -->
+            <div id="img-origin-display" class="origin-display is-placeholder"
+                 role="status" aria-live="polite" aria-labelledby="img-origin-label">Country of Origin</div>
+            <select id="img-origin" name="origin_country" class="origin-select-hidden" tabindex="-1" aria-hidden="true">
+              <option value="" disabled selected>Country of Origin</option>
               <option value="cambodia">Cambodia</option>
               <option value="china">China</option>
               <option value="india">India</option>
@@ -227,9 +253,7 @@
     </div>
   </main>
 
-  <section class="pre-footer-banner">
-    <div class="banner-image"></div>
-  </section>
+  
 
   <app-footer></app-footer>
 
@@ -262,7 +286,7 @@
        ================================== -->
   <div id="error-modal-overlay" class="modal-overlay hidden">
     <div class="modal-box">
-      <button type="button" class="modal-close-btn" onclick="closeErrorModal()" aria-label="Close">&times;</button>
+      <button type="button" class="modal-close-btn" onclick="closeErrorModal()" aria-label="Close">×</button>
       <div class="modal-icon">!</div>
       <h3 id="modal-title-text" class="modal-title">We Can't Find Your Dish</h3>
       <p id="modal-desc-text" class="modal-desc"></p>
@@ -508,264 +532,482 @@
     }); */
   </script>
 
-  <script>
-    let DISH_DATABASE = [];
-    let DISH_RECORDS = [];
+<script>
+  let DISH_DATABASE = [];   // kept: other scripts (e.g. ocr.js) may read it
+  let DISH_RECORDS = [];
 
-    async function loadRecipeDatabase() {
-      try {
-        const response = await fetch('/recipes.json'); 
-        if (response.ok) {
-          const data = await response.json();
-          const recipesArray = Array.isArray(data) ? data : data.recipes || [];
+  // Title + every alternative title of a record, lower-cased.
+  function recordNames(record) {
+    return [record.title, ...record.alternatives].map((n) => n.toLowerCase());
+  }
 
-          DISH_RECORDS = recipesArray
-            .map((recipe) => ({
-              title: recipe.title || recipe.Title || recipe.name,
-              country: recipe.country || recipe.Country || ""
-            }))
-            .filter((r) => r.title && typeof r.title === "string");
+  // All records whose title OR alternative title equals `name`.
+  function recordsForName(name) {
+    const key = (name || "").trim().toLowerCase();
+    if (!key) return [];
+    return DISH_RECORDS.filter((r) => recordNames(r).includes(key));
+  }
 
-          DISH_DATABASE = DISH_RECORDS.map((r) => r.title);
+  // Split "A, B; C (x, y) / D" into ["A", "B", "C (x, y)", "D"]. The separators  , ; | /  and
+  // new lines only count outside brackets, so "Mie Goreng (fried noodles, spicy)" stays one name.
+  // Keep this in step with split_names() in app.py.
+  function splitNames(text) {
+    const names = [];
+    let current = "";
+    let depth = 0;
+    for (const ch of String(text)) {
+      if (ch === "(" || ch === "[") depth++;
+      else if ((ch === ")" || ch === "]") && depth > 0) depth--;
+      if (depth === 0 && /[,;|\/\n\r]/.test(ch)) {
+        names.push(current);
+        current = "";
+      } else {
+        current += ch;
+      }
+    }
+    names.push(current);
+    return names.map((n) => n.trim()).filter(Boolean);
+  }
+
+  function readAlternatives(recipe, title) {
+    const raw = recipe.alternative_title ?? recipe.alternative_titles ?? recipe.alternativeTitle ?? [];
+    const list = Array.isArray(raw) ? raw : [raw];
+    const seen = new Set([String(title || "").trim().toLowerCase()]);
+    const alternatives = [];
+    for (const item of list) {
+      if (typeof item !== "string") continue;
+      for (const name of splitNames(item)) {
+        const key = name.toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          alternatives.push(name);
         }
-      } catch (err) {
-        console.error("Error fetching /recipes.json:", err);
+      }
+    }
+    return alternatives;
+  }
+
+  async function loadRecipeDatabase() {
+    try {
+      // Bypasses browser cache to guarantee loading the updated JSON file
+      const response = await fetch('/recipes.json?v=' + new Date().getTime());
+      if (response.ok) {
+        const data = await response.json();
+        const recipesArray = Array.isArray(data) ? data : data.recipes || [];
+
+        DISH_RECORDS = recipesArray
+          .map((recipe) => {
+            const rawTitle = recipe.title || recipe.Title || recipe.name || "";
+            const rawCountry = recipe.country || recipe.Country || "";
+            const title = typeof rawTitle === "string" ? rawTitle.trim() : "";
+            return {
+              title,
+              country: typeof rawCountry === "string" ? rawCountry.trim() : "",
+              alternatives: readAlternatives(recipe, title)
+            };
+          })
+          .filter((r) => r.title.length > 0);
+
+        DISH_DATABASE = DISH_RECORDS.map((r) => r.title);
+        console.info(
+          `[Cuisync] ${DISH_RECORDS.length} recipes loaded, ` +
+          `${DISH_RECORDS.filter((r) => r.alternatives.length).length} with alternative titles`
+        );
+      }
+    } catch (err) {
+      console.error("Error fetching /recipes.json:", err);
+    }
+  }
+
+  loadRecipeDatabase();
+</script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const dishInput = document.getElementById("dish-name-input");
+    const dropdownList = document.getElementById("dish-dropdown-list");
+    const originSelect = document.getElementById("text-origin");
+    if (!dishInput || !dropdownList) return;
+
+    let activeIndex = -1;
+    let currentLabels = [];
+
+    // Keep a copy of every origin option so the list can be restored after narrowing.
+    const allOriginOptions = originSelect
+      ? [...originSelect.options].map((opt) => opt.cloneNode(true))
+      : [];
+
+    function setOriginOptions(allowed) {
+      if (!originSelect) return;
+      const previous = originSelect.value;
+      const options = allOriginOptions.filter(
+        (opt) => opt.value === "" || !allowed || allowed.has(opt.value.trim().toLowerCase())
+      );
+      originSelect.replaceChildren(...options.map((opt) => opt.cloneNode(true)));
+
+      const real = [...originSelect.options].filter((opt) => opt.value !== "");
+      if (allowed && real.length === 1) {
+        originSelect.value = real[0].value;          // origin is settled
+      } else if (real.some((opt) => opt.value === previous)) {
+        originSelect.value = previous;               // keep a still-valid choice
+      } else {
+        originSelect.value = "";                     // back to the placeholder
       }
     }
 
-    loadRecipeDatabase();
-  </script>
+    // Once the dish name is settled, only its country/countries are offered.
+    function autoFillOriginCountry(dishName) {
+      if (!originSelect || !dishName) return setOriginOptions(null);
+      const matches = recordsForName(dishName);
+      if (matches.length === 0) return setOriginOptions(null);
+      setOriginOptions(new Set(matches.map((r) => r.country.toLowerCase())));
+    }
 
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const dishInput = document.getElementById("dish-name-input");
-      const dropdownList = document.getElementById("dish-dropdown-list");
-      const originSelect = document.getElementById("text-origin");
-      if (!dishInput || !dropdownList) return;
+    // Searches the title AND every alternative title. Best first: exact name, starts with, contains.
+    // Every suggestion carries what to say about it:
+    //   altNames - if the name is a dish's real title: that dish's alternative names
+    //   altOf    - if the name is an alternative name: the real title(s) of the dish(es) it belongs to
+    // (one name can be both, when it is the title of one dish and an alternative name of another).
+    function getTopMatches(query, limit = 5) {
+      const q = query.trim().toLowerCase();
+      if (!q) return [];
 
-      let activeIndex = -1;
+      const byLabel = new Map(); // lower-case label -> suggestion
+      for (const record of DISH_RECORDS) {
+        const labels = [
+          { label: record.title, isAlt: false },
+          ...record.alternatives.map((label) => ({ label, isAlt: true }))
+        ];
+        for (const { label, isAlt } of labels) {
+          const lower = label.toLowerCase();
+          const rank = lower === q ? 0 : lower.startsWith(q) ? 1 : lower.includes(q) ? 2 : -1;
+          if (rank < 0) continue;
 
-      function autoFillOriginCountry(dishTitle) {
-        if (!originSelect || typeof DISH_RECORDS === "undefined" || !dishTitle) return;
-
-        const titleLower = dishTitle.trim().toLowerCase();
-        const matches = DISH_RECORDS.filter((r) => r.title.toLowerCase() === titleLower);
-        const uniqueCountries = [...new Set(matches.map((r) => r.country.toLowerCase()))];
-
-        if (uniqueCountries.length === 1) {
-          const option = [...originSelect.options].find(
-            (opt) => opt.value.toLowerCase() === uniqueCountries[0]
-          );
-          if (option) {
-            originSelect.value = option.value;
+          let entry = byLabel.get(lower);
+          if (!entry) {
+            entry = { label, rank, altNames: [], altOf: [] };
+            byLabel.set(lower, entry);
+          }
+          if (isAlt) {
+            if (!entry.altOf.includes(record.title)) entry.altOf.push(record.title);
+          } else {
+            for (const name of record.alternatives) {
+              if (!entry.altNames.includes(name)) entry.altNames.push(name);
+            }
           }
         }
       }
+      return [...byLabel.values()].sort((x, y) => x.rank - y.rank).slice(0, limit);
+    }
 
-      function getTopMatches(query, limit = 5) {
-        const q = query.trim().toLowerCase();
-        if (!q) return [];
-        const unique = [...new Set(DISH_DATABASE)];
-        const startsWith = [];
-        const contains = [];
-
-        for (const title of unique) {
-          const lower = title.toLowerCase();
-          if (lower.startsWith(q)) {
-            startsWith.push(title);
-          } else if (lower.includes(q)) {
-            contains.push(title);
-          }
-        }
-        return [...startsWith, ...contains].slice(0, limit);
-      }
-
-      function renderDropdown(matches) {
-        dropdownList.innerHTML = "";
-        activeIndex = -1;
-        if (matches.length === 0) {
-          dropdownList.classList.add("hidden");
-          return;
-        }
-
-        matches.forEach((title) => {
-          const li = document.createElement("li");
-          li.className = "dropdown-item";
-          li.textContent = title;
-          li.addEventListener("mousedown", (e) => {
-            e.preventDefault();
-            dishInput.value = title;
-            autoFillOriginCountry(title);
-            hideDropdown();
-            dishInput.focus();
-          });
-          dropdownList.appendChild(li);
-        });
-        dropdownList.classList.remove("hidden");
-      }
-
-      function hideDropdown() {
+    function renderDropdown(matches) {
+      dropdownList.innerHTML = "";
+      activeIndex = -1;
+      currentLabels = matches.map((m) => m.label);
+      if (matches.length === 0) {
         dropdownList.classList.add("hidden");
-        dropdownList.innerHTML = "";
-        activeIndex = -1;
+        return;
       }
 
-      function highlightItem(index) {
-        const items = dropdownList.querySelectorAll(".dropdown-item");
-        items.forEach((item, i) => {
-          item.classList.toggle("highlighted", i === index);
-        });
-        if (items[index]) {
-          items[index].scrollIntoView({ block: "nearest" });
+      matches.forEach((match) => {
+        const li = document.createElement("li");
+        li.className = "dropdown-item";
+        li.appendChild(document.createTextNode(match.label.trim()));
+
+        // The note under the name. A real dish title lists that dish's alternative names; an
+        // alternative name says which dish it is for. A dish with no alternative names has no note.
+        const notes = [];
+        if (match.altNames.length) notes.push("alternative names: " + match.altNames.join(", "));
+        if (match.altOf.length) notes.push("alternative name for " + match.altOf.join(", "));
+        if (notes.length) {
+          const hint = document.createElement("span");
+          hint.className = "dropdown-alt";
+          hint.textContent = notes.join(" \u00b7 ");
+          li.appendChild(hint);
         }
-      }
 
-      dishInput.addEventListener("input", () => {
-        const matches = getTopMatches(dishInput.value);
-        renderDropdown(matches);
-        autoFillOriginCountry(dishInput.value);
-      });
-
-      dishInput.addEventListener("keydown", (e) => {
-        const items = dropdownList.querySelectorAll(".dropdown-item");
-        if (dropdownList.classList.contains("hidden") || items.length === 0) return;
-
-        if (e.key === "ArrowDown") {
+        li.addEventListener("mousedown", (e) => {
           e.preventDefault();
-          activeIndex = (activeIndex + 1) % items.length;
-          highlightItem(activeIndex);
-        } else if (e.key === "ArrowUp") {
-          e.preventDefault();
-          activeIndex = (activeIndex - 1 + items.length) % items.length;
-          highlightItem(activeIndex);
-        } else if (e.key === "Enter") {
-          if (activeIndex >= 0 && items[activeIndex]) {
-            e.preventDefault();
-            dishInput.value = items[activeIndex].textContent;
-            autoFillOriginCountry(dishInput.value);
-            hideDropdown();
-          }
-        } else if (e.key === "Escape") {
-          hideDropdown();
-        }
-      });
-
-      dishInput.addEventListener("focus", () => {
-        if (dishInput.value.trim()) {
-          renderDropdown(getTopMatches(dishInput.value));
-        }
-      });
-
-      dishInput.addEventListener("blur", () => {
-        autoFillOriginCountry(dishInput.value);
-      });
-
-      document.addEventListener("click", (e) => {
-        if (e.target !== dishInput && !dropdownList.contains(e.target)) {
-          hideDropdown();
-        }
-      });
-    });
-  </script>
-
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const textForm = document.getElementById("text-search-form");
-      const dishInput = document.getElementById("dish-name-input");
-
-      if (textForm) {
-        textForm.addEventListener("submit", (e) => {
-          const typedDish = dishInput ? dishInput.value.trim() : "";
-          const originCountry = document.getElementById("text-origin").value;
-          const targetCountry = document.getElementById("text-target").value;
-
-          if (!typedDish || !originCountry || !targetCountry) {
-            e.preventDefault();
-            showErrorModal(
-              "Incomplete Search Fields",
-              "Please select both the Origin Country and Target Country, and enter a dish name."
-            );
-            return;
-          }
-
-          if (typeof DISH_RECORDS === "undefined" || DISH_RECORDS.length === 0) return;
-
-          const dishLower = typedDish.toLowerCase();
-          const originLower = originCountry.toLowerCase();
-          const targetLower = targetCountry.toLowerCase();
-
-          const matchesByTitle = DISH_RECORDS.filter(
-            (r) => r.title.toLowerCase() === dishLower
-          );
-
-          if (matchesByTitle.length === 0) {
-            e.preventDefault();
-            showErrorModal(
-              "We Can't Find Your Dish",
-              `"${typedDish}" isn't in our recipe database yet. Please check the spelling or try a more general dish name.`
-            );
-            return;
-          }
-
-          const exactMatch = matchesByTitle.find(
-            (r) => r.country.toLowerCase() === originLower
-          );
-
-          if (!exactMatch) {
-            const availableCountries = [...new Set(matchesByTitle.map((r) => r.country))].join(", ");
-            e.preventDefault();
-            showErrorModal(
-              "We Can't Find Your Dish",
-              `We have "${typedDish}", but not listed under that country of origin. Try selecting: ${availableCountries}.`
-            );
-            return;
-          }
-
-          const targetHasDishes = DISH_RECORDS.some(
-            (r) => r.country.toLowerCase() === targetLower
-          );
-
-          if (!targetHasDishes) {
-            e.preventDefault();
-            showErrorModal(
-              "We Can't Find Your Dish",
-              "We don't have any recipes yet for the selected target country, so there's nothing to compare it to. Please choose a different target country."
-            );
-          }
+          chooseLabel(match.label);
         });
-      }
-    });
-
-    function showErrorModal(title, description) {
-      const modalOverlay = document.getElementById("error-modal-overlay");
-      const modalTitle = document.getElementById("modal-title-text");
-      const modalDesc = document.getElementById("modal-desc-text");
-
-      if (modalTitle) modalTitle.textContent = title;
-      if (modalDesc) modalDesc.textContent = description;
-      if (modalOverlay) modalOverlay.classList.remove("hidden");
+        dropdownList.appendChild(li);
+      });
+      dropdownList.classList.remove("hidden");
     }
 
-    function closeErrorModal() {
-      const modalOverlay = document.getElementById("error-modal-overlay");
-      if (modalOverlay) {
-        modalOverlay.classList.add("hidden");
-      }
-      
-      const dishInput = document.getElementById("dish-name-input");
-      if (dishInput && !dishInput.closest('form').classList.contains('hidden')) {
-        dishInput.focus();
+    function chooseLabel(label) {
+      const clean = label.trim();
+      dishInput.value = clean;
+      autoFillOriginCountry(clean);
+      hideDropdown();
+      dishInput.focus();
+    }
+
+    function hideDropdown() {
+      dropdownList.classList.add("hidden");
+      dropdownList.innerHTML = "";
+      activeIndex = -1;
+    }
+
+    function highlightItem(index) {
+      const items = dropdownList.querySelectorAll(".dropdown-item");
+      items.forEach((item, i) => {
+        item.classList.toggle("highlighted", i === index);
+      });
+      if (items[index]) {
+        items[index].scrollIntoView({ block: "nearest" });
       }
     }
 
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeErrorModal();
+    dishInput.addEventListener("input", () => {
+      renderDropdown(getTopMatches(dishInput.value));
+      autoFillOriginCountry(dishInput.value);
+    });
+
+    dishInput.addEventListener("keydown", (e) => {
+      const items = dropdownList.querySelectorAll(".dropdown-item");
+      if (dropdownList.classList.contains("hidden") || items.length === 0) return;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        activeIndex = (activeIndex + 1) % items.length;
+        highlightItem(activeIndex);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        activeIndex = (activeIndex - 1 + items.length) % items.length;
+        highlightItem(activeIndex);
+      } else if (e.key === "Enter") {
+        if (activeIndex >= 0 && items[activeIndex]) {
+          e.preventDefault();
+          chooseLabel(currentLabels[activeIndex]);
+        }
+      } else if (e.key === "Escape") {
+        hideDropdown();
+      }
+    });
+
+    dishInput.addEventListener("focus", () => {
+      if (dishInput.value.trim()) {
+        renderDropdown(getTopMatches(dishInput.value));
+      }
+    });
+
+    dishInput.addEventListener("blur", () => {
+      autoFillOriginCountry(dishInput.value);
     });
 
     document.addEventListener("click", (e) => {
-      const modalOverlay = document.getElementById("error-modal-overlay");
-      if (e.target === modalOverlay) {
-        closeErrorModal();
+      if (e.target !== dishInput && !dropdownList.contains(e.target)) {
+        hideDropdown();
+      }
+    });
+  });
+</script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const textForm = document.getElementById("text-search-form");
+    const dishInput = document.getElementById("dish-name-input");
+
+    if (textForm) {
+      textForm.addEventListener("submit", (e) => {
+        const typedDish = dishInput ? dishInput.value.trim() : "";
+        const originCountry = document.getElementById("text-origin").value.trim();
+        const targetCountry = document.getElementById("text-target").value.trim();
+
+        if (!typedDish || !originCountry || !targetCountry) {
+          e.preventDefault();
+          showErrorModal(
+            "Incomplete Search Fields",
+            "Please select both the Origin Country and Target Country, and enter a dish name."
+          );
+          return;
+        }
+
+        if (typeof DISH_RECORDS === "undefined" || DISH_RECORDS.length === 0) return;
+
+        const dishLower = typedDish.toLowerCase();
+        const originLower = originCountry.toLowerCase();
+        const targetLower = targetCountry.toLowerCase();
+
+        const matchesByTitle = recordsForName(typedDish);
+
+        if (matchesByTitle.length === 0) {
+          e.preventDefault();
+          showErrorModal(
+            "We Can't Find Your Dish",
+            `"${typedDish}" isn't in our recipe database yet. Please check the spelling or try a more general dish name.`
+          );
+          return;
+        }
+
+        const exactMatch = matchesByTitle.find(
+          (r) => r.country.toLowerCase() === originLower
+        );
+
+        if (!exactMatch) {
+          const availableCountries = [...new Set(matchesByTitle.map((r) => r.country))].join(", ");
+          e.preventDefault();
+          showErrorModal(
+            "We Can't Find Your Dish",
+            `We have "${typedDish}", but not listed under that country of origin. Try selecting: ${availableCountries}.`
+          );
+          return;
+        }
+
+        const targetHasDishes = DISH_RECORDS.some(
+          (r) => r.country.toLowerCase() === targetLower
+        );
+
+        if (!targetHasDishes) {
+          e.preventDefault();
+          showErrorModal(
+            "We Can't Find Your Dish",
+            "We don't have any recipes yet for the selected target country, so there's nothing to compare it to. Please choose a different target country."
+          );
+        }
+      });
+    }
+  });
+
+  function showErrorModal(title, description) {
+    const modalOverlay = document.getElementById("error-modal-overlay");
+    const modalTitle = document.getElementById("modal-title-text");
+    const modalDesc = document.getElementById("modal-desc-text");
+
+    if (modalTitle) modalTitle.textContent = title;
+    if (modalDesc) modalDesc.textContent = description;
+    if (modalOverlay) modalOverlay.classList.remove("hidden");
+  }
+
+  function closeErrorModal() {
+    const modalOverlay = document.getElementById("error-modal-overlay");
+    if (modalOverlay) {
+      modalOverlay.classList.add("hidden");
+    }
+    
+    const dishInput = document.getElementById("dish-name-input");
+    if (dishInput && !dishInput.closest('form').classList.contains('hidden')) {
+      dishInput.focus();
+    }
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeErrorModal();
+  });
+
+  document.addEventListener("click", (e) => {
+    const modalOverlay = document.getElementById("error-modal-overlay");
+    if (e.target === modalOverlay) {
+      closeErrorModal();
+    }
+  });
+</script>
+  <!-- When the server sends the page back with a message (dish not found, no similar dish,
+       no recipes for the target country, image problems...), it is carried here and the
+       script below pops the error modal open. -->
+  {% if error_desc %}
+  <div id="server-error" hidden data-title="{{ error_title }}" data-desc="{{ error_desc }}"></div>
+  {% endif %}
+
+  <!-- LOW-SIMILARITY POPUP. When even the closest dish is below the similarity threshold, the
+       server sends the user back here (no results yet) with the details in this element. -->
+  {% if similarity_warning %}
+  <div id="similarity-warning-data" hidden
+       data-message="{{ similarity_warning }}"
+       data-score="{{ similarity_score }}"
+       data-dish="{{ warn_dish }}"
+       data-origin="{{ warn_origin }}"
+       data-target="{{ warn_target }}"></div>
+  {% endif %}
+
+  <div class="sim-warning-overlay" id="simWarningOverlay" role="alertdialog" aria-modal="true"
+       aria-labelledby="simWarningTitle" aria-describedby="simWarningMessage" hidden>
+    <div class="sim-warning-card">
+      <h2 class="sim-warning-title" id="simWarningTitle">Low Similarity Warning</h2>
+      <div class="sim-warning-score" aria-hidden="true">
+        <span class="sim-warning-score-value" id="simWarningScore"></span>
+        <span class="sim-warning-score-label">SIMILAR</span>
+      </div>
+      <p class="sim-warning-message" id="simWarningMessage"></p>
+      <p class="sim-warning-note">Do you still want to see the closest dish we found?</p>
+      <div class="sim-warning-actions">
+        <button type="button" class="sim-warning-btn secondary" id="simWarningNo">NO</button>
+        <button type="button" class="sim-warning-btn primary" id="simWarningYes">VIEW RESULTS ANYWAY</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- "View results anyway" posts the same search again, with force=1 -->
+  <form id="simWarningForm" action="/search-text" method="POST" hidden>
+    <input type="hidden" name="dish_name" id="simWarningDish">
+    <input type="hidden" name="origin_country" id="simWarningOrigin">
+    <input type="hidden" name="target_country" id="simWarningTarget">
+    <input type="hidden" name="force" value="1">
+  </form>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const data = document.getElementById("similarity-warning-data");
+      const overlay = document.getElementById("simWarningOverlay");
+      if (!data || !overlay) return;
+
+      const yesBtn = document.getElementById("simWarningYes");
+      const noBtn = document.getElementById("simWarningNo");
+
+      document.getElementById("simWarningMessage").textContent = data.dataset.message || "";
+      document.getElementById("simWarningScore").textContent = (data.dataset.score || "0") + "%";
+
+      function pickOption(select, wanted) {
+        if (!select) return;
+        const match = [...select.options].find(
+          (o) => o.value.trim().toLowerCase() === String(wanted || "").trim().toLowerCase()
+        );
+        if (match) select.value = match.value;
+      }
+
+      // NO: close the popup and put the search back in the form so it can be changed.
+      function closeWarning() {
+        overlay.hidden = true;
+        document.removeEventListener("keydown", onKey);
+        const dishInput = document.getElementById("dish-name-input");
+        if (dishInput) dishInput.value = data.dataset.dish || "";
+        pickOption(document.getElementById("text-origin"), data.dataset.origin);
+        pickOption(document.getElementById("text-target"), data.dataset.target);
+        if (dishInput) dishInput.focus();
+      }
+
+      function onKey(e) {
+        if (e.key === "Escape") closeWarning();
+      }
+
+      noBtn.addEventListener("click", closeWarning);
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) closeWarning();
+      });
+      document.addEventListener("keydown", onKey);
+
+      // VIEW RESULTS ANYWAY: same search again, with force=1.
+      yesBtn.addEventListener("click", () => {
+        document.getElementById("simWarningDish").value = data.dataset.dish || "";
+        document.getElementById("simWarningOrigin").value = data.dataset.origin || "";
+        document.getElementById("simWarningTarget").value = data.dataset.target || "";
+        document.getElementById("simWarningForm").submit();
+      });
+
+      overlay.hidden = false;
+      noBtn.focus();
+    });
+  </script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const serverError = document.getElementById("server-error");
+      if (serverError) {
+        showErrorModal(
+          serverError.dataset.title || "We Can't Find Your Dish",
+          serverError.dataset.desc
+        );
       }
     });
   </script>

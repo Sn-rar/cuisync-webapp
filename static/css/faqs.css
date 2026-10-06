@@ -134,6 +134,10 @@
   color: #1a1a1a;
   cursor: pointer;
   font-family: inherit;
+  min-height: 44px;
+  gap: 8px;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .faq-toggle {
@@ -183,7 +187,7 @@
 }
 
 .faq-item.active .faq-answer {
-  max-height: 300px;
+  max-height: 800px;
   padding-bottom: 12px;
 }
 
@@ -192,7 +196,7 @@
    ========================================================================== */
 @media screen and (max-width: 850px) {
   .faq-container {
-    padding: 80px 16px 40px;
+    padding: calc(96px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(40px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
   }
 
   .faq-header {
@@ -231,7 +235,7 @@
 
   .faq-group {
     padding: 18px 16px;
-    scroll-margin-top: 80px;
+    scroll-margin-top: 90px;
   }
 
   .group-title {
@@ -252,7 +256,7 @@
 
 @media screen and (max-width: 480px) {
   .faq-container {
-    padding: 70px 20px 30px;
+    padding: calc(92px + env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) calc(30px + env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
   }
 
   .faq-title {

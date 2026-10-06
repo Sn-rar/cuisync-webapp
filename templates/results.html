@@ -8,7 +8,7 @@
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
 
   <link rel="stylesheet" href="{{ url_for('static', filename='css/base-style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/results.css') }}">
@@ -17,36 +17,26 @@
 
   <app-nav></app-nav>
 
-  <!-- ==================================
-       RESULTS SUB-NAVIGATION BAR
-       ================================== -->
-  <nav class="results-subnav">
-    <div class="subnav-container">
-      <div class="subnav-links">
-        <a href="#">DISH COMPARISON</a>
-        <a href="#sim-summary">SIMILARITY SUMMARY</a>
-        <a href="#geo-distribution">GEOGRAPHICAL DISTRIBUTION</a>
-      </div>
-      <div class="subnav-actions">
-        <a href="{{ url_for('home') }}" class="btn-search-nav">SEARCH NEW DISH</a>
-      </div>
-    </div>
-  </nav>
+  {# ------------------------------------------------------------------
+     Overall similarity as a whole-number percent (0-100). The same value
+     drives the image badge, the donut and the modal, so they always agree.
+     ------------------------------------------------------------------ #}
+  {% set score = [ [ (similarity_score | default(0, true) | float | round | int), 0 ] | max, 100 ] | min %}
+
+  {# Share of entities two dishes have in common for one category:
+     shared / (shared + only-in-source + only-in-target), as a percent. #}
+  {% macro overlap_pct(cat) -%}
+    {%- if cat -%}
+      {%- set s = (cat.shared or []) | length -%}
+      {%- set t = s + (cat.source_unique or []) | length + (cat.target_unique or []) | length -%}
+      {{- ((s * 100 / t) | round | int) if t else 0 -}}
+    {%- else -%}0{%- endif -%}
+  {%- endmacro %}
 
   <!-- ==================================
        MAIN RESULTS CONTAINER
        ================================== -->
   <main class="results-container">
-    
-    <!-- Breadcrumb Header -->
-    <section class="results-header-section">
-      <div class="inner-content">
-        <div class="breadcrumb">
-          <a href="{{ url_for('home') }}">Home</a> / 
-          <a class="active-crumb" href="#">Results</a>
-        </div>
-      </div>
-    </section>
 
     <!-- ==================================
          SECTION 1: DISH COMPARISON
@@ -54,59 +44,78 @@
     <section class="section-dark dish-comparison-section">
       <div class="inner-content">
         <h2 class="section-heading">DISH COMPARISON</h2>
-        <div class="heading-line"></div>
+
+        <!-- Read-only summary of the search that produced this page -->
+        <div class="readonly-search-bar">
+          <div class="field-item cuisine-field">
+            <span class="field-label">CUISINE</span>
+            <span class="field-value">{{ source_dish.title }}</span>
+          </div>
+          <div class="field-divider"></div>
+          <div class="field-item">
+            <span class="field-label">ORIGIN COUNTRY</span>
+            <span class="field-value">{{ source_dish.country }}</span>
+          </div>
+          <span class="field-arrow">&rarr;</span>
+          <div class="field-item">
+            <span class="field-label">TARGET COUNTRY</span>
+            <span class="field-value">{{ target_country | upper }}</span>
+          </div>
+          <a href="{{ url_for('home') }}" class="btn-search-new">SEARCH NEW CUISINE</a>
+        </div>
 
         <div class="comparison-grid">
           <!-- Left Card: Original/Source Dish -->
           <div class="dish-card">
             <div class="dish-img-wrapper">
-              <img src="{{ source_dish.image_link if source_dish.image_link else '' }}" 
-                   alt="{{ source_dish.title }}" 
+              <img src="{{ source_dish.image_link if source_dish.image_link else '' }}"
+                   alt="{{ source_dish.title }}"
                    referrerpolicy="no-referrer">
               <span class="img-badge">{{ source_dish.country_region }}, {{ source_dish.country }}</span>
             </div>
             <div class="dish-card-body">
               <h3 class="dish-title">{{ source_dish.title }}</h3>
-              <p class="dish-alt"><i>{{source_dish.alternative_title}}</i></p>
-              <p class="dish-subtitle">{{ source_dish.region }} Region</p>
-              
-              <div class="ingredient-tags">
-                <!-- Limit ingredient tags to the first 5 items -->
-                {% if source_dish.ingredient_text %}
-                  {% for ingredient in source_dish.ingredient_text.split(', ')[:5] %}
-                    <span class="ing-tag">{{ ingredient.strip() }}</span>
-                  {% endfor %}
-                {% endif %}
-              </div>
+              {% if source_dish.alternative_title %}
+                <p class="dish-alt"><i>{{ source_dish.alternative_title }}</i></p>
+              {% endif %}
+              <p class="dish-subtitle">{{ (source_dish.region or 'No Specific') | upper }} REGION</p>
+              {% if source_dish and source_dish.recipe_link %}
+                <div class="btn-links">
+                  <a href="{{ source_dish.recipe_link }}" target="_blank" rel="noopener" class="btn-primary-action">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+                    LINK TO RECIPE
+                  </a>
+                </div>
+              {% endif %}
             </div>
+          </div>
+
+          <!-- Overall similarity badge, sits between the two photos -->
+          <div class="similarity-badge" role="img" aria-label="{{ score }} percent similar">
+            <span class="badge-score">{{ score }}<small>%</small></span>
+            <span class="badge-label">SIMILAR</span>
           </div>
 
           <!-- Right Card: Recommended/Target Country Dish -->
           <div class="dish-card">
             <div class="dish-img-wrapper">
-              <img src="{{ recommended_dish.image_link if (recommended_dish and recommended_dish.image_link) else '' }}" 
-                   alt="{% if recommended_dish %}{{ recommended_dish.title }}{% endif %}" 
+              <img src="{{ recommended_dish.image_link if (recommended_dish and recommended_dish.image_link) else '' }}"
+                   alt="{% if recommended_dish %}{{ recommended_dish.title }}{% endif %}"
                    referrerpolicy="no-referrer">
               <span class="img-badge">{% if recommended_dish %}{{ source_dish.country_region }}, {{ recommended_dish.country }}{% endif %}</span>
             </div>
             <div class="dish-card-body">
               <h3 class="dish-title">{% if recommended_dish %}{{ recommended_dish.title }}{% endif %}</h3>
-              <p class="dish-alt"><i>{% if recommended_dish %}{{recommended_dish.alternative_title}}{% endif %}</i></p>
-              <p class="dish-subtitle">{% if recommended_dish %}{{ recommended_dish.region }} Region{% endif %}</p>
-              
-              <div class="ingredient-tags">
-                <!-- Limit ingredient tags to the first 5 items -->
-                {% if recommended_dish and recommended_dish.ingredient_text %}
-                  {% for ingredient in recommended_dish.ingredient_text.split(', ')[:5] %}
-                    <span class="ing-tag">{{ ingredient.strip() }}</span>
-                  {% endfor %}
-                {% endif %}
-              </div>
+              {% if recommended_dish and recommended_dish.alternative_title %}
+                <p class="dish-alt"><i>{{ recommended_dish.alternative_title }}</i></p>
+              {% endif %}
+              <p class="dish-subtitle">{% if recommended_dish %}{{ (recommended_dish.region or 'No Specific') | upper }} REGION{% endif %}</p>
 
               {% if recommended_dish and recommended_dish.recipe_link %}
-                <div class="btn-links" id="sim-summary">
-                  <a href="https://{{ recommended_dish.recipe_link }}" target="_blank" class="btn-primary-action">
-                    <b>LINK TO RECIPE &rarr;</b>
+                <div class="btn-links">
+                  <a href="{{ recommended_dish.recipe_link }}" target="_blank" rel="noopener" class="btn-primary-action">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+                    LINK TO RECIPE
                   </a>
                 </div>
               {% endif %}
@@ -117,168 +126,107 @@
     </section>
 
     <!-- ==================================
-         SECTION 2: SIMILARITY SUMMARY & ENTITIES
+         SECTION 2: RECIPE BREAKDOWN (extracted entities)
          ================================== -->
-    <section class="section-light">
+    <section class="section-dark recipe-breakdown-section">
       <div class="inner-content">
-
-        <!-- Extracted Entities Component -->
-        <div class="extracted-entities-container">
-          <h2 class="section-heading dark-text">EXTRACTED ENTITIES</h2>
-
-          <div class="entities-card">
-            
-            <!-- Category Filter Radio Buttons -->
-            <div class="entity-group">
-              <label class="filter-pill pill-all">
-                <input type="radio" name="entity_filter" value="all" checked hidden>
-                <span>ALL</span>
-              </label>
-
-              <label class="filter-pill pill-shared">
-                <input type="radio" name="entity_filter" value="shared" hidden>
-                <span>SHARED</span>
-              </label>
-
-              <label class="filter-pill pill-pho">
-                <input type="radio" name="entity_filter" value="source" hidden>
-                <span>{{ source_dish.title | upper }}</span>
-              </label>
-
-              <label class="filter-pill pill-batchoy">
-                <input type="radio" name="entity_filter" value="target" hidden>
-                <span>{% if recommended_dish %}{{ recommended_dish.title | upper }}{% else %}{{ target_country | upper }} DISH{% endif %}</span>
-              </label>
-            </div>
-
-            <!-- Ingredients Tags -->
-            <div class="entity-group">
-              <span class="entity-category-label">INGREDIENTS</span>
-              <div class="chips-wrapper">
-                <!-- Shared Ingredients -->
-                {% for item in entities.ingredients.shared %}
-                  <span class="entity-chip chip-gold" data-type="shared">{{ item }}</span>
-                {% endfor %}
-
-                <!-- Unique to Source Dish -->
-                {% for item in entities.ingredients.source_unique %}
-                  <span class="entity-chip chip-maroon" data-type="source">{{ item }}</span>
-                {% endfor %}
-
-                <!-- Unique to Target Dish -->
-                {% for item in entities.ingredients.target_unique %}
-                  <span class="entity-chip chip-green" data-type="target">{{ item }}</span>
-                {% endfor %}
-              </div>
-            </div>
-
-            <!-- Cooking Actions Tags -->
-            <div class="entity-group">
-              <span class="entity-category-label">COOKING ACTIONS</span>
-              <div class="chips-wrapper">
-                <!-- Shared Actions -->
-                {% for item in entities.actions.shared %}
-                  <span class="entity-chip chip-gold" data-type="shared">{{ item }}</span>
-                {% endfor %}
-
-                <!-- Unique to Source Actions -->
-                {% for item in entities.actions.source_unique %}
-                  <span class="entity-chip chip-maroon" data-type="source">{{ item }}</span>
-                {% endfor %}
-
-                <!-- Unique to Target Actions -->
-                {% for item in entities.actions.target_unique %}
-                  <span class="entity-chip chip-green" data-type="target">{{ item }}</span>
-                {% endfor %}
-              </div>
-            </div>
-
-            <!-- Cookware Tags -->
-            <div class="entity-group">
-              <span class="entity-category-label">COOKWARE</span>
-              <div class="chips-wrapper">
-                <!-- Shared Cookware -->
-                {% for item in entities.cookware.shared %}
-                  <span class="entity-chip chip-gold" data-type="shared">{{ item }}</span>
-                {% endfor %}
-
-                <!-- Unique to Source Cookware -->
-                {% for item in entities.cookware.source_unique %}
-                  <span class="entity-chip chip-maroon" data-type="source">{{ item }}</span>
-                {% endfor %}
-
-                <!-- Unique to Target Cookware -->
-                {% for item in entities.cookware.target_unique %}
-                  <span class="entity-chip chip-green" data-type="target">{{ item }}</span>
-                {% endfor %}
-              </div>
-            </div>
-
-            <!-- Utensils Tags -->
-            <div class="entity-group">
-              <span class="entity-category-label">UTENSILS</span>
-              <div class="chips-wrapper">
-                <!-- Shared Utensils -->
-                {% for item in entities.utensils.shared %}
-                  <span class="entity-chip chip-gold" data-type="shared">{{ item }}</span>
-                {% endfor %}
-
-                <!-- Unique to Source Utensils -->
-                {% for item in entities.utensils.source_unique %}
-                  <span class="entity-chip chip-maroon" data-type="source">{{ item }}</span>
-                {% endfor %}
-
-                <!-- Unique to Target Utensils -->
-                {% for item in entities.utensils.target_unique %}
-                  <span class="entity-chip chip-green" data-type="target">{{ item }}</span>
-                {% endfor %}
-              </div>
-            </div>
-
-            <!-- Entities Legend -->
-            <div class="entities-legend">
-              <span class="legend-item"><span class="dot dot-gold"></span> Shared Profile</span>
-              <span class="legend-item"><span class="dot dot-maroon"></span> Unique to {{ source_dish.title }}</span>
-              <span class="legend-item">
-                <span class="dot dot-green"></span> Unique to {% if recommended_dish %}{{ recommended_dish.title }}{% else %}{{ target_country }}{% endif %}
-              </span>
-            </div>
-
-          </div>
+        <div class="section-head-split">
+          <h2 class="section-heading">RECIPE BREAKDOWN</h2>
+          <p class="section-subheading">
+            The ingredients, cooking actions and tools pulled from both recipes: what the two dishes share, and what sets each one apart.
+          </p>
         </div>
-        
-        <h2 class="section-heading dark-text">SIMILARITY SUMMARY</h2>
 
-        <!-- Similarity Metrics Breakdown -->
+        <div class="entities-card">
+
+          <!-- Category Filter Radio Buttons -->
+          <div class="entity-filters">
+            <label class="filter-pill pill-all">
+              <input type="radio" name="entity_filter" value="all" checked hidden>
+              <span>ALL</span>
+            </label>
+
+            <label class="filter-pill pill-shared">
+              <input type="radio" name="entity_filter" value="shared" hidden>
+              <span>SHARED</span>
+            </label>
+
+            <label class="filter-pill pill-pho">
+              <input type="radio" name="entity_filter" value="source" hidden>
+              <span>{{ source_dish.title | upper }}</span>
+            </label>
+
+            <label class="filter-pill pill-batchoy">
+              <input type="radio" name="entity_filter" value="target" hidden>
+              <span>{% if recommended_dish %}{{ recommended_dish.title | upper }}{% else %}{{ target_country | upper }} DISH{% endif %}</span>
+            </label>
+          </div>
+
+          <!-- Gold = shared, maroon = only in the source dish, green = only in the target dish -->
+          {% for key, label in [('ingredients', 'INGREDIENTS'), ('actions', 'COOKING ACTIONS'), ('cookware', 'COOKWARES'), ('utensils', 'UTENSILS')] %}
+            {% set cat = entities[key] %}
+            <div class="entity-group">
+              <span class="entity-category-label">{{ label }}</span>
+              <div class="chips-wrapper">
+                {% for item in cat.shared %}
+                  <span class="entity-chip chip-gold" data-type="shared">{{ item }}</span>
+                {% endfor %}
+                {% for item in cat.source_unique %}
+                  <span class="entity-chip chip-maroon" data-type="source">{{ item }}</span>
+                {% endfor %}
+                {% for item in cat.target_unique %}
+                  <span class="entity-chip chip-green" data-type="target">{{ item }}</span>
+                {% endfor %}
+              </div>
+            </div>
+          {% endfor %}
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================
+         SECTION 3: SIMILARITY SUMMARY
+         ================================== -->
+    <section class="section-light similarity-section" id="sim-summary">
+      <div class="inner-content">
+        <h2 class="section-heading dark-text">SIMILARITY SUMMARY</h2>
+        <div class="heading-rule"></div>
+
         <div class="similarity-metrics-grid">
-          <!-- Donut Score Display -->
+          <!-- Donut: overall similarity score -->
           <div class="donut-box">
-            <div class="donut-chart" style="--percent: {{ similarity_score|default(0) }};">
+            <div class="donut-chart" style="--percent: {{ score }};">
               <div class="donut-center">
-                <span class="donut-percentage">{{ similarity_score|default(0) }}%</span>
+                <span class="donut-percentage">{{ score }}%</span>
               </div>
             </div>
             <span class="donut-label">OVERALL SIMILARITY SCORE</span>
           </div>
 
-          <!-- Actual feature similarities for the selected recommendation -->
-          <div class="progress-bars-box">
-            {% for feature, label in [('ingredients', 'INGREDIENT SIMILARITY'), ('actions', 'COOKING ACTION SIMILARITY'), ('utensils', 'UTENSIL SIMILARITY'), ('cookware', 'COOKWARE SIMILARITY')] %}
-            {% set score = (feature_scores.get(feature, 0) * 100) | round(2) %}
-            <div class="progress-item">
-              <div class="progress-info">
-                <span>{{ label }}</span>
-                <span>{{ score }}%</span>
+          <!-- Per-category similarity from the model (softmatch.py) for the recommended dish.
+               These are the same scores that are blended into the overall score above. -->
+          <div class="sim-bars">
+            {% for label, key in [('INGREDIENT SIMILARITY', 'ingredients'), ('COOKING ACTION SIMILARITY', 'actions'), ('UTENSIL SIMILARITY', 'utensils'), ('COOKWARE SIMILARITY', 'cookware')] %}
+              {% if feature_scores is defined and key in feature_scores %}
+                {% set pct = [ [ (feature_scores[key] * 100) | round | int, 0 ] | max, 100 ] | min %}
+              {% else %}
+                {% set pct = overlap_pct(entities[key]) | trim | int %}
+              {% endif %}
+              <div class="sim-bar">
+                <div class="sim-bar-info">
+                  <span>{{ label }}</span>
+                  <span>{{ pct }}%</span>
+                </div>
+                <div class="sim-bar-track"><div class="sim-bar-fill" style="--pct: {{ pct }};"></div></div>
               </div>
-              <div class="progress-track"><div class="progress-fill" style="width: {{ [score, 100]|min }}%;"></div></div>
-            </div>
             {% endfor %}
           </div>
         </div>
 
-        <!-- AI Explanation Card -->
+        <!-- AI Explanation Card (GPT-4o via explainer.py, grounded in the Shapley contributions) -->
         <div class="quote-card">
-          <span class="quote-icon">&ldquo;&rdquo;</span>
+          <span class="quote-icon" aria-hidden="true">&ldquo;&rdquo;</span>
           <p class="quote-text">
             {% if explanation %}{{ explanation }}{% else %}No similarity explanation is available because no matching dish was found for this search.{% endif %}
           </p>
@@ -296,66 +244,49 @@
       </div>
     </section>
 
+
 <!-- ==================================
      SECTION 3: GEOGRAPHICAL DISTRIBUTION
      ================================== -->
 <section class="section-dark geo-map-section" id="geo-distribution">
   <div class="inner-content">
-    <!-- Header aligned with new mockup layout -->
     <div class="geo-map-header">
       <div class="header-text-group">
         <h2 class="section-heading">OTHER SIMILAR CUISINES</h2>
         <p class="section-subheading">
-          An editorial deconstruction of how Rome's shepherds and Tokyo's noodle masters discovered the identical thermodynamic laws of fat-suspension comfort food.
+         Mapping regional recipe variations and international counterparts based on ingredient and cooking similarity.
         </p>
       </div>
-      <button type="button" class="btn-full-view" id="openMapModal">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
-        </svg>
-        <span>FULL VIEW MAP</span>
-      </button>
     </div>
 
     <!-- Map Pan Wrapper styled as the outer card -->
     <div class="map-pan-wrapper">
       <div class="map-placeholder">
-        <img src="{{ url_for('static', filename='assets/WorldMap-temp.png') }}" class="map-graphic" id="world-map-img" alt="World Map" usemap="#image-map">
-        
-        <map name="image-map" id="image-map">
-          <area target="" alt="china" title="china" href="#" coords="449,25,465,37,529,48,634,8,740,0,718,41,650,66,622,70,654,81,636,94,652,140,620,180,568,196,534,184,500,189,475,176,482,154,458,138,404,150,342,124,340,97,306,66,353,42,352,21,403,0,422,6,429,20,442,26,445,28" shape="poly">
-          <area target="" alt="vietnam" title="vietnam" href="#" coords="510,190,521,205,547,239,546,253,525,271,529,279,557,263,556,238,534,205,549,190,532,183" shape="poly">
-          <area target="" alt="indonesia" title="indonesia" href="#" coords="537,384,535,364,513,336,470,304,458,306,518,381,539,396,588,406,667,417,573,392,543,386,593,370,562,366,556,337,615,296,629,306,617,319,624,334,618,343,614,355,610,372,625,365,637,336,654,336,673,334,643,352,657,349,648,357,658,383,639,365,637,384,629,369,725,346,782,362,782,404,746,381,726,367,713,351" shape="poly">
-          <area target="" alt="philippines" title="philippines" href="#" coords="636,232,642,251,619,284,646,261,653,278,652,292,676,307,686,290,678,261,650,237,656,222,643,209" shape="poly">
-          <area target="" alt="cambodia" title="cambodia" href="#" coords="546,241,511,245,515,265,528,271,547,255" shape="poly">
-          <area target="" alt="thailand" title="thailand" href="#" coords="533,243,527,219,502,217,495,198,476,208,480,228,486,248,489,261,480,287,494,303,512,303,494,279,499,251,513,257,513,243" shape="poly">
-          <area target="" alt="malaysia" title="malaysia" href="#" coords="491,304,502,325,521,335,521,315,511,302" shape="poly">
-          <area target="" alt="myanmar" title="myanmar" href="#" coords="476,149,458,157,449,178,438,195,454,216,451,232,473,225,484,264,486,232,478,214,500,191,475,177,484,155" shape="poly">
-          <area target="" alt="turkiye" title="turkiye" href="#" coords="93,85,-1,51" shape="rect">
-          <area target="" alt="saudi arabia" title="saudi arabia" href="#" coords="43,120,65,116,97,135,120,138,153,181,177,186,176,201,121,215,117,225,87,221,56,190,52,174,46,169,26,143,39,135" shape="poly">
-          <area target="" alt="south korea" title="south korea" href="#" coords="704,71,682,101" shape="rect">
-          <area target="" alt="japan" title="japan" href="#" coords="817,25,796,19,780,39,782,52,769,78,705,109,712,121,743,102,763,99,787,88,792,59,795,44,812,41" shape="poly">
-          <area target="" alt="india" title="india" href="#" coords="336,94,318,99,304,96,315,119,288,147,275,151,286,170,267,172,278,195,298,192,312,248,332,286,355,272,353,230,403,195,416,184,412,165,430,164,436,175,441,187,459,155,475,148,457,138,439,143,439,154,415,150,408,148,410,157,380,152,350,141,357,132,342,124" shape="poly">
-        </map>
+        <!-- Drawn by drawWorldMap() from real country shapes (d3 + world-atlas), the same way as the
+             Analysis page, so there are no hard-coded country outlines. The map fills this box exactly:
+             JS sets the viewBox to the box's pixel size, so the pins layer below lines up with it.
+             Keep id/class: the pins use them. -->
+        <svg id="world-map-img" class="map-graphic" viewBox="0 0 1000 320" preserveAspectRatio="none"
+             role="img" aria-label="Map of Asia"></svg>
 
         <!-- Dynamic Pins Container -->
         <div id="map-pins-layer"></div>
       </div>
 
-      <!-- Floating Route Summary Bar -->
-      <div type="button" class="route-info-bar" id="openMapModal">
+      <!-- Bottom bar: opens the full-screen map -->
+      <button type="button" class="route-info-bar" id="openMapModal">
         <div class="route-details">
           <div class="route-text-group">
-            <span class="route-value">GEOGRAPHICAL MAP</span>
+            <span class="route-value">GEOGRAPHICAL DISTRIBUTION</span>
           </div>
         </div>
         <div class="route-hint">
-          <span>Click to browse full map view & similarity summaries</span>
-          <svg class="icon-arrow" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
-            <path d="M7 17L17 7M17 7H7M17 7V17" />
+          <span>Click to browse full map view &amp; similarity summaries</span>
+          <svg class="icon-arrow" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" aria-hidden="true">
+            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
           </svg>
         </div>
-      </div>
+      </button>
     </div>
   </div>
 </section>
@@ -402,73 +333,102 @@
 
         <!-- TAB CONTENT 1: RECIPE BREAKDOWN -->
         <div class="tab-content active" id="tab-recipe">
-          <div class="panel-legend">
-            <span class="legend-chip gold-dot"><span class="shared-entity">Shared Entities</span></span>
-            <span class="legend-chip maroon-dot"><span id="modalSourceDishLabel"></span></span>
-            <span class="legend-chip green-dot"><span class="active-dish-name"></span></span>
+          <div class="panel-card">
+            <div class="panel-legend">
+              <span class="legend-chip gold-dot"><span class="shared-entity">Shared Entities</span></span>
+              <span class="legend-chip maroon-dot"><span id="modalSourceDishLabel"></span></span>
+              <span class="legend-chip green-dot"><span class="active-dish-name"></span></span>
+            </div>
+
+            <div class="panel-entity-section">
+              <span class="entity-title">INGREDIENTS</span>
+              <div class="chips-wrapper" id="modalIngredients"></div>
+            </div>
+
+            <div class="panel-entity-section">
+              <span class="entity-title">COOKING ACTIONS</span>
+              <div class="chips-wrapper" id="modalActions"></div>
+            </div>
+
+            <div class="panel-entity-section">
+              <span class="entity-title">COOKWARES</span>
+              <div class="chips-wrapper" id="modalCookware"></div>
+            </div>
+
+            <div class="panel-entity-section">
+              <span class="entity-title">UTENSILS</span>
+              <div class="chips-wrapper" id="modalUtensils"></div>
+            </div>
           </div>
 
-          <div class="panel-entity-section">
-            <span class="entity-title">INGREDIENTS</span>
-            <div class="chips-wrapper" id="modalIngredients"></div>
-          </div>
-
-          <div class="panel-entity-section">
-            <span class="entity-title">COOKING ACTIONS</span>
-            <div class="chips-wrapper" id="modalActions"></div>
-          </div>
-
-          <div class="panel-entity-section">
-            <span class="entity-title">COOKWARE</span>
-            <div class="chips-wrapper" id="modalCookware"></div>
-          </div>
-
-          <div class="panel-entity-section">
-            <span class="entity-title">UTENSILS</span>
-            <div class="chips-wrapper" id="modalUtensils"></div>
+          <!-- GPT explanation, shown under the breakdown too (same text as the Similarity Summary tab) -->
+          <div class="quote-card modal-quote" id="modalRecipeQuote">
+            <span class="quote-icon" aria-hidden="true">&ldquo;</span>
+            <p class="quote-text" id="modalExplanationRecipe"></p>
+            <div class="quote-footer">
+              <span class="badge-mini" id="modalExplBadgeRecipe">AI EXPLANATION</span>
+              <span class="footer-note" id="modalExplNoteRecipe"></span>
+            </div>
           </div>
         </div>
 
-        <!-- TAB CONTENT 2: SIMILARITY SUMMARY -->
+        <!-- TAB CONTENT 2: SIMILARITY SUMMARY (same layout as the results page; refreshed per dish by JS) -->
         <div class="tab-content" id="tab-similarity">
-          <div class="modal-metric-box">
-            <span class="metric-label">OVERALL SIMILARITY SCORE</span>
-            <div class="metric-score" id="modalOverallScore">{{ similarity_score }}%</div>
+          <div class="origin-note" id="modalOriginNote"></div>
+
+          <div class="panel-card">
+            <div class="donut-box">
+              <div class="donut-chart" id="modalDonut" style="--percent: {{ score }};">
+                <div class="donut-center">
+                  <span class="donut-percentage" id="modalOverallScore">{{ score }}%</span>
+                </div>
+              </div>
+              <span class="donut-label">OVERALL SIMILARITY SCORE</span>
+            </div>
+
+            <div class="sim-bars" id="modalSimBars">
+              {% for label, key in [('INGREDIENT SIMILARITY', 'ingredients'), ('COOKING ACTION SIMILARITY', 'actions'), ('UTENSIL SIMILARITY', 'utensils'), ('COOKWARE SIMILARITY', 'cookware')] %}
+                {% set pct = overlap_pct(entities[key]) | trim | int %}
+                <div class="sim-bar" data-key="{{ key }}">
+                  <div class="sim-bar-info">
+                    <span>{{ label }}</span>
+                    <span class="sim-bar-value">{{ pct }}%</span>
+                  </div>
+                  <div class="sim-bar-track"><div class="sim-bar-fill" style="--pct: {{ pct }};"></div></div>
+                </div>
+              {% endfor %}
+            </div>
           </div>
 
-          <div class="modal-progress-list">
-            <div class="progress-item">
-              <div class="progress-info"><span>INGREDIENT WEIGHT</span><span>{{ feature_weights.ingredients }}%</span></div>
-              <div class="progress-track"><div class="progress-fill" style="width: {{ feature_weights.ingredients }}%;"></div></div>
+          <div class="quote-card modal-quote">
+            <span class="quote-icon" aria-hidden="true">&ldquo;</span>
+            <p class="quote-text" id="modalExplanation"></p>
+            <div class="quote-footer">
+              <span class="badge-mini" id="modalExplBadge">AI EXPLANATION</span>
+              <span class="footer-note" id="modalExplNote"></span>
             </div>
-            <div class="progress-item">
-              <div class="progress-info"><span>ACTION WEIGHT</span><span>{{ feature_weights.actions }}%</span></div>
-              <div class="progress-track"><div class="progress-fill" style="width: {{ feature_weights.actions }}%;"></div></div>
-            </div>
-            <div class="progress-item">
-              <div class="progress-info"><span>COOKWARE WEIGHT</span><span>{{ feature_weights.cookware }}%</span></div>
-              <div class="progress-track"><div class="progress-fill" style="width: {{ feature_weights.cookware }}%;"></div></div>
-            </div>
-            <div class="progress-item">
-              <div class="progress-info"><span>UTENSIL WEIGHT</span><span>{{ feature_weights.utensils }}%</span></div>
-              <div class="progress-track"><div class="progress-fill" style="width: {{ feature_weights.utensils }}%;"></div></div>
-            </div>
-          </div>
-
-          <div class="modal-ai-quote">
-            <p id="modalDirections">{{ explanation if explanation else (recommended_dish.directions if recommended_dish else source_dish.directions) }}</p>
           </div>
         </div>
 
       </div>
     </aside>
 
+
     <!-- RIGHT MAIN CANVAS: MAP VIEW -->
     <main class="map-canvas-right">
-      <div class="map-filter-bar">
-        <button type="button" class="map-filter-pill active" data-layer="main">MAIN DISH</button>
-        <button type="button" class="map-filter-pill active" data-layer="regional">REGIONAL VARIATIONS</button>
-        <button type="button" class="map-filter-pill active" data-layer="international">INTERNATIONAL SIMILARITIES</button>
+      <div class="map-filter-bar" role="group" aria-label="Map layers">
+        <button type="button" class="map-filter-pill map-filter-pill--main active" data-layer="main" role="switch" aria-checked="true">
+          <span class="pill-switch" aria-hidden="true"></span>
+          <span class="pill-label">MAIN DISH</span>
+        </button>
+        <button type="button" class="map-filter-pill map-filter-pill--regional active" data-layer="regional" role="switch" aria-checked="true">
+          <span class="pill-switch" aria-hidden="true"></span>
+          <span class="pill-label">REGIONAL VARIATIONS</span>
+        </button>
+        <button type="button" class="map-filter-pill map-filter-pill--international active" data-layer="international" role="switch" aria-checked="true">
+          <span class="pill-switch" aria-hidden="true"></span>
+          <span class="pill-label">INTERNATIONAL SIMILARITIES</span>
+        </button>
       </div>
 
       <button type="button" class="btn-exit-map" id="closeMapModal">
@@ -495,46 +455,8 @@
   <app-footer></app-footer>
 
   <script src="{{ url_for('static', filename='scripts/components.js') }}"></script>
-
-  <!-- ==================================
-       STICKY SUBNAV BEHAVIOR
-       ================================== -->
-  <script>
-    (function initScrollUpStickyNav() {
-      const subnav = document.querySelector('.results-subnav');
-      if (!subnav) return;
-
-      let lastScrollY = window.scrollY;
-
-      function handleScroll() {
-        if (window.innerWidth <= 600) {
-          subnav.classList.remove('is-sticky', 'nav-hidden');
-          return;
-        }
-
-        const initialOffsetTop = subnav.offsetTop;
-        const currentScrollY = window.scrollY;
-
-        if (currentScrollY > initialOffsetTop) {
-          subnav.classList.add('is-sticky');
-
-          if (currentScrollY > lastScrollY) {
-            subnav.classList.add('nav-hidden');
-          } else if (currentScrollY < lastScrollY) {
-            subnav.classList.remove('nav-hidden'); 
-          }
-        } else {
-          subnav.classList.remove('is-sticky', 'nav-hidden');
-        }
-
-        lastScrollY = currentScrollY;
-      }
-
-      window.addEventListener('scroll', handleScroll);
-      window.addEventListener('resize', handleScroll);
-      handleScroll();
-    })();
-  </script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
 
   <!-- ==================================
        EXTRACTED ENTITIES FILTERING
@@ -571,6 +493,7 @@
     "recommendedDish": recommended_dish,
     "entities": entities,
     "similarityScore": similarity_score,
+    "featureScores": feature_scores | default({}),
     "regionalVariations": regional_variations,
     "internationalSimilarities": international_similarities
   } | tojson }}
@@ -593,9 +516,263 @@
     const activeDish = MAP_DATA.recommendedDish || MAP_DATA.sourceDish || {};
 
     // Helper: Safely generate chip HTML for entity lists
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, ch => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]
+      ));
+    }
+
     function createChips(items, chipClass) {
       if (!Array.isArray(items) || !items.length) return '';
-      return items.map(item => `<span class="entity-chip ${chipClass}">${item}</span>`).join('');
+      return items.map(item => `<span class="entity-chip ${chipClass}">${escapeHtml(item)}</span>`).join('');
+    }
+
+    // ----------------------------------------------------------------
+    // PER-DISH COMPARISON DATA
+    // The main (recommended) dish uses the server-computed entities. For any
+    // other pin we need that dish's own comparison against the source dish:
+    //   1) dish.entities, if the backend sends it (same shape as the main
+    //      `entities`: {ingredients: {shared, source_unique, target_unique}, ...})
+    //   2) otherwise it is computed here from the dish's own entity lists,
+    //      using any of the field names below.
+    // ----------------------------------------------------------------
+    const ENTITY_FIELDS = {
+      ingredients: ['ingredients', 'ingredient_text', 'ingredient_list'],
+      actions: ['actions', 'action_text', 'actions_text', 'cooking_actions', 'cooking_action_text'],
+      cookware: ['cookware', 'cookware_text'],
+      utensils: ['utensils', 'utensil_text', 'utensils_text']
+    };
+
+    function toEntityList(value) {
+      if (Array.isArray(value)) {
+        return value.map(v => String(v).trim()).filter(Boolean);
+      }
+      if (typeof value === 'string') {
+        return value.split(/[,;|\n]/).map(v => v.trim()).filter(Boolean);
+      }
+      return [];
+    }
+
+    function readDishList(dish, key) {
+      if (!dish) return null;
+      for (const field of ENTITY_FIELDS[key]) {
+        if (dish[field] !== undefined && dish[field] !== null) {
+          const list = toEntityList(dish[field]);
+          if (list.length) return list;
+        }
+      }
+      return null;
+    }
+
+    function compareLists(sourceList, targetList) {
+      const norm = s => s.trim().toLowerCase();
+      const targetByKey = new Map(targetList.map(x => [norm(x), x]));
+      const sourceKeys = new Set(sourceList.map(norm));
+      const result = { shared: [], source_unique: [], target_unique: [] };
+      const seen = new Set();
+
+      sourceList.forEach(item => {
+        const k = norm(item);
+        if (seen.has(k)) return;
+        seen.add(k);
+        (targetByKey.has(k) ? result.shared : result.source_unique).push(item);
+      });
+      targetByKey.forEach((item, k) => {
+        if (!sourceKeys.has(k)) result.target_unique.push(item);
+      });
+      return result;
+    }
+
+    // Returns {ingredients, actions, cookware, utensils} (each a category
+    // object or null when that dish has no data for it), or null if none.
+    function getEntitiesFor(dish) {
+      if (!dish) return null;
+
+      // Original dish: list everything it has (shared + source-only) in the
+      // source color, since there is nothing to compare it against.
+      if (dish === MAP_DATA.sourceDish) {
+        if (!MAP_DATA.entities) return null;
+        const own = {};
+        Object.keys(ENTITY_FIELDS).forEach(key => {
+          const cat = MAP_DATA.entities[key];
+          own[key] = cat
+            ? { shared: [], source_unique: [...(cat.shared || []), ...(cat.source_unique || [])], target_unique: [] }
+            : null;
+        });
+        return own;
+      }
+      if (dish === MAP_DATA.recommendedDish && MAP_DATA.entities) return MAP_DATA.entities;
+      if (dish.entities && typeof dish.entities === 'object') return dish.entities;
+
+      const out = {};
+      let found = false;
+      Object.keys(ENTITY_FIELDS).forEach(key => {
+        const a = readDishList(MAP_DATA.sourceDish, key);
+        const b = readDishList(dish, key);
+        if (a && b) {
+          out[key] = compareLists(a, b);
+          found = true;
+        } else {
+          out[key] = null;
+        }
+      });
+      return found ? out : null;
+    }
+
+    // shared / (shared + only-in-source + only-in-target), as a whole percent.
+    function overlapPercent(cat) {
+      if (!cat) return null;
+      const shared = (cat.shared || []).length;
+      const total = shared + (cat.source_unique || []).length + (cat.target_unique || []).length;
+      return total ? Math.round((shared * 100) / total) : 0;
+    }
+
+    function getDishScore(dish) {
+      const raw = (dish === MAP_DATA.recommendedDish) ? MAP_DATA.similarityScore : dish && dish.score;
+      const n = Number(raw);
+      if (raw === null || raw === undefined || raw === '' || Number.isNaN(n)) return null;
+      return Math.min(Math.max(Math.round(n), 0), 100);
+    }
+
+    function joinNatural(list) {
+      const items = list.map(escapeHtml);
+      if (items.length <= 1) return items.join('');
+      return items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
+    }
+
+    // Same AI text the results page shows, used for the main comparison.
+    const pageQuote = document.querySelector('.similarity-section .quote-text');
+    const pageQuoteNote = document.querySelector('.similarity-section .footer-note');
+    const MAIN_EXPLANATION_HTML = pageQuote ? pageQuote.innerHTML : '';
+    const MAIN_EXPLANATION_NOTE = pageQuoteNote ? pageQuoteNote.textContent : '';
+    const pageQuoteBadge = document.querySelector('.similarity-section .badge-mini');
+    const MAIN_EXPLANATION_BADGE = pageQuoteBadge ? pageQuoteBadge.textContent : 'AI EXPLANATION';
+
+    function buildExplanation(dish, entities, score) {
+      const src = escapeHtml((MAP_DATA.sourceDish && MAP_DATA.sourceDish.title) || 'The source dish');
+      const tgt = escapeHtml(dish.title || 'this dish');
+      if (!entities) {
+        return `A detailed comparison between <strong>${src}</strong> and <strong>${tgt}</strong> isn't available yet.`;
+      }
+      const parts = [];
+      const sharedIng = (entities.ingredients && entities.ingredients.shared) || [];
+      const sharedAct = (entities.actions && entities.actions.shared) || [];
+      const sharedTools = [
+        ...((entities.cookware && entities.cookware.shared) || []),
+        ...((entities.utensils && entities.utensils.shared) || [])
+      ];
+      if (sharedIng.length) {
+        parts.push(`Both use ${joinNatural(sharedIng.slice(0, 5))}.`);
+      }
+      if (sharedAct.length) {
+        parts.push(`They share the cooking steps ${joinNatural(sharedAct.slice(0, 4).map(s => s.toLowerCase()))}.`);
+      }
+      if (sharedTools.length) {
+        parts.push(`Common tools include ${joinNatural(sharedTools.slice(0, 4).map(s => s.toLowerCase()))}.`);
+      }
+      if (!parts.length) {
+        parts.push('They have very little in common in their extracted ingredients, steps and tools.');
+      }
+      const lead = score === null ? '' : ` are ${score}% similar overall.`;
+      return `<strong>${src}</strong> and <strong>${tgt}</strong>${lead || ' compared.'} ${parts.join(' ')}`;
+    }
+
+    // GPT summaries for the pins (regional variations / international similarities).
+    // Fetched from /api/explain-pin when a pin is selected, then kept for the rest of the visit.
+    const PIN_EXPL_CACHE = new Map();   // recipe idx -> { explanation, source }
+    let pinExplToken = 0;               // lets a late answer be ignored if another pin was clicked
+
+    function showExplanation(elem, html, text, badge, note, loading) {
+      // Writes to the Similarity tab card and the card under the Recipe Breakdown.
+      const targets = [
+        [elem, 'modalExplBadge', 'modalExplNote'],
+        [document.getElementById('modalExplanationRecipe'), 'modalExplBadgeRecipe', 'modalExplNoteRecipe']
+      ];
+      targets.forEach(([el, badgeId, noteId]) => {
+        if (!el) return;
+        if (html !== null) el.innerHTML = html; else el.textContent = text;   // GPT text is never inserted as HTML
+        el.style.opacity = loading ? '0.6' : '';
+        el.style.fontStyle = loading ? 'italic' : '';
+        const b = document.getElementById(badgeId);
+        const n = document.getElementById(noteId);
+        if (b) b.textContent = badge;
+        if (n) n.textContent = note;
+      });
+    }
+
+    function loadPinExplanation(dish, entities, score) {
+      const elem = document.getElementById('modalExplanation');
+      if (!elem) return;
+      const token = ++pinExplToken;
+      const srcIdx = MAP_DATA.sourceDish && MAP_DATA.sourceDish.idx;
+
+      const useTemplate = () => showExplanation(
+        elem, buildExplanation(dish, entities, score), null, 'SUMMARY',
+        'GPT unavailable. Showing a template summary of the shared ingredients, cooking steps and tools.', false);
+      const useAnswer = (data) => showExplanation(
+        elem, null, data.explanation,
+        data.source === 'ai' ? 'AI EXPLANATION' : 'SUMMARY',
+        data.source === 'ai' ? '' : 'GPT unavailable. Showing a grounded template explanation.', false);
+
+      if (dish.idx === undefined || srcIdx === undefined) { useTemplate(); return; }
+      if (PIN_EXPL_CACHE.has(dish.idx)) { useAnswer(PIN_EXPL_CACHE.get(dish.idx)); return; }
+
+      showExplanation(elem, null, 'Generating AI explanation\u2026', 'AI EXPLANATION', '', true);
+      fetch(`/api/explain-pin?source=${encodeURIComponent(srcIdx)}&idx=${encodeURIComponent(dish.idx)}`)
+        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(data => {
+          if (!data || !data.explanation) throw new Error('empty explanation');
+          PIN_EXPL_CACHE.set(dish.idx, data);
+          if (token === pinExplToken) useAnswer(data);      // ignore if the user moved to another pin
+        })
+        .catch(() => { if (token === pinExplToken) useTemplate(); });
+    }
+
+    function renderSimilarity(dish, entities) {
+      pinExplToken++;   // any request still in flight for a previous pin is now stale
+      const isOrigin = dish === MAP_DATA.sourceDish;
+      const simTab = document.getElementById('tab-similarity');
+      if (simTab) simTab.classList.toggle('is-origin', isOrigin);
+      const originNote = document.getElementById('modalOriginNote');
+      if (originNote) {
+        const srcTitle = (MAP_DATA.sourceDish && MAP_DATA.sourceDish.title) || 'This dish';
+        const tgtTitle = (MAP_DATA.recommendedDish && MAP_DATA.recommendedDish.title) || 'the other dishes';
+        originNote.textContent = `${srcTitle} is the original dish, so there is nothing to compare it against. Select ${tgtTitle} or another pin to see how it compares.`;
+      }
+      if (isOrigin) return;
+
+      const score = getDishScore(dish);
+
+      const donut = document.getElementById('modalDonut');
+      const scoreElem = document.getElementById('modalOverallScore');
+      if (donut) donut.style.setProperty('--percent', score === null ? 0 : score);
+      if (scoreElem) scoreElem.textContent = score === null ? 'N/A' : `${score}%`;
+
+      // The main (recommended) dish shows the model's per-category scores, like the results page.
+      // Other pins only have their entity lists, so they show the overlap of those lists.
+      const isMain = dish === MAP_DATA.recommendedDish;
+      const featureScores = MAP_DATA.featureScores || {};
+      document.querySelectorAll('#modalSimBars .sim-bar').forEach(bar => {
+        const key = bar.getAttribute('data-key');
+        const pct = (isMain && typeof featureScores[key] === 'number')
+          ? Math.min(Math.max(Math.round(featureScores[key] * 100), 0), 100)
+          : overlapPercent(entities && entities[key]);
+        const fill = bar.querySelector('.sim-bar-fill');
+        const val = bar.querySelector('.sim-bar-value');
+        if (fill) fill.style.setProperty('--pct', pct === null ? 0 : pct);
+        if (val) val.textContent = pct === null ? 'N/A' : `${pct}%`;
+      });
+
+      // Explanation: the GPT text from the results page for the main dish; every other pin
+      // asks the server for its own GPT explanation (template text only if that call fails).
+      const explElem = document.getElementById('modalExplanation');
+      if (explElem) {
+        if (isMain && MAIN_EXPLANATION_HTML.trim()) {
+          showExplanation(explElem, MAIN_EXPLANATION_HTML, null, MAIN_EXPLANATION_BADGE, MAIN_EXPLANATION_NOTE, false);
+        } else {
+          loadPinExplanation(dish, entities, score);
+        }
+      }
     }
 
     // Helper: Update Left Sidebar with Active Dish Data
@@ -653,25 +830,26 @@
       // green = unique to the active/target dish) -- never the entity category itself.
       function renderEntityGroup(elementId, categoryData) {
         const wrapper = document.getElementById(elementId);
-        if (!wrapper || !categoryData) return;
+        if (!wrapper) return;
+        if (!categoryData) {
+          wrapper.innerHTML = '<span class="entity-empty">Not available for this dish.</span>';
+          return;
+        }
         wrapper.innerHTML =
           createChips(categoryData.shared, 'chip-gold') +
           createChips(categoryData.source_unique, 'chip-maroon') +
           createChips(categoryData.target_unique, 'chip-green');
       }
 
-      if (MAP_DATA.entities) {
-        renderEntityGroup('modalIngredients', MAP_DATA.entities.ingredients);
-        renderEntityGroup('modalActions', MAP_DATA.entities.actions);
-        renderEntityGroup('modalCookware', MAP_DATA.entities.cookware);
-        renderEntityGroup('modalUtensils', MAP_DATA.entities.utensils);
-      }
-
-      // Render Directions / AI Summary
-      const directionsElem = document.getElementById('modalDirections');
-      if (directionsElem) {
-        directionsElem.textContent = dish.directions || 'No directions available for this entry.';
-      }
+      // Recipe breakdown + similarity summary for THIS dish (not always the main one)
+      const entities = getEntitiesFor(dish);
+      const recipeTab = document.getElementById('tab-recipe');
+      if (recipeTab) recipeTab.classList.toggle('is-origin', dish === MAP_DATA.sourceDish);
+      renderEntityGroup('modalIngredients', entities && entities.ingredients);
+      renderEntityGroup('modalActions', entities && entities.actions);
+      renderEntityGroup('modalCookware', entities && entities.cookware);
+      renderEntityGroup('modalUtensils', entities && entities.utensils);
+      renderSimilarity(dish, entities);
     }
 
     // ==================================
@@ -679,100 +857,188 @@
     // and top 5 international similarities, drop them on the map (randomized
     // within their country's shape), and wire up hover preview + click.
     // ==================================
-    const mapImg = document.getElementById('world-map-img');
+    const mapSvg = document.getElementById('world-map-img');
     const pinsLayer = document.getElementById('map-pins-layer');
 
-    // A couple of country-name aliases in case the dataset spells them
-    // differently than the <area alt="..."> values on the map.
-    const COUNTRY_ALIASES = {
-      'turkey': 'turkiye',
-      'korea': 'south korea',
-      'republic of korea': 'south korea',
-      'korea, south': 'south korea'
+    // ----------------------------------
+    // WORLD MAP: drawn from real country shapes, the same way as the Analysis page's map.
+    //
+    // The SVG's viewBox is always set to the map box's real pixel size and the projection is
+    // re-fitted to that size, so one SVG unit == one pixel. The pins layer is the very same box,
+    // so a pin at (x, y) sits exactly on the spot of the map drawn at (x, y). (Before, the SVG kept
+    // a fixed 2:1 shape while the pins layer followed the card's height, so the pins drifted off
+    // their countries.) Each pin remembers its longitude/latitude and is re-projected whenever the
+    // box changes size (small preview <-> full screen).
+    // ----------------------------------
+    const WORLD_TOPOLOGY_URL =
+      'https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json'; // Natural Earth
+
+    // The area the map is framed on: a box that covers Asia (same frame as the Analysis page).
+    const ASIA_FRAME = {
+      type: 'MultiPoint',
+      coordinates: [[22, -12], [150, 56]]
     };
 
-    function normalizeCountryKey(country) {
-      if (!country) return '';
-      const key = country.toString().trim().toLowerCase();
-      return COUNTRY_ALIASES[key] || key;
-    }
+    // Land colours. The origin, target and other matched countries are tinted.
+    const MAP_COLORS = {
+      land: '#e4d9c6',
+      border: '#fbf6ec',
+      origin: '#800d12',
+      target: '#a32e32',
+      other: '#d9a98f'
+    };
 
-    function findAreaForCountry(country) {
-      const key = normalizeCountryKey(country);
-      if (!key) return null;
-      return document.querySelector(`map[name="image-map"] area[alt="${key}"]`) ||
-             document.querySelector(`map[name="image-map"] area[title="${key}"]`);
-    }
+    let worldTopologyPromise = null;
+    let worldFeatures = null;            // all country shapes
+    let mapProjection = null;            // projection for the current box size
+    let mapWidth = 0;                    // current box size in pixels (== SVG viewBox)
+    let mapHeight = 0;
+    const countryFeatures = new Map();   // normalized country name -> map shape
+    const placedPins = [];               // { pin, lonlat } for every pin on the map
 
-    function isPointInPolygon(point, vs) {
-      let x = point.x, y = point.y;
-      let inside = false;
-      for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
-        let xi = vs[i].x, yi = vs[i].y;
-        let xj = vs[j].x, yj = vs[j].y;
-
-        let intersect = ((yi > y) !== (yj > y)) &&
-            (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-        if (intersect) inside = !inside;
+    // World shapes are fetched once, then reused.
+    function loadWorldTopology() {
+      if (!worldTopologyPromise) {
+        worldTopologyPromise = d3.json(WORLD_TOPOLOGY_URL).catch(error => {
+          worldTopologyPromise = null;   // allow a retry next time
+          throw error;
+        });
       }
-      return inside;
+      return worldTopologyPromise;
     }
 
-    function getRandomPointInPolygon(polygon) {
-      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    // Lets dataset names (e.g. "Turkiye") match the map's names ("Turkey").
+    function normalizeMapCountryName(name) {
+      const key = String(name || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
 
-      polygon.forEach((p) => {
-        if (p.x < minX) minX = p.x;
-        if (p.x > maxX) maxX = p.x;
-        if (p.y < minY) minY = p.y;
-        if (p.y > maxY) maxY = p.y;
+      const aliases = {
+        'turkiye': 'turkey',
+        'korea': 'south korea',
+        'korea, south': 'south korea',
+        'republic of korea': 'south korea',
+        'korea, republic of': 'south korea',
+        's. korea': 'south korea',
+        'viet nam': 'vietnam',
+        'burma': 'myanmar',
+        'russian federation': 'russia',
+        'united states': 'united states of america'
+      };
+
+      return aliases[key] || key;
+    }
+
+    async function loadWorldMapData() {
+      const topology = await loadWorldTopology();
+      worldFeatures = topojson.feature(topology, topology.objects.countries).features;
+      worldFeatures.forEach(feature => {
+        countryFeatures.set(normalizeMapCountryName(feature.properties.name), feature);
       });
-
-      let point;
-      let attempts = 0;
-      const maxAttempts = 200;
-
-      do {
-        point = {
-          x: minX + Math.random() * (maxX - minX),
-          y: minY + Math.random() * (maxY - minY)
-        };
-        attempts++;
-      } while (!isPointInPolygon(point, polygon) && attempts < maxAttempts);
-
-      return point;
     }
 
-    // Picks a randomized (x, y) in image-pixel space somewhere inside the
-    // given country's area shape, or null if the country isn't on the map.
-    function getRandomPointForCountry(country) {
-      const area = findAreaForCountry(country);
-      if (!area) return null;
+    // Draws the countries to fill the map box. Returns false if the box has no size right now
+    // (e.g. it is hidden); it is drawn again as soon as it gets one.
+    function drawWorldMap() {
+      if (!mapSvg || !worldFeatures || !originalMapPlaceholder) return false;
 
-      const coords = area.getAttribute('coords').split(',').map(Number);
-      const shape = area.getAttribute('shape').toLowerCase();
+      const width = originalMapPlaceholder.clientWidth;
+      const height = originalMapPlaceholder.clientHeight;
+      if (width < 20 || height < 20) return false;
 
-      if (shape === 'poly') {
-        const polygon = [];
-        for (let i = 0; i < coords.length; i += 2) {
-          polygon.push({ x: coords[i], y: coords[i + 1] });
+      mapWidth = width;
+      mapHeight = height;
+      mapSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      mapProjection = d3.geoMercator().fitSize([width, height], ASIA_FRAME);
+      const path = d3.geoPath(mapProjection);
+
+      // Which countries are on this result page.
+      const originKey = normalizeMapCountryName(MAP_DATA.sourceDish && MAP_DATA.sourceDish.country);
+      const firstRegional = (MAP_DATA.regionalVariations || [])[0];
+      const targetKey = normalizeMapCountryName(
+        (MAP_DATA.recommendedDish && MAP_DATA.recommendedDish.country) ||
+        (firstRegional && firstRegional.country)
+      );
+      const otherKeys = new Set(
+        (MAP_DATA.internationalSimilarities || []).map(dish => normalizeMapCountryName(dish.country))
+      );
+
+      d3.select(mapSvg)
+        .selectAll('path')
+        .data(worldFeatures)
+        .join('path')
+        .attr('d', path)
+        .attr('stroke', MAP_COLORS.border)
+        .attr('stroke-width', 0.5)
+        .attr('fill', feature => {
+          const key = normalizeMapCountryName(feature.properties.name);
+          if (key === originKey) return MAP_COLORS.origin;
+          if (key === targetKey) return MAP_COLORS.target;
+          if (otherKeys.has(key)) return MAP_COLORS.other;
+          return MAP_COLORS.land;
+        });
+
+      return true;
+    }
+
+    // Puts one pin on its longitude/latitude, as a percentage of the map box.
+    function positionPin(entry) {
+      if (!mapProjection) return;
+      const point = mapProjection(entry.lonlat);
+      if (!point) return;
+      entry.pin.style.left = `${(point[0] / mapWidth) * 100}%`;
+      entry.pin.style.top = `${(point[1] / mapHeight) * 100}%`;
+    }
+
+    // Redraws the map for the box's current size and re-places every pin on it.
+    function refreshWorldMap() {
+      if (drawWorldMap()) placedPins.forEach(positionPin);
+    }
+
+    // A random [longitude, latitude] on land inside the country's real shape.
+    function randomLonLatInCountry(feature) {
+      const [[west, south], [east, north]] = d3.geoBounds(feature);
+      const lonSpan = east >= west ? east - west : east + 360 - west;   // shape crossing the date line
+
+      for (let attempt = 0; attempt < 300; attempt++) {
+        let lon = west + Math.random() * lonSpan;
+        if (lon > 180) lon -= 360;
+        const lat = south + Math.random() * (north - south);
+
+        if (d3.geoContains(feature, [lon, lat])) return [lon, lat];
+      }
+
+      // Very thin shape: fall back to its centre.
+      return d3.geoCentroid(feature);
+    }
+
+    // Where a dish's pin goes: inside its country, or null if the country is not on the map.
+    // Several pins can share a small country, so of a few random spots we take the one farthest
+    // from the pins already placed, which keeps them from sitting on top of each other.
+    function getLonLatForCountry(country) {
+      const feature = countryFeatures.get(normalizeMapCountryName(country));
+      if (!feature) return null;
+
+      const candidates = Array.from({ length: 12 }, () => randomLonLatInCountry(feature));
+      if (!mapProjection || !placedPins.length) return candidates[0];
+
+      let best = candidates[0];
+      let bestGap = -1;
+      candidates.forEach(lonlat => {
+        const here = mapProjection(lonlat);
+        const gap = Math.min(...placedPins.map(other => {
+          const there = mapProjection(other.lonlat);
+          return Math.hypot(here[0] - there[0], here[1] - there[1]);
+        }));
+        if (gap > bestGap) {
+          bestGap = gap;
+          best = lonlat;
         }
-        return getRandomPointInPolygon(polygon);
-      }
-
-      if (shape === 'rect') {
-        const [x1, y1, x2, y2] = coords;
-        const minX = Math.min(x1, x2);
-        const maxX = Math.max(x1, x2);
-        const minY = Math.min(y1, y2);
-        const maxY = Math.max(y1, y2);
-        return {
-          x: minX + Math.random() * (maxX - minX),
-          y: minY + Math.random() * (maxY - minY)
-        };
-      }
-
-      return null;
+      });
+      return best;
     }
 
     // Single floating hover/focus preview card, reused for every pin.
@@ -796,9 +1062,13 @@
       tooltipImg.src = dish.image_link || '';
       tooltipTitle.textContent = dish.title || 'Unknown Dish';
       tooltipMeta.textContent = `${dish.region || 'No Specific'} \u2022 ${dish.country || ''}`;
-      tooltipScore.textContent = (score !== null && score !== undefined && score !== '')
-        ? `${score}% similarity`
-        : '';
+      if (dish === MAP_DATA.sourceDish) {
+        tooltipScore.textContent = 'Original dish';
+      } else {
+        tooltipScore.textContent = (score !== null && score !== undefined && score !== '')
+          ? `${score}% similarity`
+          : '';
+      }
 
       tooltip.classList.add('visible');
 
@@ -824,15 +1094,15 @@
     }
 
     // Builds one pin <button> for a dish and drops it on the map.
-    function createPin(dish, score, typeClass) {
+    function createPin(dish, score, typeClass, extraClass) {
       if (!dish || !dish.country) return null;
 
-      const point = getRandomPointForCountry(dish.country);
-      if (!point) return null;
+      const lonlat = getLonLatForCountry(dish.country);
+      if (!lonlat) return null;
 
       const pin = document.createElement('button');
       pin.type = 'button';
-      pin.className = `map-pin map-pin--${typeClass}`;
+      pin.className = `map-pin map-pin--${typeClass}${extraClass ? ' ' + extraClass : ''}`;
       pin.setAttribute('aria-label', `${dish.title || 'Dish'} (${dish.country || ''})`);
 
       const img = document.createElement('img');
@@ -853,27 +1123,25 @@
 
       pinsLayer.appendChild(pin);
 
-      // Position once the map's natural size is known (percent-based so it
-      // scales correctly whether the map is in the small preview or full modal).
-      const positionPin = () => {
-        const naturalWidth = mapImg.naturalWidth || 817;
-        const naturalHeight = mapImg.naturalHeight || 417;
-        pin.style.left = `${(point.x / naturalWidth) * 100}%`;
-        pin.style.top = `${(point.y / naturalHeight) * 100}%`;
-      };
-
-      if (mapImg.complete) {
-        positionPin();
-      } else {
-        mapImg.addEventListener('load', positionPin, { once: true });
-      }
+      // The pin remembers its longitude/latitude; it is placed (and re-placed after every resize)
+      // as a percentage of the map box, which is the same box the SVG map fills.
+      const entry = { pin, lonlat };
+      placedPins.push(entry);
+      positionPin(entry);
 
       return pin;
     }
 
     function buildAllPins() {
-      if (!pinsLayer || !mapImg) return;
+      if (!pinsLayer) return;
       pinsLayer.innerHTML = '';
+      placedPins.length = 0;
+
+      // Original dish, in its home country (also a "main" pin, so the
+      // MAIN DISH filter toggles both main dishes together).
+      if (MAP_DATA.sourceDish) {
+        createPin(MAP_DATA.sourceDish, null, 'main', 'map-pin--origin');
+      }
 
       if (MAP_DATA.recommendedDish) {
         createPin(MAP_DATA.recommendedDish, MAP_DATA.similarityScore, 'main');
@@ -888,7 +1156,24 @@
       });
     }
 
-    buildAllPins();
+    // Load the shapes, draw the map, drop the pins on it, then keep it in step with the box size
+    // (the same box is shown small on the page and large in the full-screen map).
+    (async () => {
+      try {
+        await loadWorldMapData();
+      } catch (error) {
+        console.error('Unable to load world map:', error);
+        return;
+      }
+      drawWorldMap();
+      buildAllPins();
+      refreshWorldMap();
+
+      if (originalMapPlaceholder && 'ResizeObserver' in window) {
+        new ResizeObserver(refreshWorldMap).observe(originalMapPlaceholder);
+      }
+      window.addEventListener('resize', refreshWorldMap);
+    })();
 
     // ==================================
     // FULL-SCREEN MAP: PAN & ZOOM
@@ -902,6 +1187,14 @@
 
     const MIN_SCALE = 1;
     const MAX_SCALE = 4;
+
+    // Pin size while zoomed. The whole map layer (pins included) is enlarged by the zoom, so the
+    // pins are scaled back down: their size ON SCREEN falls by PIN_SHRINK for every +1x of zoom,
+    // but never below PIN_MIN_SIZE of their normal size (so they stay visible and clickable).
+    // At 1x they are full size; they shrink normally until 2x, then stay at 80%.
+    const PIN_SHRINK = 0.10;     // Pins shrink 10% for each +1x zoom     // Normal shrink rate before the lock     // Rate at which pins shrink per 1x zoom increase
+    const PIN_MIN_SIZE = 0.80;   // Hard minimum: 80% of normal pin size // Pins never go below 80% of normal size
+    const PIN_LOCK_ZOOM = 3.0;   // At 3x zoom, the pin locks at 80%   // At 2x zoom, the 80% pin-size floor locks in
     let mapScale = 1;
     let mapTranslateX = 0;
     let mapTranslateY = 0;
@@ -915,26 +1208,52 @@
       return Math.min(Math.max(value, min), max);
     }
 
-    // Keeps the (scaled) map covering the full viewport -- no empty gaps
-    // creeping in at the edges while panning or zooming.
+    // Pan limits. The map may be dragged past its own edges into empty space:
+    // a wide gutter on the left (the sidebar's width plus breathing room) so
+    // the part of the map hidden under the panel can be pulled into view, and
+    // a smaller gutter on the other sides.
+    const PAN_GUTTER = 160;
+
     function clampMapTranslate() {
       if (!modalMapBody) return;
       const viewportWidth = modalMapBody.clientWidth;
       const viewportHeight = modalMapBody.clientHeight;
       const scaledWidth = viewportWidth * mapScale;
       const scaledHeight = viewportHeight * mapScale;
+      const sidebarWidth = sidebar ? sidebar.offsetWidth : 0;
 
-      const minX = Math.min(0, viewportWidth - scaledWidth);
-      const minY = Math.min(0, viewportHeight - scaledHeight);
+      const minX = Math.min(0, viewportWidth - scaledWidth) - PAN_GUTTER;
+      const maxX = sidebarWidth + PAN_GUTTER;
+      const minY = Math.min(0, viewportHeight - scaledHeight) - PAN_GUTTER;
+      const maxY = PAN_GUTTER;
 
-      mapTranslateX = clamp(mapTranslateX, minX, 0);
-      mapTranslateY = clamp(mapTranslateY, minY, 0);
+      mapTranslateX = clamp(mapTranslateX, minX, maxX);
+      mapTranslateY = clamp(mapTranslateY, minY, maxY);
     }
+
+    
 
     function applyMapTransform() {
       if (!originalMapPlaceholder) return;
+
       originalMapPlaceholder.style.transform =
         `translate(${mapTranslateX}px, ${mapTranslateY}px) scale(${mapScale})`;
+
+      // Calculate the pin's visible size first, then divide by mapScale
+      // because the entire map (including pins) is being zoomed.
+      // Before 3x: 100% -> 90% -> 80% as zoom increases.
+      // At 3x and beyond: permanently lock the visible pin size at 80%.
+      const pinSizeOnScreen = mapScale >= PIN_LOCK_ZOOM
+        ? PIN_MIN_SIZE
+        : Math.max(
+            PIN_MIN_SIZE,
+            1 - PIN_SHRINK * (mapScale - 1)
+          );
+
+      originalMapPlaceholder.style.setProperty(
+        '--pin-scale',
+        (pinSizeOnScreen / mapScale).toFixed(6)
+      );
     }
 
     function resetMapTransform() {
@@ -975,7 +1294,6 @@
       }, { passive: false });
 
       modalMapBody.addEventListener('pointerdown', (e) => {
-        if (mapScale <= MIN_SCALE) return;
         if (e.target.closest('.map-pin')) return;
 
         isPanning = true;
@@ -1020,8 +1338,10 @@
 
         resetMapTransform();
         updateSidebarDish(activeDish);
+        if (sidebar) sidebar.classList.remove('collapsed');
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
+        requestAnimationFrame(refreshWorldMap);
       });
     }
 
@@ -1037,6 +1357,7 @@
       if (mapPanWrapper && originalMapPlaceholder && !mapPanWrapper.contains(originalMapPlaceholder)) {
         mapPanWrapper.insertBefore(originalMapPlaceholder, mapPanWrapper.firstChild);
       }
+      requestAnimationFrame(refreshWorldMap);
     };
 
     if (closeBtn) {
@@ -1083,10 +1404,12 @@
     const filterPills = document.querySelectorAll('.map-filter-pill');
     filterPills.forEach(pill => {
       pill.classList.add('active');
+      pill.setAttribute('aria-checked', 'true');
 
       pill.addEventListener('click', () => {
         pill.classList.toggle('active');
         const isActive = pill.classList.contains('active');
+        pill.setAttribute('aria-checked', String(isActive));
         const layer = pill.getAttribute('data-layer');
 
         document.querySelectorAll(`.map-pin--${layer}`).forEach(pinEl => {
