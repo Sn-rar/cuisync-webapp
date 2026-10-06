@@ -351,6 +351,8 @@
             </div>
           </div>
         </div>
+        
+        <h2 class="section-heading dark-text">SIMILARITY SUMMARY</h2>
 
         <!-- TAB CONTENT 2: SIMILARITY SUMMARY (same layout as the results page; refreshed per dish by JS) -->
         <div class="tab-content" id="tab-similarity">
@@ -376,6 +378,107 @@
                 </div>
               {% endfor %}
             </div>
+          </div>
+        </div>
+
+        <!-- AI Explanation Card -->
+        <div class="quote-card">
+          <span class="quote-icon">&ldquo;&rdquo;</span>
+          <p class="quote-text">
+            Vietnamese Pho and La Paz Batchoy are similar because both revolve around a rich, meat-based broth seasoned by slow-cooking bones with aromatics like onion and garlic, and both incorporate noodles as a key component of the dish. They share key preparation steps including boiling bone broth for long hours, cooking and assembling noodles and ladle broth throughout the process. While specific herbs, garnishes, and types of protein may differ, the essence of broth preparation, noodle integration, and simmering techniques gives these dishes a comparable culinary structure.
+          </p>
+          <div class="quote-footer">
+            <span class="badge-mini">AI EXPLANATION</span>
+            <span class="footer-note">Generated using GPT-4o. Based on ingredients and cooking processes.</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+<!-- ==================================
+     SECTION 3: GEOGRAPHICAL DISTRIBUTION
+     ================================== -->
+<section class="section-dark geo-map-section" id="geo-distribution">
+  <div class="inner-content">
+    <!-- Header aligned with new mockup layout -->
+    <div class="geo-map-header">
+      <div class="header-text-group">
+        <h2 class="section-heading">OTHER SIMILAR CUISINES</h2>
+        <p class="section-subheading">
+          An editorial deconstruction of how Rome's shepherds and Tokyo's noodle masters discovered the identical thermodynamic laws of fat-suspension comfort food.
+        </p>
+      </div>
+      <button type="button" class="btn-full-view" id="openMapModal">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+        </svg>
+        <span>FULL VIEW MAP</span>
+      </button>
+    </div>
+
+    <!-- Map Pan Wrapper styled as the outer card -->
+    <div class="map-pan-wrapper">
+      <div class="map-placeholder">
+        <img src="{{ url_for('static', filename='assets/WorldMap-temp.png') }}" class="map-graphic" id="world-map-img" alt="World Map" usemap="#image-map">
+        
+        <map name="image-map" id="image-map">
+          <area target="" alt="china" title="china" href="#" coords="449,25,465,37,529,48,634,8,740,0,718,41,650,66,622,70,654,81,636,94,652,140,620,180,568,196,534,184,500,189,475,176,482,154,458,138,404,150,342,124,340,97,306,66,353,42,352,21,403,0,422,6,429,20,442,26,445,28" shape="poly">
+          <area target="" alt="vietnam" title="vietnam" href="#" coords="510,190,521,205,547,239,546,253,525,271,529,279,557,263,556,238,534,205,549,190,532,183" shape="poly">
+          <area target="" alt="indonesia" title="indonesia" href="#" coords="537,384,535,364,513,336,470,304,458,306,518,381,539,396,588,406,667,417,573,392,543,386,593,370,562,366,556,337,615,296,629,306,617,319,624,334,618,343,614,355,610,372,625,365,637,336,654,336,673,334,643,352,657,349,648,357,658,383,639,365,637,384,629,369,725,346,782,362,782,404,746,381,726,367,713,351" shape="poly">
+          <area target="" alt="philippines" title="philippines" href="#" coords="636,232,642,251,619,284,646,261,653,278,652,292,676,307,686,290,678,261,650,237,656,222,643,209" shape="poly">
+          <area target="" alt="cambodia" title="cambodia" href="#" coords="546,241,511,245,515,265,528,271,547,255" shape="poly">
+          <area target="" alt="thailand" title="thailand" href="#" coords="533,243,527,219,502,217,495,198,476,208,480,228,486,248,489,261,480,287,494,303,512,303,494,279,499,251,513,257,513,243" shape="poly">
+          <area target="" alt="malaysia" title="malaysia" href="#" coords="491,304,502,325,521,335,521,315,511,302" shape="poly">
+          <area target="" alt="myanmar" title="myanmar" href="#" coords="476,149,458,157,449,178,438,195,454,216,451,232,473,225,484,264,486,232,478,214,500,191,475,177,484,155" shape="poly">
+          <area target="" alt="turkiye" title="turkiye" href="#" coords="93,85,-1,51" shape="rect">
+          <area target="" alt="saudi arabia" title="saudi arabia" href="#" coords="43,120,65,116,97,135,120,138,153,181,177,186,176,201,121,215,117,225,87,221,56,190,52,174,46,169,26,143,39,135" shape="poly">
+          <area target="" alt="south korea" title="south korea" href="#" coords="704,71,682,101" shape="rect">
+          <area target="" alt="japan" title="japan" href="#" coords="817,25,796,19,780,39,782,52,769,78,705,109,712,121,743,102,763,99,787,88,792,59,795,44,812,41" shape="poly">
+          <area target="" alt="india" title="india" href="#" coords="336,94,318,99,304,96,315,119,288,147,275,151,286,170,267,172,278,195,298,192,312,248,332,286,355,272,353,230,403,195,416,184,412,165,430,164,436,175,441,187,459,155,475,148,457,138,439,143,439,154,415,150,408,148,410,157,380,152,350,141,357,132,342,124" shape="poly">
+        </map>
+
+        <!-- Dynamic Pins Container -->
+        <div id="map-pins-layer"></div>
+      </div>
+
+      <!-- Floating Route Summary Bar -->
+      <div type="button" class="route-info-bar" id="openMapModal">
+        <div class="route-details">
+          <div class="route-text-group">
+            <span class="route-value">GEOGRAPHICAL MAP</span>
+          </div>
+        </div>
+        <div class="route-hint">
+          <span>Click to browse full map view & similarity summaries</span>
+          <svg class="icon-arrow" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+            <path d="M7 17L17 7M17 7H7M17 7V17" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- ==================================
+     FULL-SCREEN MAP MODAL OVERLAY
+     ================================== -->
+<div class="map-modal-overlay" id="mapModal">
+  <div class="map-modal-container">
+    
+    <!-- COLLAPSIBLE LEFT SIDEBAR PANEL -->
+    <aside class="map-panel-left" id="mapSidebar">
+      <button type="button" class="btn-toggle-sidebar" id="toggleSidebar" aria-label="Toggle Panel">
+        <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+
+      <div class="panel-inner-scroll">
+        <!-- Dish Card -->
+        <div class="panel-dish-card">
+          <div class="panel-img-wrapper">
+            <img id="modalDishImg" src="" alt="Selected Dish">
+            <span class="panel-img-badge" id="modalDishLocation"></span>
           </div>
 
           <div class="origin-note" id="modalOriginNote"></div>

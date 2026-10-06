@@ -40,6 +40,10 @@
   margin: 0 0 20px;
 }
 
+.extracted-entities-container{
+  margin-bottom: 50px;
+}
+
 .section-heading.dark-text {
   color: var(--maroon-dark);
 }
@@ -201,6 +205,13 @@
   font-size: 0.8rem;
   color: var(--text-muted);
   margin: 0 0 4px;
+}
+
+.dish-alt{
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  margin-bottom: 5px;
 }
 
 .dish-subtitle {
@@ -1267,6 +1278,9 @@
 .map-filter-pill.active .pill-switch {
   background-color: var(--pill-track);
 }
+.gold-dot::before { background-color: #d4af37; }
+.maroon-dot::before { background-color: #732121; }
+.green-dot::before { background-color: #2e7d32; }
 
 .map-filter-pill.active .pill-switch::after {
   transform: translateX(12px);

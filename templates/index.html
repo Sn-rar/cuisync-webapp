@@ -1012,5 +1012,17 @@
       }
     });
   </script>
+
+  <!-- ==================================
+       BACKEND ERROR HANDLER SCRIPT
+       ================================== -->
+  {% if error_title and error_desc %}
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      showErrorModal({{ error_title|tojson }}, {{ error_desc|tojson }});
+      switchTab('image');
+    });
+  </script>
+  {% endif %}
 </body>
 </html>

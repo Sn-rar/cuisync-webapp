@@ -15,6 +15,7 @@ from softmatch import SoftMatcher
 
 app = Flask(__name__)
 
+
 # 1. Load JSON dataset from root directory
 json_path = os.path.join(app.root_path, 'recipes.json')
 with open(json_path, 'r', encoding='utf-8') as f:
@@ -95,6 +96,7 @@ def recipe_names(recipe):
             names.update(normalize_name(name) for name in split_names(item))
     names.discard("")
     return names
+
 
 
 def parse_items(text_field):
