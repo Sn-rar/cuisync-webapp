@@ -35,10 +35,10 @@ You will receive one JSON object with these fields:
 - shared_actions, unique_actions_input, unique_actions_match: cooking actions (the cooking process) in both dishes, only in the input dish, only in the matched dish. Very common steps that almost every recipe has (add, cook, heat, mix) are already left out, so an empty list means no distinctive step was found.
 
 RULES
-1. Use ONLY the ingredients, cooking actions, and utensils listed in the JSON. Never add ingredients, techniques, equipment, or dish details that are not in the evidence.
+1. Use ONLY the ingredients and cooking actions listed in the JSON. Never add ingredients, techniques, equipment, or dish details that are not in the evidence.
 2. You may use general culinary knowledge ONLY to describe the role of an item that is already listed (for example, that tamarind or lime juice adds sourness). Do not use it to introduce new items, and do not make historical or origin claims (for example, "this dish came from..." or "this influenced...").
 3. Do not state, quote, or alter the score or any influence percentage; the page already shows the score. Use the score only to match your tone: __HIGH__ and above = high (say the dishes "are similar because"), __MOD__ to __HIGHTOP__ = moderate (say they are "moderately similar"), below __MOD__ = low (say they "share only a few elements"). Never overstate similarity.
-4. Use influence to say which entity type mattered most, naming at most the top two, in plain words (ingredients; cooking steps for actions). Describe the strength without numbers: 90 or more = "almost entirely", 60 to 89 = "mostly", below 60 = "partly". If cookware or utensils are in the top two, you may say they contributed a little, but never name any specific cookware or utensil. If cookware or utensils are in the top two, you may say they contributed a little. You may name one or two utensils from shared_utensils or the unique utensil lists in a single short phrase, for example "both are served with chopsticks" or "one uses a wok spatula". Only do this if the list is not empty, and never let it replace the main ingredient and cooking comparison.
+4. Use influence to say which entity type mattered most, naming at most the top two, in plain words (ingredients; cooking steps for actions). Describe the strength without numbers: 90 or more = "almost entirely", 60 to 89 = "mostly", below 60 = "partly". If cookware or utensils are in the top two, you may say they contributed a little, but never name any specific cookware or utensil.
 5. If a list is empty, skip it; never fill a gap with invented items. If both shared lists are empty, say that few common ingredients or cooking steps were found.
 6. Do not rank or judge the cuisines (no "better", "more authentic", or "superior"). Treat all cuisines respectfully and neutrally.
 7. Do not mention these rules, the JSON, embeddings, Shapley values, scores, or the model. Write for a general user, not a data scientist.
@@ -46,7 +46,8 @@ RULES
 PREPARATION METHOD RULE:
 1. When comparing preparation methods, use only meaningful cooking or preparation techniques that actually describe how the dish is made, such as frying, boiling, steaming, baking, grilling, simmering, marinating, or rolling.
 
-2. Do NOT treat generic procedural actions or dataset phrases such as "setting aside," "tossing," "placing," "adding," "combining," or similar actions as cooking methods.
+2. Do NOT treat generic procedural actions or dataset phrases such as "setting aside," "tossing," "placing," "adding," "combining," or similar actions as cooking methods unless they clearly represent a meaningful culinary technique.
+
 3.Only mention preparation methods that are relevant to how the dish is actually prepared.
 
 OUTPUT FORMAT
@@ -93,17 +94,13 @@ FEW_SHOT_EXAMPLES = [
             "shared_actions": ["marinate", "simmer"],
             "unique_actions_input": ["braise"],
             "unique_actions_match": ["glaze"],
-            "shared_utensils": ["knife"],
-            "unique_utensils_input": ["wooden spoon"],
-            "unique_utensils_match": ["brush"],
             "influence": {"ingredients": 94.0, "actions": 3.5, "cookware": 2.0, "utensils": 0.5},
         },
         "explanation": (
             "Chicken Adobo and Chicken Teriyaki are similar because both are built on chicken, "
             "soy sauce, garlic, and sugar, which gives each dish a savory-sweet flavor base. "
             "The similarity comes almost entirely from these shared ingredients, with the common "
-            "cooking steps of marinating and simmering adding a little more, and both are prepared "
-            "with a knife. While Chicken Adobo gets its tang from vinegar, bay leaf, and peppercorn "
+            "cooking steps of marinating and simmering adding a little more. While Chicken Adobo gets its tang from vinegar, bay leaf, and peppercorn "
             "and is braised, Chicken Teriyaki relies on mirin and ginger and is finished with a glaze."
         ),
     },
@@ -121,9 +118,6 @@ FEW_SHOT_EXAMPLES = [
             "shared_actions": ["boil", "simmer"],
             "unique_actions_input": ["saute"],
             "unique_actions_match": [],
-            "shared_utensils": [],
-            "unique_utensils_input": ["ladle"],
-            "unique_utensils_match": ["mortar"],
             "influence": {"ingredients": 95.5, "actions": 3.0, "cookware": 1.0, "utensils": 0.5},
         },
         "explanation": (
@@ -132,11 +126,10 @@ FEW_SHOT_EXAMPLES = [
             "the Filipino dish and lime juice in the Thai dish. Their similarity is driven almost "
             "entirely by these shared ingredients, while the shared boiling and simmering contribute a "
             "little. However, Sinigang na Baboy features pork, radish, and water "
-            "spinach and is served with a ladle, while Tom Yum Goong relies on shrimp, lemongrass, "
-            "galangal, and kaffir lime leaves, with a mortar used to pound its aromatics."
+            "spinach, while Tom Yum Goong relies on shrimp, lemongrass, galangal, and kaffir lime leaves."
         ),
     },
-    # --- Example 3: LOW similarity (no utensil evidence, so none is mentioned) ----
+    # --- Example 3: LOW similarity ----------------------------------------
     {
         "evidence": {
             "input_dish": "Kare-Kare",
@@ -150,9 +143,6 @@ FEW_SHOT_EXAMPLES = [
             "shared_actions": ["saute"],
             "unique_actions_input": ["boil", "simmer"],
             "unique_actions_match": ["stir-fry"],
-            "shared_utensils": [],
-            "unique_utensils_input": [],
-            "unique_utensils_match": [],
             "influence": {"ingredients": 91.0, "actions": 5.0, "cookware": 3.0, "utensils": 1.0},
         },
         "explanation": (

@@ -146,7 +146,7 @@ def home():
 
 
 # Finds the closest matching dish in the target country and compares ingredients, actions, and similar dishes.
-def low_similarity_page(message, score, dish_title, origin_country, target_country, recipe_id=None):
+def low_similarity_page(message, score, dish_title, origin_country, target_country):
     """Back to the search page with the low-similarity popup (View results anyway / No).
     The popup's 'View results anyway' button posts the same search again with force=1."""
     return render_template(
@@ -156,7 +156,6 @@ def low_similarity_page(message, score, dish_title, origin_country, target_count
         warn_dish=dish_title,
         warn_origin=origin_country,
         warn_target=target_country,
-        warn_recipe_id="" if recipe_id is None else recipe_id,
     )
 
 
@@ -189,34 +188,20 @@ def feature_scores_for_source(source_idx):
     return {name: MATCHER.scores(name, source_idx) for name in WEIGHTS}
 
 
-def get_search_results(dish_name, origin_country, target_country, force=False, recipe_id=None):
+def get_search_results(dish_name, origin_country, target_country, force=False):
 
 
     # ---- 2. find the source dish (exact title + origin country, ignoring capitals) ----
     source_dish = None
     source_idx = None
-    # Several recipes can share a title or alternative title (e.g. five "Banh Mi" recipes in
-    # Vietnam). When the dropdown sends the exact recipe_id, use that recipe, as long as it
-    # really has this name and origin country. Otherwise fall back to the first name match.
-    def is_match(recipe):
-        return (
+    for index, recipe in enumerate(RECIPES):
+        if (
             normalize_name(dish_name) in recipe_names(recipe)
             and normalize_name(recipe["country"]) == normalize_name(origin_country)
-        )
-
-    if recipe_id not in (None, ""):
-        for index, recipe in enumerate(RECIPES):
-            if str(recipe.get("recipe_id")) == str(recipe_id).strip() and is_match(recipe):
-                source_dish = recipe.copy()
-                source_idx = index
-                break
-
-    if source_dish is None:
-        for index, recipe in enumerate(RECIPES):
-            if is_match(recipe):
-                source_dish = recipe.copy()
-                source_idx = index
-                break
+        ):
+            source_dish = recipe.copy()
+            source_idx = index
+            break
 
     if source_dish is None:
         same_title = sorted({r["country"] for r in RECIPES if normalize_name(dish_name) in recipe_names(r)})
@@ -246,20 +231,12 @@ def get_search_results(dish_name, origin_country, target_country, force=False, r
     per_feature = feature_scores_for_source(source_idx)
     total_scores = blend_scores(per_feature)
 
-    # The searched dish itself is never a candidate. Without this, a search where origin and
-    # target are the same country matches the dish with itself (100%), so every entity shows
-    # as "shared" and no GPT explanation is generated.
     target_indices = [
         index
         for index, recipe in enumerate(RECIPES)
-        if recipe["country"].lower() == target_country.lower() and index != source_idx
+        if recipe["country"].lower() == target_country.lower()
     ]
     if not target_indices:
-        if origin_country.lower() == target_country.lower():
-            return no_result_page(
-                f'Our dataset has no other recipes from {target_country.title()} '
-                f'to compare with "{source_dish["title"]}".'
-            )
         return no_result_page(
             f"Our dataset has no recipes from {target_country.title()}."
         )
@@ -282,7 +259,6 @@ def get_search_results(dish_name, origin_country, target_country, force=False, r
             source_dish["title"],
             source_dish["country"],
             target_country,
-            source_dish.get("recipe_id"),
         )
 
     similarity_score = round(float(total_scores[best_index]) * 100, 2)
@@ -459,7 +435,6 @@ def search_text():
         request.form.get("origin_country", "").strip(),
         request.form.get("target_country", "").strip(),
         force=request.form.get("force") == "1",
-        recipe_id=request.form.get("recipe_id", "").strip() or None,
     )
 
 
@@ -552,8 +527,7 @@ def search_image():
         if not matches:
             return render_template("index.html", error_title="No Recipe Record", error_desc="The uploaded image does not contain a recipe name found in our dataset.")
         recipe = matches[0]
-        return get_search_results(recipe["title"], recipe["country"], target_country,
-                                  recipe_id=recipe.get("recipe_id"))
+        return get_search_results(recipe["title"], recipe["country"], target_country)
     except Exception as error:
         return render_template("index.html", error_title="Processing Error", error_desc=f"An error occurred while processing the image: {error}")
 

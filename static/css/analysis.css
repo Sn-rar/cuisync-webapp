@@ -423,16 +423,27 @@
   padding: 6px 16px;
   border-radius: 20px;
   font-size: 0.72rem;
+  font-weight: 500; /* constant weight so the pill width never changes */
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background-color 0.3s ease, color 0.3s ease, text-shadow 0.3s ease;
 }
 
+/* Emphasis uses text-shadow instead of font-weight: it looks bolder
+   but doesn't change glyph width, so the pills don't shift or reflow. */
 .pill:has(input:checked),
-.pill:hover,
 .pill.active {
   background-color: var(--gold-accent);
   color: var(--maroon-dark);
-  font-weight: 600;
+  text-shadow: 0 0 0.6px currentColor;
+}
+
+/* Hover effect only on devices that actually have a hover-capable pointer */
+@media (hover: hover) {
+  .pill:hover {
+    background-color: var(--gold-accent);
+    color: var(--maroon-dark);
+    text-shadow: 0 0 0.6px currentColor;
+  }
 }
 
 .tab-toggle-small {

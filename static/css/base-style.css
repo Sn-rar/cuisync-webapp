@@ -189,7 +189,7 @@ a {
 .footer {
   background-color: var(--maroon-dark);
   color: #f1e0d6;
-  padding: 250px 8% 20px 8%;
+  padding: 70px 8% 20px 8%;
 }
 
 .footer-container {
@@ -352,7 +352,7 @@ a {
   }
 
   .footer {
-    padding: 120px max(6%, env(safe-area-inset-left, 0px)) calc(20px + env(safe-area-inset-bottom, 0px));
+    padding: 50px max(6%, env(safe-area-inset-left, 0px)) calc(20px + env(safe-area-inset-bottom, 0px));
   }
 
   .footer-container {

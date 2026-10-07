@@ -375,7 +375,6 @@
               <div class="chips-wrapper" id="modalUtensils"></div>
             </div>
           </div>
-
         </div>
 
         <!-- TAB CONTENT 2: SIMILARITY SUMMARY (same layout as the results page; refreshed per dish by JS) -->
@@ -687,58 +686,7 @@
       return `<strong>${src}</strong> and <strong>${tgt}</strong>${lead || ' compared.'} ${parts.join(' ')}`;
     }
 
-    // GPT summaries for the pins (regional variations / international similarities).
-    // Fetched from /api/explain-pin when a pin is selected, then kept for the rest of the visit.
-    const PIN_EXPL_CACHE = new Map();   // recipe idx -> { explanation, source }
-    let pinExplToken = 0;               // lets a late answer be ignored if another pin was clicked
-
-    function showExplanation(elem, html, text, badge, note, loading) {
-      // Writes to the explanation card in the Similarity Summary tab.
-      const targets = [
-        [elem, 'modalExplBadge', 'modalExplNote']
-      ];
-      targets.forEach(([el, badgeId, noteId]) => {
-        if (!el) return;
-        if (html !== null) el.innerHTML = html; else el.textContent = text;   // GPT text is never inserted as HTML
-        el.style.opacity = loading ? '0.6' : '';
-        el.style.fontStyle = loading ? 'italic' : '';
-        const b = document.getElementById(badgeId);
-        const n = document.getElementById(noteId);
-        if (b) b.textContent = badge;
-        if (n) n.textContent = note;
-      });
-    }
-
-    function loadPinExplanation(dish, entities, score) {
-      const elem = document.getElementById('modalExplanation');
-      if (!elem) return;
-      const token = ++pinExplToken;
-      const srcIdx = MAP_DATA.sourceDish && MAP_DATA.sourceDish.idx;
-
-      const useTemplate = () => showExplanation(
-        elem, buildExplanation(dish, entities, score), null, 'SUMMARY',
-        'GPT unavailable. Showing a template summary of the shared ingredients, cooking steps and tools.', false);
-      const useAnswer = (data) => showExplanation(
-        elem, null, data.explanation,
-        data.source === 'ai' ? 'AI EXPLANATION' : 'SUMMARY',
-        data.source === 'ai' ? '' : 'GPT unavailable. Showing a grounded template explanation.', false);
-
-      if (dish.idx === undefined || srcIdx === undefined) { useTemplate(); return; }
-      if (PIN_EXPL_CACHE.has(dish.idx)) { useAnswer(PIN_EXPL_CACHE.get(dish.idx)); return; }
-
-      showExplanation(elem, null, 'Generating AI explanation\u2026', 'AI EXPLANATION', '', true);
-      fetch(`/api/explain-pin?source=${encodeURIComponent(srcIdx)}&idx=${encodeURIComponent(dish.idx)}`)
-        .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-        .then(data => {
-          if (!data || !data.explanation) throw new Error('empty explanation');
-          PIN_EXPL_CACHE.set(dish.idx, data);
-          if (token === pinExplToken) useAnswer(data);      // ignore if the user moved to another pin
-        })
-        .catch(() => { if (token === pinExplToken) useTemplate(); });
-    }
-
     function renderSimilarity(dish, entities) {
-      pinExplToken++;   // any request still in flight for a previous pin is now stale
       const isOrigin = dish === MAP_DATA.sourceDish;
       const simTab = document.getElementById('tab-similarity');
       if (simTab) simTab.classList.toggle('is-origin', isOrigin);
@@ -772,15 +720,21 @@
         if (val) val.textContent = pct === null ? 'N/A' : `${pct}%`;
       });
 
-      // Explanation: the GPT text from the results page for the main dish; every other pin
-      // asks the server for its own GPT explanation (template text only if that call fails).
+      // Explanation: the GPT/template text from the results page for the main dish,
+      // a short summary built from the shared entities for every other pin.
       const explElem = document.getElementById('modalExplanation');
+      const explBadge = document.getElementById('modalExplBadge');
+      const explNote = document.getElementById('modalExplNote');
       if (explElem) {
-        if (isMain && MAIN_EXPLANATION_HTML.trim()) {
-          showExplanation(explElem, MAIN_EXPLANATION_HTML, null, MAIN_EXPLANATION_BADGE, MAIN_EXPLANATION_NOTE, false);
-        } else {
-          loadPinExplanation(dish, entities, score);
-        }
+        explElem.innerHTML = (isMain && MAIN_EXPLANATION_HTML.trim())
+          ? MAIN_EXPLANATION_HTML
+          : buildExplanation(dish, entities, score);
+      }
+      if (explBadge) explBadge.textContent = isMain ? MAIN_EXPLANATION_BADGE : 'SUMMARY';
+      if (explNote) {
+        explNote.textContent = isMain
+          ? MAIN_EXPLANATION_NOTE
+          : 'Summary of the shared ingredients, cooking steps and tools.';
       }
     }
 

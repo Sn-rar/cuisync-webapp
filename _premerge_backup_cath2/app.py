@@ -4,7 +4,6 @@ import os
 import re
 import threading
 import unicodedata
-from functools import lru_cache
 
 import cv2
 import numpy as np
@@ -146,7 +145,7 @@ def home():
 
 
 # Finds the closest matching dish in the target country and compares ingredients, actions, and similar dishes.
-def low_similarity_page(message, score, dish_title, origin_country, target_country, recipe_id=None):
+def low_similarity_page(message, score, dish_title, origin_country, target_country):
     """Back to the search page with the low-similarity popup (View results anyway / No).
     The popup's 'View results anyway' button posts the same search again with force=1."""
     return render_template(
@@ -156,67 +155,23 @@ def low_similarity_page(message, score, dish_title, origin_country, target_count
         warn_dish=dish_title,
         warn_origin=origin_country,
         warn_target=target_country,
-        warn_recipe_id="" if recipe_id is None else recipe_id,
     )
 
 
-def blend_scores(per_feature):
-    """Weighted blend of the four per-feature score arrays (NaN = category empty in both dishes)."""
-    weighted_sum = np.zeros(len(RECIPES))
-    weight_used = np.zeros(len(RECIPES))
-    for feature_name, weight in WEIGHTS.items():
-        feature_scores = per_feature[feature_name]
-        counted = ~np.isnan(feature_scores)
-        weighted_sum += weight * np.where(counted, feature_scores, 0.0)
-        weight_used += weight * counted
-    return np.divide(weighted_sum, weight_used, out=np.zeros(len(RECIPES)), where=weight_used > 0)
-
-
-def shapley_for(per_feature, idx):
-    """Shapley values + influence shares + per-feature scores for the pair (source, recipe idx)."""
-    raw_sims = {name: float(per_feature[name][idx]) for name in WEIGHTS}
-    used = {name: not np.isnan(value) for name, value in raw_sims.items()}
-    used_weight = sum(WEIGHTS[name] for name in WEIGHTS if used[name]) or 1.0
-    effective_weights = {name: (WEIGHTS[name] / used_weight if used[name] else 0.0) for name in WEIGHTS}
-    clean_sims = {name: (value if used[name] else 0.0) for name, value in raw_sims.items()}
-    shapley = compute_shapley(clean_sims, effective_weights)
-    return shapley, influence_shares(shapley), clean_sims
-
-
-@lru_cache(maxsize=32)
-def feature_scores_for_source(source_idx):
-    """Per-feature scores of every recipe against one source dish (cached: pin clicks reuse it)."""
-    return {name: MATCHER.scores(name, source_idx) for name in WEIGHTS}
-
-
-def get_search_results(dish_name, origin_country, target_country, force=False, recipe_id=None):
+def get_search_results(dish_name, origin_country, target_country, force=False):
 
 
     # ---- 2. find the source dish (exact title + origin country, ignoring capitals) ----
     source_dish = None
     source_idx = None
-    # Several recipes can share a title or alternative title (e.g. five "Banh Mi" recipes in
-    # Vietnam). When the dropdown sends the exact recipe_id, use that recipe, as long as it
-    # really has this name and origin country. Otherwise fall back to the first name match.
-    def is_match(recipe):
-        return (
+    for index, recipe in enumerate(RECIPES):
+        if (
             normalize_name(dish_name) in recipe_names(recipe)
             and normalize_name(recipe["country"]) == normalize_name(origin_country)
-        )
-
-    if recipe_id not in (None, ""):
-        for index, recipe in enumerate(RECIPES):
-            if str(recipe.get("recipe_id")) == str(recipe_id).strip() and is_match(recipe):
-                source_dish = recipe.copy()
-                source_idx = index
-                break
-
-    if source_dish is None:
-        for index, recipe in enumerate(RECIPES):
-            if is_match(recipe):
-                source_dish = recipe.copy()
-                source_idx = index
-                break
+        ):
+            source_dish = recipe.copy()
+            source_idx = index
+            break
 
     if source_dish is None:
         same_title = sorted({r["country"] for r in RECIPES if normalize_name(dish_name) in recipe_names(r)})
@@ -235,7 +190,6 @@ def get_search_results(dish_name, origin_country, target_country, force=False, r
     if not source_dish.get("region"):
         source_dish["region"] = "No Specific"
     source_dish["recipe_link"] = format_recipe_url(source_dish.get("recipe_link", ""))
-    source_dish["idx"] = source_idx
 
     recommended_dish = None
     similarity_score = 0.0
@@ -243,23 +197,26 @@ def get_search_results(dish_name, origin_country, target_country, force=False, r
     international_similarities = []
 
     # ---- 3. score every recipe against the source dish ----
-    per_feature = feature_scores_for_source(source_idx)
-    total_scores = blend_scores(per_feature)
+    per_feature = {name: MATCHER.scores(name, source_idx) for name in WEIGHTS}
+    # A category that is empty in BOTH dishes scores NaN: it is skipped and the weights of the
+    # remaining categories are re-normalised, so identical dishes score exactly 100%.
+    weighted_sum = np.zeros(len(RECIPES))
+    weight_used = np.zeros(len(RECIPES))
+    for feature_name, weight in WEIGHTS.items():
+        feature_scores = per_feature[feature_name]
+        counted = ~np.isnan(feature_scores)
+        weighted_sum += weight * np.where(counted, feature_scores, 0.0)
+        weight_used += weight * counted
+    total_scores = np.divide(
+        weighted_sum, weight_used, out=np.zeros(len(RECIPES)), where=weight_used > 0
+    )
 
-    # The searched dish itself is never a candidate. Without this, a search where origin and
-    # target are the same country matches the dish with itself (100%), so every entity shows
-    # as "shared" and no GPT explanation is generated.
     target_indices = [
         index
         for index, recipe in enumerate(RECIPES)
-        if recipe["country"].lower() == target_country.lower() and index != source_idx
+        if recipe["country"].lower() == target_country.lower()
     ]
     if not target_indices:
-        if origin_country.lower() == target_country.lower():
-            return no_result_page(
-                f'Our dataset has no other recipes from {target_country.title()} '
-                f'to compare with "{source_dish["title"]}".'
-            )
         return no_result_page(
             f"Our dataset has no recipes from {target_country.title()}."
         )
@@ -282,7 +239,6 @@ def get_search_results(dish_name, origin_country, target_country, force=False, r
             source_dish["title"],
             source_dish["country"],
             target_country,
-            source_dish.get("recipe_id"),
         )
 
     similarity_score = round(float(total_scores[best_index]) * 100, 2)
@@ -291,12 +247,17 @@ def get_search_results(dish_name, origin_country, target_country, force=False, r
     # the GPT explanation. A category that is empty in both dishes (NaN) is left out and the
     # other weights are re-normalised exactly like total_scores, so the values still add up
     # to the displayed score.
-    shapley, influence, clean_sims = shapley_for(per_feature, best_index)
+    raw_sims = {name: float(per_feature[name][best_index]) for name in WEIGHTS}
+    used = {name: not np.isnan(value) for name, value in raw_sims.items()}
+    used_weight = sum(WEIGHTS[name] for name in WEIGHTS if used[name]) or 1.0
+    effective_weights = {name: (WEIGHTS[name] / used_weight if used[name] else 0.0) for name in WEIGHTS}
+    clean_sims = {name: (value if used[name] else 0.0) for name, value in raw_sims.items()}
+    shapley = compute_shapley(clean_sims, effective_weights)
+    influence = influence_shares(shapley)
     feature_scores = {name: round(value, 4) for name, value in clean_sims.items()}
     if abs(sum(shapley.values()) * 100 - similarity_score) > 0.01:
         app.logger.warning("Shapley values do not add up to the similarity score")
     recommended_dish = RECIPES[best_index].copy()
-    recommended_dish["idx"] = int(best_index)
     if not recommended_dish.get("region"):
         recommended_dish["region"] = "No Specific"
     recommended_dish["recipe_link"] = format_recipe_url(
@@ -305,7 +266,6 @@ def get_search_results(dish_name, origin_country, target_country, force=False, r
 
     for idx in ordered_targets[1:4]:
         dish = RECIPES[idx].copy()
-        dish["idx"] = int(idx)
         dish["score"] = round(float(total_scores[idx]) * 100, 2)
         dish["region"] = dish.get("region") or "No Specific"
         dish["recipe_link"] = format_recipe_url(dish.get("recipe_link", ""))
@@ -319,7 +279,6 @@ def get_search_results(dish_name, origin_country, target_country, force=False, r
             continue
         seen_countries.add(recipe_country)
         dish = recipe.copy()
-        dish["idx"] = int(index)
         dish["score"] = round(float(total_scores[index]) * 100, 2)
         dish["region"] = dish.get("region") or "No Specific"
         dish["recipe_link"] = format_recipe_url(dish.get("recipe_link", ""))
@@ -407,37 +366,6 @@ def get_search_results(dish_name, origin_country, target_country, force=False, r
     )
 
 
-@app.route("/api/explain-pin")
-def explain_pin():
-    """
-    GPT explanation for ONE dish on the map (regional variation / international similarity),
-    compared with the searched dish. Same pipeline as the main match: cleaned evidence ->
-    cache -> GPT-4o -> grounding check. The scores are recomputed here from the recipe
-    indices, so the browser cannot influence what is sent to GPT.
-    """
-    try:
-        source_idx = int(request.args.get("source", ""))
-        idx = int(request.args.get("idx", ""))
-    except ValueError:
-        return jsonify({"error": "source and idx must be integers"}), 400
-    if not (0 <= source_idx < len(RECIPES) and 0 <= idx < len(RECIPES)) or source_idx == idx:
-        return jsonify({"error": "invalid recipe index"}), 400
-
-    per_feature = feature_scores_for_source(source_idx)
-    score = round(float(blend_scores(per_feature)[idx]) * 100, 2)
-    _, influence, clean_sims = shapley_for(per_feature, idx)
-
-    source_dish, dish = RECIPES[source_idx], RECIPES[idx]
-    evidence = build_evidence(source_dish, dish, score, influence)
-    explanation, explanation_source = get_explanation(evidence)
-    return jsonify({
-        "idx": idx,
-        "explanation": explanation,
-        "source": explanation_source,          # "ai" = GPT, "template" = fallback
-        "featureScores": {k: round(v, 4) for k, v in clean_sims.items()},
-    })
-
-
 @app.errorhandler(413)
 def file_too_large(_error):
     """Upload bigger than MAX_CONTENT_LENGTH."""
@@ -459,7 +387,6 @@ def search_text():
         request.form.get("origin_country", "").strip(),
         request.form.get("target_country", "").strip(),
         force=request.form.get("force") == "1",
-        recipe_id=request.form.get("recipe_id", "").strip() or None,
     )
 
 
@@ -552,8 +479,7 @@ def search_image():
         if not matches:
             return render_template("index.html", error_title="No Recipe Record", error_desc="The uploaded image does not contain a recipe name found in our dataset.")
         recipe = matches[0]
-        return get_search_results(recipe["title"], recipe["country"], target_country,
-                                  recipe_id=recipe.get("recipe_id"))
+        return get_search_results(recipe["title"], recipe["country"], target_country)
     except Exception as error:
         return render_template("index.html", error_title="Processing Error", error_desc=f"An error occurred while processing the image: {error}")
 

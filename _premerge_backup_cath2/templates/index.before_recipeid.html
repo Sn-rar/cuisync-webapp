@@ -68,8 +68,6 @@
               required
             />
             <ul id="dish-dropdown-list" class="dropdown-list hidden"></ul>
-            <!-- The exact recipe picked from the dropdown (several recipes can share a name) -->
-            <input type="hidden" name="recipe_id" id="dish-recipe-id">
           </div>
         </div>
 
@@ -603,7 +601,6 @@
             const rawCountry = recipe.country || recipe.Country || "";
             const title = typeof rawTitle === "string" ? rawTitle.trim() : "";
             return {
-              id: recipe.recipe_id ?? recipe.id ?? null,
               title,
               country: typeof rawCountry === "string" ? rawCountry.trim() : "",
               alternatives: readAlternatives(recipe, title)
@@ -633,7 +630,7 @@
     if (!dishInput || !dropdownList) return;
 
     let activeIndex = -1;
-    let currentMatches = [];
+    let currentLabels = [];
 
     // Keep a copy of every origin option so the list can be restored after narrowing.
     const allOriginOptions = originSelect
@@ -660,63 +657,53 @@
 
     // Once the dish name is settled, only its country/countries are offered.
     function autoFillOriginCountry(dishName) {
-      const picked = pickedRecord();
-      if (picked && dishName && recordNames(picked).includes(dishName.trim().toLowerCase())) {
-        return setOriginOptions(new Set([picked.country.toLowerCase()]));
-      }
       if (!originSelect || !dishName) return setOriginOptions(null);
       const matches = recordsForName(dishName);
       if (matches.length === 0) return setOriginOptions(null);
       setOriginOptions(new Set(matches.map((r) => r.country.toLowerCase())));
     }
 
-    const recipeIdInput = document.getElementById("dish-recipe-id");
-
-    function pickedRecord() {
-      const id = recipeIdInput ? recipeIdInput.value : "";
-      if (!id) return null;
-      return DISH_RECORDS.find((r) => String(r.id) === id) || null;
-    }
-
-    function titleCase(text) {
-      return String(text || "").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
-    }
-
-    // Searches the title AND every alternative title, but gives ONE row per recipe (recipe_id),
-    // so recipes that share an alternative title (e.g. five "Banh Mi" recipes) are listed
-    // separately instead of being merged under one name.
-    // Best first: exact name, starts with, contains. A row shows the name that matched best.
-    function getTopMatches(query, limit = 8) {
+    // Searches the title AND every alternative title. Best first: exact name, starts with, contains.
+    // Every suggestion carries what to say about it:
+    //   altNames - if the name is a dish's real title: that dish's alternative names
+    //   altOf    - if the name is an alternative name: the real title(s) of the dish(es) it belongs to
+    // (one name can be both, when it is the title of one dish and an alternative name of another).
+    function getTopMatches(query, limit = 5) {
       const q = query.trim().toLowerCase();
       if (!q) return [];
 
-      const rows = [];
+      const byLabel = new Map(); // lower-case label -> suggestion
       for (const record of DISH_RECORDS) {
         const labels = [
           { label: record.title, isAlt: false },
           ...record.alternatives.map((label) => ({ label, isAlt: true }))
         ];
-        let best = null;
         for (const { label, isAlt } of labels) {
           const lower = label.toLowerCase();
           const rank = lower === q ? 0 : lower.startsWith(q) ? 1 : lower.includes(q) ? 2 : -1;
           if (rank < 0) continue;
-          // Lower rank wins; on a tie the real title wins over an alternative name.
-          if (!best || rank < best.rank || (rank === best.rank && best.isAlt && !isAlt)) {
-            best = { label, isAlt, rank };
+
+          let entry = byLabel.get(lower);
+          if (!entry) {
+            entry = { label, rank, altNames: [], altOf: [] };
+            byLabel.set(lower, entry);
+          }
+          if (isAlt) {
+            if (!entry.altOf.includes(record.title)) entry.altOf.push(record.title);
+          } else {
+            for (const name of record.alternatives) {
+              if (!entry.altNames.includes(name)) entry.altNames.push(name);
+            }
           }
         }
-        if (best) rows.push({ ...best, record });
       }
-      return rows
-        .sort((x, y) => x.rank - y.rank || x.label.localeCompare(y.label) || x.record.title.localeCompare(y.record.title))
-        .slice(0, limit);
+      return [...byLabel.values()].sort((x, y) => x.rank - y.rank).slice(0, limit);
     }
 
     function renderDropdown(matches) {
       dropdownList.innerHTML = "";
       activeIndex = -1;
-      currentMatches = matches;
+      currentLabels = matches.map((m) => m.label);
       if (matches.length === 0) {
         dropdownList.classList.add("hidden");
         return;
@@ -729,14 +716,9 @@
 
         // The note under the name. A real dish title lists that dish's alternative names; an
         // alternative name says which dish it is for. A dish with no alternative names has no note.
-        // Each row is one recipe, so the note only describes that recipe.
         const notes = [];
-        if (match.isAlt) {
-          notes.push("alternative name for " + match.record.title);
-        } else if (match.record.alternatives.length) {
-          notes.push("alternative name: " + match.record.alternatives.join(", "));
-        }
-        if (match.record.country) notes.push(titleCase(match.record.country));
+        if (match.altNames.length) notes.push("alternative names: " + match.altNames.join(", "));
+        if (match.altOf.length) notes.push("alternative name for " + match.altOf.join(", "));
         if (notes.length) {
           const hint = document.createElement("span");
           hint.className = "dropdown-alt";
@@ -746,19 +728,16 @@
 
         li.addEventListener("mousedown", (e) => {
           e.preventDefault();
-          chooseMatch(match);
+          chooseLabel(match.label);
         });
         dropdownList.appendChild(li);
       });
       dropdownList.classList.remove("hidden");
     }
 
-    // Picking a row fixes the exact recipe: its recipe_id is sent with the search and the
-    // origin country is set to that recipe's country.
-    function chooseMatch(match) {
-      const clean = match.label.trim();
+    function chooseLabel(label) {
+      const clean = label.trim();
       dishInput.value = clean;
-      if (recipeIdInput) recipeIdInput.value = match.record.id ?? "";
       autoFillOriginCountry(clean);
       hideDropdown();
       dishInput.focus();
@@ -781,7 +760,6 @@
     }
 
     dishInput.addEventListener("input", () => {
-      if (recipeIdInput) recipeIdInput.value = "";   // typed by hand: no recipe picked yet
       renderDropdown(getTopMatches(dishInput.value));
       autoFillOriginCountry(dishInput.value);
     });
@@ -801,7 +779,7 @@
       } else if (e.key === "Enter") {
         if (activeIndex >= 0 && items[activeIndex]) {
           e.preventDefault();
-          chooseMatch(currentMatches[activeIndex]);
+          chooseLabel(currentLabels[activeIndex]);
         }
       } else if (e.key === "Escape") {
         hideDropdown();
@@ -940,8 +918,7 @@
        data-score="{{ similarity_score }}"
        data-dish="{{ warn_dish }}"
        data-origin="{{ warn_origin }}"
-       data-target="{{ warn_target }}"
-       data-recipe-id="{{ warn_recipe_id }}"></div>
+       data-target="{{ warn_target }}"></div>
   {% endif %}
 
   <div class="sim-warning-overlay" id="simWarningOverlay" role="alertdialog" aria-modal="true"
@@ -966,7 +943,6 @@
     <input type="hidden" name="dish_name" id="simWarningDish">
     <input type="hidden" name="origin_country" id="simWarningOrigin">
     <input type="hidden" name="target_country" id="simWarningTarget">
-    <input type="hidden" name="recipe_id" id="simWarningRecipeId">
     <input type="hidden" name="force" value="1">
   </form>
 
@@ -998,8 +974,6 @@
         if (dishInput) dishInput.value = data.dataset.dish || "";
         pickOption(document.getElementById("text-origin"), data.dataset.origin);
         pickOption(document.getElementById("text-target"), data.dataset.target);
-        const idInput = document.getElementById("dish-recipe-id");
-        if (idInput) idInput.value = data.dataset.recipeId || "";
         if (dishInput) dishInput.focus();
       }
 
@@ -1018,7 +992,6 @@
         document.getElementById("simWarningDish").value = data.dataset.dish || "";
         document.getElementById("simWarningOrigin").value = data.dataset.origin || "";
         document.getElementById("simWarningTarget").value = data.dataset.target || "";
-        document.getElementById("simWarningRecipeId").value = data.dataset.recipeId || "";
         document.getElementById("simWarningForm").submit();
       });
 
