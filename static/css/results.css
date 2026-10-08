@@ -2045,3 +2045,77 @@
     display: none;
   }
 }
+/* ==========================================================================
+   MOBILE: SEARCH SUMMARY BAR + "SEARCH NEW CUISINE" BUTTON (<= 768px)
+   Placed last so it wins over the earlier mobile rules, which made the button
+   stretch with no side padding (text touching the edges) and put the arrow
+   on top of the origin country. Three columns:
+     row 1: cuisine ............ [button]
+     row 3: origin  ->  target
+   ========================================================================== */
+@media (max-width: 768px) {
+  .readonly-search-bar {
+    grid-template-columns: 1fr auto 1fr;
+    margin: 0 0 24px;
+  }
+
+  .readonly-search-bar .cuisine-field {
+    grid-column: 1 / 3;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .readonly-search-bar .btn-search-new {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+    align-self: center;
+    width: auto;
+    padding: 8px 14px;
+    white-space: nowrap;
+    font-size: 0.65rem;
+    line-height: 1.2;
+    border-radius: 14px;
+  }
+
+  .readonly-search-bar .field-item:nth-child(3) {
+    grid-column: 1;
+    grid-row: 3;
+    min-width: 0;
+  }
+
+  .readonly-search-bar .field-arrow {
+    grid-column: 2;
+    grid-row: 3;
+    justify-self: center;
+    align-self: end;
+    margin: 0 6px;
+    padding-bottom: 3px;
+    font-size: 1rem;
+    line-height: 1.4;
+  }
+
+  .readonly-search-bar .field-item:nth-child(5) {
+    grid-column: 3;
+    grid-row: 3;
+    min-width: 0;
+    text-align: right;
+  }
+}
+
+/* Very narrow phones: the button gets its own full-width row at the bottom
+   so the cuisine name isn't squeezed into a thin column. */
+@media (max-width: 400px) {
+  .readonly-search-bar .cuisine-field {
+    grid-column: 1 / -1;
+  }
+
+  .readonly-search-bar .btn-search-new {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    justify-self: stretch;
+    text-align: center;
+    padding: 10px 14px;
+    margin-top: 4px;
+  }
+}
