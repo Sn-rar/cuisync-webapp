@@ -3,8 +3,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const fileInput = document.getElementById('image-upload-input');
   const imageForm = document.getElementById('image-search-form');
   const originSelect = document.getElementById('img-origin');
-  const menuLanguageSelect = document.getElementById('img-menu-language');
-  const originDisplay = document.getElementById('img-origin-display');
   const targetSelect = document.getElementById('img-target');
   const imageSearchButton = imageForm.querySelector('button[type="submit"]');
   const hiddenDishInput = document.getElementById('hidden-dish-name');
@@ -44,43 +42,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function closeDishPicker() {
     picker.classList.add('hidden');
-    // Closed (X, Escape, outside click) without choosing a dish:
-    // keep the origin empty until a dish is selected.
-    if (!hiddenDishInput.value) setOrigin('');
     updateSelectDishPrompt();
   }
 
-  // The origin box isn't a dropdown anymore. It just shows the country of
-  // the dish found in the photo, or a placeholder while there isn't one.
-  let isScanning = false;
-
-  function updateOriginDisplay() {
-    const option = originSelect.options[originSelect.selectedIndex];
-    const hasCountry = Boolean(originSelect.value && option);
-
-    if (isScanning) {
-      originDisplay.textContent = 'Finding Origin Country';
-    } else if (hasCountry) {
-      originDisplay.textContent = option.textContent;
-    } else {
-      originDisplay.textContent = 'Country of Origin';
-    }
-
-    originDisplay.classList.toggle('is-placeholder', isScanning || !hasCountry);
-    originDisplay.classList.toggle('is-scanning', isScanning);
-  }
-
+  // The country of origin is picked by the user (a normal dropdown).
   function setOrigin(country) {
     const option = [...originSelect.options].find(
       (item) => item.value && item.value.toLowerCase() === (country || '').toLowerCase()
     );
-    originSelect.value = option ? option.value : '';
-    updateOriginDisplay();
+    if (option) originSelect.value = option.value;
   }
 
   function setOcrLoading(isLoading) {
-    isScanning = isLoading;
-    updateOriginDisplay();
     ocrLoading.style.display = isLoading ? 'block' : 'none';
     targetSelect.disabled = isLoading;
     imageSearchButton.disabled = isLoading;
@@ -189,7 +162,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const formData = new FormData();
     formData.append('dish_image', file);
     formData.append('origin_country', originSelect.value);
-    formData.append('menu_language', menuLanguageSelect.value);
     setOcrLoading(true);
 
     try {
@@ -245,7 +217,6 @@ document.addEventListener('DOMContentLoaded', () => {
       showErrorModal('Unsupported File', 'Please upload an image file.');
       return;
     }
-    setOrigin('');
     const reader = new FileReader();
     reader.onload = (event) => {
       previewImg.src = event.target.result;
@@ -254,11 +225,11 @@ document.addEventListener('DOMContentLoaded', () => {
       previewState.style.display = 'flex';
     };
     reader.readAsDataURL(file);
-    // The photo is only scanned once the menu language is picked
-    if (menuLanguageSelect.value) {
+    // The photo is only scanned once the country of origin is picked
+    if (originSelect.value) {
       extractImageInfo(file);
     } else {
-      showErrorModal('Pick the Menu Language', 'Choose the language of the menu above the photo. The photo will be scanned right after.');
+      showErrorModal('Pick the Country of Origin', 'Choose the country of origin below the photo. The photo will be scanned right after.');
     }
   }
 
@@ -274,8 +245,8 @@ document.addEventListener('DOMContentLoaded', () => {
     fileInput.click();
   });
 
-  // Picking (or changing) the menu language scans the photo with that language
-  menuLanguageSelect.addEventListener('change', () => {
+  // Picking (or changing) the country scans the photo again with that country's language
+  originSelect.addEventListener('change', () => {
     if (fileInput.files[0]) extractImageInfo(fileInput.files[0]);
   });
 
@@ -341,7 +312,6 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedDishCard.style.display = 'none';
     detectedMatches = [];
     closeDishPicker();
-    setOrigin('');
     previewState.style.display = 'none';
     defaultState.style.display = 'block';
   });
@@ -354,12 +324,12 @@ document.addEventListener('DOMContentLoaded', () => {
       showErrorModal('Upload a Photo', 'Upload a photo of a menu first so we can find the dish and its country.');
       return;
     }
-    if (!menuLanguageSelect.value) {
+    if (!originSelect.value) {
       event.preventDefault();
-      showErrorModal('Pick the Menu Language', 'Choose the language of the menu so the photo can be scanned.');
+      showErrorModal('Pick the Country of Origin', 'Choose the country of origin so the photo can be scanned.');
       return;
     }
-    if (!hiddenDishInput.value || !originSelect.value) {
+    if (!hiddenDishInput.value) {
       event.preventDefault();
       showErrorModal('Choose a Dish', 'Select one of the detected menu dishes before starting the comparison.');
     }

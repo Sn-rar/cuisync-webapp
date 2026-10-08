@@ -469,15 +469,15 @@ def search_text():
 
 
 class MenuLanguageMissing(Exception):
-    """The photo was sent without the menu language picked."""
+    """The photo was sent without the country of origin picked."""
 
 
-def read_menu_lines(image, menu_language=""):
-    """Read the text on a menu photo with the OCR model for the language the
-    user picked. There is no automatic language detection: it's required."""
-    if not menu_language:
-        raise MenuLanguageMissing("Please select the menu's language before uploading the photo.")
-    return ocr.automatic_ocr_for_country(image, menu_language)
+def read_menu_lines(image, origin_country=""):
+    """Read the text on a menu photo with the OCR model for the country of
+    origin the user picked. There is no automatic language detection."""
+    if not origin_country:
+        raise MenuLanguageMissing("Please select the country of origin before uploading the photo.")
+    return ocr.automatic_ocr_for_country(image, origin_country)
 
 
 @app.route("/extract-dish-info", methods=["POST"])
@@ -491,17 +491,18 @@ def extract_dish_info():
         image = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
         if image is None:
             return jsonify({"success": False, "message": "Invalid image format"})
-        if not request.form.get("menu_language", "").strip():
-            return jsonify({"success": False, "error": "no_language",
-                            "message": "Please select the menu's language before uploading the photo."})
+        origin_country = request.form.get("origin_country", "").strip()
+        if not origin_country:
+            return jsonify({"success": False, "error": "no_country",
+                            "message": "Please select the country of origin before uploading the photo."})
 
         try:
-            lines = read_menu_lines(image, request.form.get("menu_language", "").strip())
+            lines = read_menu_lines(image, origin_country)
         except ocr.UnsupportedScriptError as error:
             # Khmer / Burmese / unreadable. If some dish still matched (e.g. an
             # English line on the menu), carry on, otherwise tell the user.
             lines = error.lines
-            if not ocr.find_recipes(ocr.romanize_lines(lines), recipes=RECIPES):
+            if not ocr.find_recipes(ocr.romanize_lines(lines), origin_country, recipes=RECIPES):
                 return jsonify({
                     "success": False,
                     "error": "unsupported_script",
@@ -522,10 +523,10 @@ def extract_dish_info():
             })
 
         romanized = ocr.romanize_lines(lines)
-        matches = ocr.find_recipes(romanized, recipes=RECIPES)
+        matches = ocr.find_recipes(romanized, origin_country, recipes=RECIPES)
         return jsonify({
             "success": bool(matches),
-            "message": "" if matches else "No matching dish found. Check that the menu language you picked is right.",
+            "message": "" if matches else "No matching dish found. Check that the country of origin you picked is right.",
             "raw_text": "\n".join(lines),
             "romanized_text": "\n".join(romanized),
             "matches": matches,
@@ -558,17 +559,17 @@ def search_image():
         image = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
         if image is None:
             return render_template("index.html", error_title="No Recipe Record", error_desc="Image format is not supported or corrupted.")
-        if not request.form.get("menu_language", "").strip():
-            return render_template("index.html", error_title="Menu Language Needed", error_desc="Please select the menu's language before uploading the photo.")
+        if not origin_country:
+            return render_template("index.html", error_title="Country of Origin Needed", error_desc="Please select the country of origin before uploading the photo.")
 
         try:
-            lines = read_menu_lines(image, request.form.get("menu_language", "").strip())
+            lines = read_menu_lines(image, origin_country)
             unsupported_error = None
         except ocr.UnsupportedScriptError as error:
             lines = error.lines
             unsupported_error = error
 
-        matches = ocr.find_recipes(ocr.romanize_lines(lines), recipes=RECIPES)
+        matches = ocr.find_recipes(ocr.romanize_lines(lines), origin_country, recipes=RECIPES)
         if not matches and unsupported_error:
             return render_template("index.html", error_title="Language Not Supported", error_desc=str(unsupported_error))
         if not matches:
