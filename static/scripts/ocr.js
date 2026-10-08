@@ -186,6 +186,12 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (data.error === 'no_text') {
         // No text found at all in the photo (see app.py)
         showErrorModal('No Text Detected', data.message);
+      } else if (data.error === 'no_country') {
+        showErrorModal('Pick the Country of Origin', data.message);
+      } else if (!data.raw_text && data.message) {
+        // Something went wrong before any text was read (for example the
+        // OCR service on Hugging Face didn't answer). Show the real reason.
+        showErrorModal('Scanning Error', data.message);
       } else {
         const dishName = data.raw_text
           ? data.raw_text
