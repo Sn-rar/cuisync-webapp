@@ -655,6 +655,10 @@ def automatic_ocr_for_country(image, country):
     try:
         crops = find_text_lines(image)
         lines, scores = _good_lines(read_lines(crops, PP_OCRV5_REC_MODELS[language]))
+        # Same as automatic_ocr: accented Latin text (Vietnamese, Turkish) also
+        # gets the Chinese model's reading, which keeps some accents
+        if language in LATIN_LANGUAGES and LATIN_DIACRITIC_RANGE.search("".join(lines)):
+            lines = lines + _second_latin_reading(lines, crops)
     except Exception:
         get_logger().exception("OCR failed for country='%s', language='%s'.", country, language)
         _print_timing(f"OCR failed after {time.perf_counter() - start_time:.2f}s")

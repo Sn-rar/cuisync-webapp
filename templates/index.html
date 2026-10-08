@@ -128,7 +128,24 @@
       <form class="search-form" id="image-search-form" action="/search-image" method="POST" enctype="multipart/form-data">
         
         <input type="hidden" name="extracted_dish_name" id="hidden-dish-name">
-        
+
+        <!-- Required. The OCR runs only the model for this language. -->
+        <div class="form-group">
+          <label for="img-menu-language">MENU LANGUAGE</label>
+          <select id="img-menu-language" name="menu_language" required>
+            <option value="" disabled selected>Select the menu's language...</option>
+            <option value="english">English</option>
+            <option value="china">Chinese</option>
+            <option value="japan">Japanese</option>
+            <option value="south korea">Korean</option>
+            <option value="thailand">Thai</option>
+            <option value="india">Hindi</option>
+            <option value="saudi arabia">Arabic</option>
+            <option value="vietnam">Vietnamese</option>
+            <option value="indonesia">Filipino / Indonesian / Malay / Turkish</option>
+          </select>
+        </div>
+
         <div class="upload-dropzone" id="dropzone">
           <input type="file" id="image-upload-input" name="dish_image" accept="image/*" hidden>
           

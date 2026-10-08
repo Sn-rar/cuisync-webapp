@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const fileInput = document.getElementById('image-upload-input');
   const imageForm = document.getElementById('image-search-form');
   const originSelect = document.getElementById('img-origin');
+  const menuLanguageSelect = document.getElementById('img-menu-language');
   const originDisplay = document.getElementById('img-origin-display');
   const targetSelect = document.getElementById('img-target');
   const imageSearchButton = imageForm.querySelector('button[type="submit"]');
@@ -188,6 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const formData = new FormData();
     formData.append('dish_image', file);
     formData.append('origin_country', originSelect.value);
+    formData.append('menu_language', menuLanguageSelect.value);
     setOcrLoading(true);
 
     try {
@@ -252,7 +254,12 @@ document.addEventListener('DOMContentLoaded', () => {
       previewState.style.display = 'flex';
     };
     reader.readAsDataURL(file);
-    extractImageInfo(file);
+    // The photo is only scanned once the menu language is picked
+    if (menuLanguageSelect.value) {
+      extractImageInfo(file);
+    } else {
+      showErrorModal('Pick the Menu Language', 'Choose the language of the menu above the photo. The photo will be scanned right after.');
+    }
   }
 
   // Prevent fileInput from opening when clicking removeBtn or selectedDishCard
@@ -265,6 +272,11 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     fileInput.click();
+  });
+
+  // Picking (or changing) the menu language scans the photo with that language
+  menuLanguageSelect.addEventListener('change', () => {
+    if (fileInput.files[0]) extractImageInfo(fileInput.files[0]);
   });
 
   fileInput.addEventListener('change', () => {
@@ -340,6 +352,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!fileInput.files[0]) {
       event.preventDefault();
       showErrorModal('Upload a Photo', 'Upload a photo of a menu first so we can find the dish and its country.');
+      return;
+    }
+    if (!menuLanguageSelect.value) {
+      event.preventDefault();
+      showErrorModal('Pick the Menu Language', 'Choose the language of the menu so the photo can be scanned.');
       return;
     }
     if (!hiddenDishInput.value || !originSelect.value) {
