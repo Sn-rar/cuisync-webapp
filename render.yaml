@@ -1,0 +1,26 @@
+# Render blueprint for the CuiSync web app (free plan).
+# The OCR runs on a Hugging Face Space; this service calls it through OCR_API_URL.
+services:
+  - type: web
+    name: cuisync
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-render.txt && python fetch_data.py
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 300
+    healthCheckPath: /faqs
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: OPENAI_MODEL
+        value: gpt-4o
+      # Filled in on the Render dashboard (kept secret, not in GitHub):
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OCR_API_URL       # e.g. https://your-username-cuisync-ocr.hf.space
+        sync: false
+      - key: OCR_API_TOKEN     # same password you set on the Space
+        sync: false
+      - key: HF_DATA_REPO      # e.g. your-username/cuisync-data
+        sync: false
+      - key: HF_TOKEN          # Hugging Face read token (the data repo is private)
+        sync: false

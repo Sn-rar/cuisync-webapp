@@ -53,6 +53,11 @@ if _missing:
         + ". Download them from the Drive folder in the README (step 4)."
     )
 MATCHER = SoftMatcher(app.root_path, RECIPES)
+
+# On Render the app is started by gunicorn, so the __main__ block at the bottom
+# never runs. Wake the OCR Space up in the background so the first upload is faster.
+if ocr.OCR_API_URL and __name__ != "__main__":
+    threading.Thread(target=ocr.warm_up, daemon=True).start()
 if len(MATCHER) != len(RECIPES):
     raise RuntimeError(
         f"recipes.json has {len(RECIPES)} recipes but the exported files describe "

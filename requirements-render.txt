@@ -1,0 +1,23 @@
+# Packages for the Render web app. The OCR (PaddleOCR) runs on the
+# Hugging Face Space instead (see hf_space/), so it is NOT installed here.
+# For running everything on your own computer, keep using requirements.txt.
+
+Flask>=3.0.0,<4.0.0
+gunicorn>=22.0.0
+requests>=2.31.0
+
+numpy>=1.24.0
+opencv-python-headless>=4.8.0
+
+# Romanization (non-Latin menu text -> Latin letters) still runs here
+indic-transliteration>=2.3.82
+Unidecode>=1.3.8
+pykakasi>=2.3.0
+pythainlp>=5.0.0,<6.0.0
+
+# AI explanation (GPT-4o via explainer.py)
+openai>=1.40.0
+python-dotenv>=1.0.0
+
+# Downloads the dataset files during the build (fetch_data.py)
+huggingface_hub>=0.24.0
