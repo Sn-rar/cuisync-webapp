@@ -26,7 +26,12 @@ OCR_API_TOKEN = os.environ.get("OCR_API_TOKEN", "").strip()
 # A sleeping Space can take a minute or two to wake up, so wait this long
 OCR_API_TIMEOUT = float(os.environ.get("OCR_API_TIMEOUT", "240"))
 
-if not OCR_API_URL:
+if OCR_API_URL:
+    # Imported here, once, when the app starts. Importing it inside the function
+    # broke when two threads (the wake-up and an upload) imported it at the same
+    # time ("partially initialized module 'requests'").
+    import requests
+else:
     from paddleocr import TextDetection, TextRecognition
     from paddlex.inference.pipelines.components import CropByPolys, SortQuadBoxes
 
@@ -294,7 +299,6 @@ if not OCR_API_URL:
 def _remote_request(method, path, **kwargs):
     """Call the OCR Space. While the Space is waking up it answers with
     errors like 503, so keep trying until OCR_API_TIMEOUT runs out."""
-    import requests
 
     headers = {"Authorization": f"Bearer {OCR_API_TOKEN}"} if OCR_API_TOKEN else {}
     deadline = time.monotonic() + OCR_API_TIMEOUT
