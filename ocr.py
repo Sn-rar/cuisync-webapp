@@ -282,7 +282,10 @@ def prepare_ocr_image(image, max_side=1600):
 
 
 # Settings shared by every model
-_COMMON_MODEL_KWARGS = dict(engine="paddle_static")
+# enable_mkldnn=False: on Linux servers with Intel/AMD CPUs (like the Hugging
+# Face Space), Paddle 3.3's MKLDNN speed-up crashes with "ConvertPirAttribute2
+# RuntimeAttribute not support". Macs don't use MKLDNN, so this changes nothing there.
+_COMMON_MODEL_KWARGS = dict(engine="paddle_static", enable_mkldnn=False)
 
 _DETECTOR = None
 _RECOGNIZERS = {}            # model name -> loaded model

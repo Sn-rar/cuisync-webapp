@@ -128,7 +128,7 @@
       <form class="search-form" id="image-search-form" action="/search-image" method="POST" enctype="multipart/form-data">
         
         <input type="hidden" name="extracted_dish_name" id="hidden-dish-name">
-
+        
         <div class="upload-dropzone" id="dropzone">
           <input type="file" id="image-upload-input" name="dish_image" accept="image/*" hidden>
           
@@ -191,11 +191,13 @@
 
         <div class="form-row">
           <div class="form-group half-width">
-            <label for="img-origin">COUNTRY OF ORIGIN</label>
-            <!-- Picked by the user. The OCR reads the photo with this
-                 country's language model only, and only its dishes are matched. -->
-            <select id="img-origin" name="origin_country" required>
-              <option value="" disabled selected>Select country of origin...</option>
+            <label id="img-origin-label">COUNTRY OF ORIGIN</label>
+            <!-- Filled in automatically from the dish found in the photo, so it
+                 isn't a dropdown. The hidden select still sends the value. -->
+            <div id="img-origin-display" class="origin-display is-placeholder"
+                 role="status" aria-live="polite" aria-labelledby="img-origin-label">Country of Origin</div>
+            <select id="img-origin" name="origin_country" class="origin-select-hidden" tabindex="-1" aria-hidden="true">
+              <option value="" disabled selected>Country of Origin</option>
               <option value="cambodia">Cambodia</option>
               <option value="china">China</option>
               <option value="india">India</option>
