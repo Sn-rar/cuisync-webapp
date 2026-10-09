@@ -55,7 +55,7 @@
               <span class="faq-toggle">+</span>
             </button>
             <div class="faq-answer">
-              <p>CUISYNC is designed for food researchers, culinary students, cultural anthropologists, and anyone curious about the connections between Asian cuisines. It is equally useful for home cooks looking to substitute or explore dishes across different cultural traditions.</p>
+              <p>Cuisync is a food recommendation system designed to encourage individuals to explore foreign cuisines by providing grounded explanations of cuisine similarities through the use of natural language processing techniques and large language models.</p>
             </div>
           </div>
 
@@ -65,7 +65,7 @@
               <span class="faq-toggle">+</span>
             </button>
             <div class="faq-answer">
-              <p>It is built for researchers, food enthusiasts, students, and chefs interested in exploring relational patterns and shared heritage across Asian culinary traditions.</p>
+              <p>Cuisync is designed for home cooks, general consumers, food enthusiasts, and food industry professionals.</p>
             </div>
           </div>
         </div>
@@ -80,7 +80,7 @@
               <span class="faq-toggle">+</span>
             </button>
             <div class="faq-answer">
-              <p>Navigate to the search or analysis page, select the target countries or dish categories, and submit your query to generate an analysis breakdown.</p>
+              <p>From the Home page, select a Dish, its Origin Country, and your Target Country which the country you want to find similar dishes in, then click Search New DIsh.  Cuisync will then display the closest matching dish in the target country based on our gathered data along with a breakdown of ingredient and cooking process similarities as well as a geographic display of other similar dishes.</p>
             </div>
           </div>
 
@@ -90,7 +90,7 @@
               <span class="faq-toggle">+</span>
             </button>
             <div class="faq-answer">
-              <p>Currently, CUISYNC focuses on major Asian cuisines including Cambodia, China, India, Indonesia, Japan, Malaysia, Myanmar, Philippines, Saudi Arabia, South Korea, Turkey, Thailand, and Vietnam.</p>
+              <p>Cuisync currently supports cuisines from selected Asian countries, including Cambodia, China, India, Indonesia, Japan, Malaysia, the Philippines, Saudi Arabia, South Korea, Turkey, and Vietnam.</p>
             </div>
           </div>
 
@@ -100,7 +100,7 @@
               <span class="faq-toggle">+</span>
             </button>
             <div class="faq-answer">
-              <p>The core dataset and interface operate primarily in English, with support for original culinary terminology and regional dish titles.</p>
+              <p>Cuisync supports the processing of multiple languages, including English, Hindi, Arabic, Japanese, Korean, Chinese, Vietnamese, Thai, Malay, and Khmer, by integrating Google Translate for language translation.</p>
             </div>
           </div>
         </div>
@@ -115,7 +115,7 @@
               <span class="faq-toggle">+</span>
             </button>
             <div class="faq-answer">
-              <p>Data is compiled from curated culinary databases, academic publications, and verified regional recipe repositories.</p>
+              <p>Recipe data is sourced from a curated combination of culinary datasets, such as RecipeNLG and INDoRI.</p>
             </div>
           </div>
         </div>
@@ -130,7 +130,7 @@
               <span class="faq-toggle">+</span>
             </button>
             <div class="faq-answer">
-              <p>The score quantifies shared botanical, chemical, and procedural elements between dishes on a percentage scale.</p>
+              <p>The Overall Similarity Score is a weighted average that reflects how closely two dishes resemble each other across two dimensions: ingredients and cooking actions. Additionally, SHAP (SHapley Additive exPlanations) values are used to determine the contribution of each entity, identifying which had the greatest influence on the overall similarity score.</p>
             </div>
           </div>
 
@@ -140,7 +140,7 @@
               <span class="faq-toggle">+</span>
             </button>
             <div class="faq-answer">
-              <p>Calculations weigh overlapping ingredients, seasoning profiles, primary cooking techniques, and preparation steps using custom AI metrics.</p>
+              <p>The similarity are calculated based on the dishes entities, which are represented as word embeddings that are used to compute for the cosine similarity, similarities with the recipe names, raritiy of ingredients or idf which also affects the weights of the similarity analysis.</p>
             </div>
           </div>
 
@@ -150,7 +150,7 @@
               <span class="faq-toggle">+</span>
             </button>
             <div class="faq-answer">
-              <p>Entities are extracted and mapped against a standardized taxonomy to cross-reference direct matches and unique local variations.</p>
+              <p>In the Extracted Entities section, ingredient and cooking instruction tags are color-coded to indicate their relationship between the two dishes: gold represents entities shared by both dishes, red represents entities unique to the origin cuisine, and green represents entities unique to the target cuisine.</p>
             </div>
           </div>
         </div>
@@ -165,7 +165,7 @@
               <span class="faq-toggle">+</span>
             </button>
             <div class="faq-answer">
-              <p>CUISYNC uses specialized LLM prompts fine-tuned on food science and culinary domain knowledge to summarize complex similarity factors.</p>
+              <p>Similarity descriptions are generated using GPT-4o based on the extracted ingredients and cooking processes of both dishes. Each explanation is labeled with an “AI Explanation” badge to clearly indicate that the content is AI-generated, allowing users to distinguish it from factual data.</p>
             </div>
           </div>
 
@@ -175,7 +175,7 @@
               <span class="faq-toggle">+</span>
             </button>
             <div class="faq-answer">
-              <p>Yes. Visualizations directly represent processed recipe structures and similarity matrix outcomes from the underlying data store.</p>
+              <p>Yes, it is based on the gathered data obtained through system queries, evaluations, and similarity score results computed from the extracted entities.</p>
             </div>
           </div>
         </div>
@@ -190,7 +190,7 @@
               <span class="faq-toggle">+</span>
             </button>
             <div class="faq-answer">
-              <p>No personal usage tracking or private profile collection is required to explore recipe comparisons on the platform.</p>
+              <p>Cuisync does not collect personal data and does not require users to sign in. It functions solely as a tool for discovering similar cuisines across Asia, providing evidence-based insights.</p>
             </div>
           </div>
         </div>

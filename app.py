@@ -415,7 +415,7 @@ def get_search_results(dish_name, origin_country, target_country, force=False, r
 @app.route("/api/explain-pin")
 def explain_pin():
     """
-    GPT explanation for ONE dish on the map (regional variation / international similarity),
+    GPT explanation for ONE dish on the map (regional similarity / international similarity),
     compared with the searched dish. Same pipeline as the main match: cleaned evidence ->
     cache -> GPT-4o -> grounding check. The scores are recomputed here from the recipe
     indices, so the browser cannot influence what is sent to GPT.

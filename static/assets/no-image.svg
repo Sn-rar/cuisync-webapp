@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
+  <rect width="400" height="300" fill="#e2d8cd"/>
+  <g fill="none" stroke="#a39686" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="200" cy="128" r="50"/>
+    <circle cx="200" cy="128" r="31"/>
+    <path d="M122 88v36m-10-36v22a10 10 0 0 0 20 0V88M122 120v58"/>
+    <path d="M288 88c-12 0-16 18-16 36h16M288 88v90"/>
+  </g>
+  <text x="200" y="222" text-anchor="middle" font-family="Poppins, Arial, sans-serif" font-size="20" font-weight="600" letter-spacing="1" fill="#7a6f63">NO IMAGE AVAILABLE</text>
+</svg>

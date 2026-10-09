@@ -79,11 +79,17 @@
           <a href="{{ url_for('home') }}" class="btn-search-new">SEARCH NEW CUISINE</a>
         </div>
 
+        <p class="recipe-availability-note">
+          External recipe links and images are limited and subject to availability.
+          Some dishes may not have an active link.
+        </p>
+
         <div class="comparison-grid">
           <!-- Left Card: Original/Source Dish -->
           <div class="dish-card">
             <div class="dish-img-wrapper">
-              <img src="{{ source_dish.image_link if source_dish.image_link else '' }}"
+              <img src="{{ source_dish.image_link if source_dish.image_link else url_for('static', filename='assets/no-image.svg') }}"
+                   onerror="this.onerror=null;this.src='{{ url_for('static', filename='assets/no-image.svg') }}'"
                    alt="{{ source_dish.title }}"
                    referrerpolicy="no-referrer">
               <span class="img-badge">{{ source_dish.country_region }}, {{ source_dish.country }}</span>
@@ -101,6 +107,8 @@
                     LINK TO RECIPE
                   </a>
                 </div>
+              {% else %}
+                <p class="no-recipe-link">No recipe link available yet</p>
               {% endif %}
             </div>
           </div>
@@ -114,7 +122,8 @@
           <!-- Right Card: Recommended/Target Country Dish -->
           <div class="dish-card">
             <div class="dish-img-wrapper">
-              <img src="{{ recommended_dish.image_link if (recommended_dish and recommended_dish.image_link) else '' }}"
+              <img src="{{ recommended_dish.image_link if (recommended_dish and recommended_dish.image_link) else url_for('static', filename='assets/no-image.svg') }}"
+                   onerror="this.onerror=null;this.src='{{ url_for('static', filename='assets/no-image.svg') }}'"
                    alt="{% if recommended_dish %}{{ recommended_dish.title }}{% endif %}"
                    referrerpolicy="no-referrer">
               <span class="img-badge">{% if recommended_dish %}{{ source_dish.country_region }}, {{ recommended_dish.country }}{% endif %}</span>
@@ -133,6 +142,8 @@
                     LINK TO RECIPE
                   </a>
                 </div>
+              {% else %}
+                <p class="no-recipe-link">No recipe link available yet</p>
               {% endif %}
             </div>
           </div>
@@ -313,7 +324,7 @@
     
     <!-- COLLAPSIBLE LEFT SIDEBAR PANEL -->
     <aside class="map-panel-left" id="mapSidebar">
-      <button type="button" class="btn-toggle-sidebar" id="toggleSidebar" aria-label="Toggle Panel">
+      <button type="button" class="btn-toggle-sidebar" id="toggleSidebar" aria-label="Toggle Panel" aria-controls="mapSidebar" aria-expanded="true">
         <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <polyline points="15 18 9 12 15 6"></polyline>
         </svg>
@@ -429,7 +440,7 @@
         </button>
         <button type="button" class="map-filter-pill map-filter-pill--regional active" data-layer="regional" role="switch" aria-checked="true">
           <span class="pill-switch" aria-hidden="true"></span>
-          <span class="pill-label">REGIONAL VARIATIONS</span>
+          <span class="pill-label">REGIONAL SIMILARITIES</span>
         </button>
         <button type="button" class="map-filter-pill map-filter-pill--international active" data-layer="international" role="switch" aria-checked="true">
           <span class="pill-switch" aria-hidden="true"></span>
@@ -493,6 +504,15 @@
     });
   </script>
 
+<script>
+  // Placeholder for dishes with no image, or whose image link no longer works.
+  const NO_IMAGE_SRC = "{{ url_for('static', filename='assets/no-image.svg') }}";
+  function setDishImage(img, link) {
+    img.onerror = () => { img.onerror = null; img.src = NO_IMAGE_SRC; };
+    img.src = link || NO_IMAGE_SRC;
+  }
+</script>
+
 <script type="application/json" id="map-data">
   {{ {
     "sourceDish": source_dish,
@@ -515,6 +535,14 @@
     const modal = document.getElementById('mapModal');
     const toggleSidebarBtn = document.getElementById('toggleSidebar');
     const sidebar = document.getElementById('mapSidebar');
+
+    // Open or collapse the map panel. The chevron on the toggle button follows
+    // the .collapsed class in CSS, so it always matches the panel.
+    function setSidebarOpen(open) {
+      if (!sidebar) return;
+      sidebar.classList.toggle('collapsed', !open);
+      if (toggleSidebarBtn) toggleSidebarBtn.setAttribute('aria-expanded', String(open));
+    }
     const modalMapBody = document.getElementById('modalMapBody');
     const mapPanWrapper = document.querySelector('.map-pan-wrapper');
     const originalMapPlaceholder = document.querySelector('.map-pan-wrapper .map-placeholder');
@@ -687,7 +715,7 @@
       return `<strong>${src}</strong> and <strong>${tgt}</strong>${lead || ' compared.'} ${parts.join(' ')}`;
     }
 
-    // GPT summaries for the pins (regional variations / international similarities).
+    // GPT summaries for the pins (regional similarities / international similarities).
     // Fetched from /api/explain-pin when a pin is selected, then kept for the rest of the visit.
     const PIN_EXPL_CACHE = new Map();   // recipe idx -> { explanation, source }
     let pinExplToken = 0;               // lets a late answer be ignored if another pin was clicked
@@ -804,12 +832,9 @@
       // Dish Image
       const imgElem = document.getElementById('modalDishImg');
       if (imgElem) {
-        if (dish.image_link) {
-          imgElem.src = dish.image_link;
-          imgElem.style.display = 'block';
-        } else {
-          imgElem.style.display = 'none';
-        }
+        // Shows the "no image" placeholder if the dish has no image or it fails to load
+        setDishImage(imgElem, dish.image_link);
+        imgElem.style.display = 'block';
       }
 
       // External Recipe Link
@@ -821,6 +846,16 @@
         } else {
           linkElem.style.display = 'none';
         }
+        // "No recipe link available yet" message when the dish has no link
+        let noLinkElem = document.getElementById('modalNoRecipeLink');
+        if (!noLinkElem) {
+          noLinkElem = document.createElement('span');
+          noLinkElem.id = 'modalNoRecipeLink';
+          noLinkElem.className = 'no-recipe-link';
+          noLinkElem.textContent = 'No recipe link available yet';
+          linkElem.insertAdjacentElement('afterend', noLinkElem);
+        }
+        noLinkElem.style.display = dish.recipe_link ? 'none' : '';
       }
 
       // Dynamic dish names in entity legend
@@ -862,7 +897,7 @@
     }
 
     // ==================================
-    // MAP PINS: build a pin for the main dish, top 3 regional variations,
+    // MAP PINS: build a pin for the main dish, top 3 regional similarities,
     // and top 5 international similarities, drop them on the map (randomized
     // within their country's shape), and wire up hover preview + click.
     // ==================================
@@ -1071,7 +1106,7 @@
       // Touch screens: tapping a pin must not pop up the preview card.
       if (window.matchMedia('(hover: none)').matches) return;
 
-      tooltipImg.src = dish.image_link || '';
+      setDishImage(tooltipImg, dish.image_link);
       tooltipTitle.textContent = dish.title || 'Unknown Dish';
       tooltipMeta.textContent = `${dish.region || 'No Specific'} \u2022 ${dish.country || ''}`;
       if (dish === MAP_DATA.sourceDish) {
@@ -1118,7 +1153,7 @@
       pin.setAttribute('aria-label', `${dish.title || 'Dish'} (${dish.country || ''})`);
 
       const img = document.createElement('img');
-      img.src = dish.image_link || '';
+      setDishImage(img, dish.image_link);
       img.alt = dish.title || '';
       img.referrerPolicy = 'no-referrer';
       img.draggable = false;
@@ -1134,6 +1169,8 @@
         document.querySelectorAll('.map-pin.is-active').forEach(p => p.classList.remove('is-active'));
         pin.classList.add('is-active');
         updateSidebarDish(dish);
+        // Reopen the panel if it was collapsed, so the new dish is visible.
+        setSidebarOpen(true);
       });
 
       pinsLayer.appendChild(pin);
@@ -1467,7 +1504,7 @@
 
         resetMapTransform();
         updateSidebarDish(activeDish);
-        if (sidebar) sidebar.classList.remove('collapsed');
+        setSidebarOpen(true);
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
         requestAnimationFrame(refreshWorldMap);
@@ -1502,7 +1539,7 @@
     // Sidebar Collapsible Toggle
     if (toggleSidebarBtn && sidebar) {
       toggleSidebarBtn.addEventListener('click', () => {
-        sidebar.classList.toggle('collapsed');
+        setSidebarOpen(sidebar.classList.contains('collapsed'));
       });
     }
 

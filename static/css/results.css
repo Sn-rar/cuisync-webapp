@@ -226,6 +226,23 @@
   margin-top: auto;
 }
 
+/* Small muted note above the dish cards (recipe links/images may be missing) */
+.recipe-availability-note {
+  font-size: 0.72rem;
+  line-height: 1.5;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.6);
+  margin: -12px 0 20px;
+}
+
+/* Shown instead of the recipe button when a dish has no link */
+.no-recipe-link {
+  margin-top: auto;
+  font-size: 0.68rem;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
 .btn-primary-action {
   width: 100%;
   display: flex;
@@ -727,7 +744,7 @@
   z-index: 4;
 }
 
-/* Regional variation pins: green ring */
+/* Regional similarity pins: green ring */
 .map-pin--regional {
   border-color: #2d6b4f;
 }

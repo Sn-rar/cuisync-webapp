@@ -86,7 +86,7 @@ class AppFooter extends HTMLElement {
           <div class="footer-col">
             <h4 class="footer-heading">EXPLORE</h4>
             <ul class="footer-links">
-              <li><a href="/index">Home</a></li>
+              <li><a href="/home">Home</a></li>
               <li><a href="/analysis">Analysis</a></li>
               <li><a href="/faqs">FAQS</a></li>
             </ul>

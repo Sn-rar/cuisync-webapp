@@ -64,7 +64,7 @@
             <div class="map-legend">
               <span>0</span>
               <div class="legend-bar"></div>
-              <span>300</span>
+              <span>900</span>
             </div>
             <div id="country-map-pins"></div>
           </div>
@@ -488,7 +488,10 @@
         ...Array.from(countsByMapName.values()).map(entry => entry.count)
       );
 
-      if (legendMax) legendMax.textContent = formatAnalysisNumber(maxCount);
+      // The legend and the colours use a fixed 0-900 range (not the biggest
+      // country count), so the numbers on the legend match the map colours.
+      const LEGEND_MAX = 900;
+      if (legendMax) legendMax.textContent = formatAnalysisNumber(LEGEND_MAX);
 
       // 2. Load the world shapes.
       let topology;
@@ -517,9 +520,9 @@
 
       const path = d3.geoPath(projection);
 
-      // Same three colours as the legend bar: light -> mid -> dark. (From 0 to maxCount which is 192.)
+      // Same three colours as the legend bar: light -> mid -> dark. (From 0 to 900, same as the legend.)
       const colorScale = d3.scaleLinear()
-        .domain([0, maxCount / 2, maxCount])
+        .domain([0, LEGEND_MAX / 2, LEGEND_MAX])
         .range(["#ecd3bf", "#a32e32", "#800d12"])
         .clamp(true);
 
